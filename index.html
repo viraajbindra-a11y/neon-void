@@ -503,7 +503,7 @@
         class Trail {
             constructor(x, y, c) { this.x = x; this.y = y; this.c = c; this.life = 1; this.decay = 0.1; }
             update() { this.life -= this.decay; }
-            draw(ctx) { ctx.globalAlpha = Math.max(0, this.life * 0.5); ctx.fillStyle = this.c; ctx.beginPath(); ctx.arc(this.x, this.y, 8 * this.life, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1; }
+            draw(ctx) { if (this.life <= 0) return; ctx.globalAlpha = this.life * 0.5; ctx.fillStyle = this.c; ctx.beginPath(); ctx.arc(this.x, this.y, 8 * this.life, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1; }
         }
 
 
@@ -1134,7 +1134,7 @@
             try {
                 for(let f = 0; f < framesToRun; f++) {
                     state.frame++; 
-                    if (f === framesToRun - 1) { ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.globalCompositeOperation = 'lighter'; entities.stars.forEach(s => { s.draw(ctx); }); } 
+                    if (f === framesToRun - 1) { ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.globalCompositeOperation = 'lighter'; entities.stars.forEach(s => { s.draw(ctx); }); ctx.globalCompositeOperation = 'source-over'; }
                     entities.stars.forEach(s => { s.update(); });
                     
                     if (f === framesToRun - 1) { ctx.save(); if (state.shake > 0) { ctx.translate((Math.random()-0.5)*state.shake, (Math.random()-0.5)*state.shake); state.shake *= 0.85; if(state.shake < 0.5) state.shake = 0; } }
