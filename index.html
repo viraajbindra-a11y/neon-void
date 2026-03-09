@@ -561,8 +561,30 @@
         }
 
 
+        // Seeded PRNG (mulberry32) for deterministic enemy spawning in multiplayer
+        function mulberry32(seed) {
+            return function() {
+                seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+                let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+                t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+                return ((t ^ t >>> 14) >>> 0) / 4294967296;
+            };
+        }
+        let seededRng = null;
+        function gameRng() { return (seededRng && mpState && mpState.active) ? seededRng() : Math.random(); }
+
+        // Interpolation helpers for smooth remote player movement
+        function lerp(a, b, t) { return a + (b - a) * t; }
+        function lerpAngle(a, b, t) {
+            let diff = b - a;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            return a + diff * t;
+        }
+
         let player, activeBoss = null, activeOrbitalStrike = null;
         let entities = { bullets: [], enemies: [], eBullets: [], particles: [], powerups: [], texts: [], stars: [], trails: [] };
+        let enemyIdCounter = 0;
 
 
         function shakeScreen(amt) { state.shake = Math.max(state.shake, amt); }
@@ -949,7 +971,7 @@
         class Enemy {
             constructor(x, y, typeName) {
                 this.x = x; this.y = y; this.type = typeName; const base = ENEMY_TYPES[typeName]; let hpMult = state.hardcore ? 2.0 : 1.0; let spdMult = state.hardcore ? 1.3 : 1.0;
-                this.hp = base.hp * state.difficulty * hpMult; this.maxHp = this.hp; this.speed = base.spd * spdMult; this.color = base.color; this.radius = base.r; this.xp = base.xp; this.angle = 0; this.timer = Math.floor(Math.random() * 60); this.frozen = 0; this.alpha = 1.0;
+                this.hp = base.hp * state.difficulty * hpMult; this.maxHp = this.hp; this.speed = base.spd * spdMult; this.color = base.color; this.radius = base.r; this.xp = base.xp; this.angle = 0; this.timer = Math.floor(gameRng() * 60); this.frozen = 0; this.alpha = 1.0; this.id = ++enemyIdCounter;
             }
             
             update() {
@@ -1106,9 +1128,10 @@
                 let idx = entities.enemies.indexOf(e);
                 if (idx === -1) return; 
                 
-                entities.enemies.splice(idx, 1); 
-                
-                spawnParticles(e.x, e.y, e.color, 20); 
+                entities.enemies.splice(idx, 1);
+                if (mpState.active) broadcast({ type: 'enemy-killed', enemyId: e.id, enemyType: e.type, ex: e.x, ey: e.y });
+
+                spawnParticles(e.x, e.y, e.color, 20);
                 playSound('hit'); 
                 
                 state.score += e.xp * 10 * state.combo; 
@@ -1196,18 +1219,20 @@
         }
 
 
-        function spawnWave() { 
-            if (state.mode === 'training') { if (entities.enemies.length < 5 && state.frame % 120 === 0) { entities.enemies.push(new Enemy((Math.random() * (canvas.width - 200)) + 100, (Math.random() * (canvas.height - 200)) + 100, 'dummy')); } return; } 
-            if (state.warping || activeBoss || state.spawningBoss) return; 
-            let spawnRate = Math.max(10, 50 - state.level * 2); let maxEnemies = 25 + state.level * 3; 
-            if (state.frame % spawnRate === 0 && entities.enemies.length < maxEnemies) { 
-                let x = Math.random() < 0.5 ? (Math.random()<0.5 ? -100 : canvas.width+100) : Math.random()*canvas.width; 
-                let y = (x < 0 || x > canvas.width) ? Math.random()*canvas.height : (Math.random()<0.5 ? -100 : canvas.height+100); 
-                let roll = Math.random(); let type = 'chaser'; 
-                if (state.level > 2 && roll > 0.5) type = 'shooter'; if (state.level > 4 && roll > 0.65) type = 'rammer'; if (state.level > 5 && roll > 0.75) type = 'sniper'; if (state.level > 6 && roll > 0.85) type = 'ghost'; if (state.level > 7 && roll > 0.9) type = 'heavy_shooter'; if (state.level > 8 && roll > 0.92) type = 'pulsar'; if (state.level > 9 && roll > 0.95) type = 'tank'; if (state.level > 10 && roll > 0.97) type = 'mine'; if (state.level > 12 && roll > 0.98) type = 'teleporter'; if (state.level > 15 && roll > 0.99) type = 'bad'; 
-                entities.enemies.push(new Enemy(x, y, type)); 
-            } 
-            if (state.level >= state.nextBossLevel) { state.spawningBoss = true; ui.bossAlert.style.display = 'block'; playSound('hit'); setTimeout(() => { ui.bossAlert.style.display = 'none'; entities.enemies = []; activeBoss = new Boss(state.bossesDefeated); state.spawningBoss = false; }, 3000); } 
+        function spawnWave() {
+            if (state.mode === 'training') { if (entities.enemies.length < 5 && state.frame % 120 === 0) { entities.enemies.push(new Enemy((gameRng() * (canvas.width - 200)) + 100, (gameRng() * (canvas.height - 200)) + 100, 'dummy')); } return; }
+            if (state.warping || activeBoss || state.spawningBoss) return;
+            let spawnRate = Math.max(10, 50 - state.level * 2); let maxEnemies = 25 + state.level * 3;
+            if (state.frame % spawnRate === 0 && entities.enemies.length < maxEnemies) {
+                // Always consume exactly 5 RNG values per spawn for determinism across clients
+                let r1 = gameRng(), r2 = gameRng(), r3 = gameRng(), r4 = gameRng(), r5 = gameRng();
+                let x = r1 < 0.5 ? (r2 < 0.5 ? -100 : canvas.width+100) : r3 * canvas.width;
+                let y = (x < 0 || x > canvas.width) ? r4 * canvas.height : (r4 < 0.5 ? -100 : canvas.height+100);
+                let roll = r5; let type = 'chaser';
+                if (state.level > 2 && roll > 0.5) type = 'shooter'; if (state.level > 4 && roll > 0.65) type = 'rammer'; if (state.level > 5 && roll > 0.75) type = 'sniper'; if (state.level > 6 && roll > 0.85) type = 'ghost'; if (state.level > 7 && roll > 0.9) type = 'heavy_shooter'; if (state.level > 8 && roll > 0.92) type = 'pulsar'; if (state.level > 9 && roll > 0.95) type = 'tank'; if (state.level > 10 && roll > 0.97) type = 'mine'; if (state.level > 12 && roll > 0.98) type = 'teleporter'; if (state.level > 15 && roll > 0.99) type = 'bad';
+                entities.enemies.push(new Enemy(x, y, type));
+            }
+            if (state.level >= state.nextBossLevel) { state.spawningBoss = true; ui.bossAlert.style.display = 'block'; playSound('hit'); setTimeout(() => { ui.bossAlert.style.display = 'none'; entities.enemies = []; activeBoss = new Boss(state.bossesDefeated); state.spawningBoss = false; }, 3000); }
         }
 
 
@@ -1549,7 +1574,8 @@
             hostPeerId: '',
             gameStarted: false,
             raceStartTime: 0,
-            raceResults: []
+            raceResults: [],
+            seed: 0
         };
 
         function generateCode() {
@@ -1585,7 +1611,7 @@
                     conn.send({ type: 'lobby-info', code: mpState.lobbyCode, mode: mpState.mode, host: currentUsername, hostPeerId: peer.id, players: mpState.players });
                 }
                 // Add self info to players list
-                mpState.players[conn.peer] = mpState.players[conn.peer] || { name: '???', x: 0, y: 0, angle: 0, hp: 100, maxHp: 100, alive: true, color: '#ffffff', raceTime: 0 };
+                mpState.players[conn.peer] = mpState.players[conn.peer] || { name: '???', x: 0, y: 0, angle: 0, hp: 100, maxHp: 100, alive: true, color: '#ffffff', raceTime: 0, targetX: 0, targetY: 0, targetAngle: 0, displayX: 0, displayY: 0, displayAngle: 0 };
                 broadcastLobbyUpdate();
                 updateLobbyUI();
             });
@@ -1594,7 +1620,7 @@
         function handlePeerData(conn, data) {
             switch(data.type) {
                 case 'join-request':
-                    mpState.players[conn.peer] = { name: data.name, x: canvas.width/2, y: canvas.height/2, angle: 0, hp: 500, maxHp: 500, alive: true, color: data.color || '#ffffff', raceTime: 0 };
+                    mpState.players[conn.peer] = { name: data.name, x: canvas.width/2, y: canvas.height/2, angle: 0, hp: 500, maxHp: 500, alive: true, color: data.color || '#ffffff', raceTime: 0, targetX: canvas.width/2, targetY: canvas.height/2, targetAngle: 0, displayX: canvas.width/2, displayY: canvas.height/2, displayAngle: 0 };
                     broadcastLobbyUpdate();
                     updateLobbyUI();
                     break;
@@ -1603,7 +1629,7 @@
                     mpState.mode = data.mode;
                     mpState.hostPeerId = data.hostPeerId;
                     mpState.players = data.players;
-                    mpState.players[peer.id] = { name: currentUsername, x: canvas.width/2, y: canvas.height/2, angle: 0, hp: 500, maxHp: 500, alive: true, color: (SKINS[equippedSkin] || SKINS['default']).color, raceTime: 0 };
+                    mpState.players[peer.id] = { name: currentUsername, x: canvas.width/2, y: canvas.height/2, angle: 0, hp: 500, maxHp: 500, alive: true, color: (SKINS[equippedSkin] || SKINS['default']).color, raceTime: 0, targetX: canvas.width/2, targetY: canvas.height/2, targetAngle: 0, displayX: canvas.width/2, displayY: canvas.height/2, displayAngle: 0 };
                     updateLobbyUI();
                     break;
                 case 'lobby-update':
@@ -1613,16 +1639,18 @@
                 case 'game-start':
                     mpState.gameStarted = true;
                     mpState.mode = data.mode;
+                    mpState.seed = data.seed;
                     launchMultiplayerGame();
                     break;
                 case 'player-state':
                     if (mpState.players[conn.peer]) {
-                        mpState.players[conn.peer].x = data.x;
-                        mpState.players[conn.peer].y = data.y;
-                        mpState.players[conn.peer].angle = data.angle;
-                        mpState.players[conn.peer].hp = data.hp;
-                        mpState.players[conn.peer].maxHp = data.maxHp;
-                        mpState.players[conn.peer].alive = data.alive;
+                        let p = mpState.players[conn.peer];
+                        p.targetX = data.x;
+                        p.targetY = data.y;
+                        p.targetAngle = data.angle;
+                        p.hp = data.hp;
+                        p.maxHp = data.maxHp;
+                        p.alive = data.alive;
                     }
                     break;
                 case 'player-died':
@@ -1640,6 +1668,21 @@
                     delete mpState.players[conn.peer];
                     broadcastLobbyUpdate();
                     updateLobbyUI();
+                    break;
+                case 'enemy-killed':
+                    let eidx = entities.enemies.findIndex(en => en.id === data.enemyId);
+                    if (eidx > -1) {
+                        let de = entities.enemies[eidx];
+                        spawnParticles(de.x, de.y, de.color, 20);
+                        entities.enemies.splice(eidx, 1);
+                        if (de.type === 'bad') {
+                            entities.enemies.push(new Enemy(de.x - 30, de.y - 30, 'tank'));
+                            entities.enemies.push(new Enemy(de.x + 30, de.y - 30, 'tank'));
+                            entities.enemies.push(new Enemy(de.x - 30, de.y + 30, 'sniper'));
+                            entities.enemies.push(new Enemy(de.x, de.y + 30, 'sniper'));
+                            entities.enemies.push(new Enemy(de.x + 30, de.y + 30, 'sniper'));
+                        }
+                    }
                     break;
             }
         }
@@ -1676,7 +1719,7 @@
 
             initPeer(() => {
                 mpState.hostPeerId = peer.id;
-                mpState.players[peer.id] = { name: currentUsername, x: canvas.width/2, y: canvas.height/2, angle: 0, hp: 500, maxHp: 500, alive: true, color: (SKINS[equippedSkin] || SKINS['default']).color, raceTime: 0 };
+                mpState.players[peer.id] = { name: currentUsername, x: canvas.width/2, y: canvas.height/2, angle: 0, hp: 500, maxHp: 500, alive: true, color: (SKINS[equippedSkin] || SKINS['default']).color, raceTime: 0, targetX: canvas.width/2, targetY: canvas.height/2, targetAngle: 0, displayX: canvas.width/2, displayY: canvas.height/2, displayAngle: 0 };
                 // Store lobby code -> peer ID mapping in the peer's metadata
                 localStorage.setItem('nv_lobby_' + mpState.lobbyCode, peer.id);
 
@@ -1720,7 +1763,7 @@
                     conn.on('close', () => {
                         handlePeerDisconnect(conn);
                         if (mpState.active) {
-                            mpState.active = false;
+                            mpState.active = false; seededRng = null;
                             returnToMenu();
                         }
                     });
@@ -1770,7 +1813,7 @@
 
             initPeerAsHost(() => {
                 mpState.hostPeerId = peer.id;
-                mpState.players[peer.id] = { name: currentUsername, x: canvas.width/2, y: canvas.height/2, angle: 0, hp: 500, maxHp: 500, alive: true, color: (SKINS[equippedSkin] || SKINS['default']).color, raceTime: 0 };
+                mpState.players[peer.id] = { name: currentUsername, x: canvas.width/2, y: canvas.height/2, angle: 0, hp: 500, maxHp: 500, alive: true, color: (SKINS[equippedSkin] || SKINS['default']).color, raceTime: 0, targetX: canvas.width/2, targetY: canvas.height/2, targetAngle: 0, displayX: canvas.width/2, displayY: canvas.height/2, displayAngle: 0 };
 
                 document.getElementById('lobby-browser').classList.add('hidden');
                 document.getElementById('lobby-room').classList.remove('hidden');
@@ -1787,7 +1830,7 @@
             mpState.connections.forEach(c => c.close());
             mpState.connections = [];
             mpState.players = {};
-            mpState.active = false;
+            mpState.active = false; seededRng = null;
             mpState.gameStarted = false;
             if (peer && !peer.destroyed) peer.destroy();
             peer = null;
@@ -1823,7 +1866,8 @@
                 return;
             }
             mpState.gameStarted = true;
-            broadcast({ type: 'game-start', mode: mpState.mode });
+            mpState.seed = Math.floor(Math.random() * 2147483647);
+            broadcast({ type: 'game-start', mode: mpState.mode, seed: mpState.seed });
             launchMultiplayerGame();
         }
 
@@ -1855,6 +1899,8 @@
             }
 
             document.getElementById('mp-hud').style.display = 'block';
+            seededRng = mulberry32(mpState.seed);
+            enemyIdCounter = 0;
             initGameBase();
         }
 
@@ -1900,26 +1946,47 @@
             hud.innerHTML = html;
         }
 
-        // Draw remote players
+        // Draw remote players with smooth interpolation
         function drawRemotePlayers(ctx) {
             if (!mpState.active || !peer) return;
+            const LERP_SPEED = 0.2;
             for (const [pid, p] of Object.entries(mpState.players)) {
                 if (pid === peer.id || !p.alive) continue;
+
+                // Initialize display positions if needed
+                if (p.displayX === undefined) { p.displayX = p.targetX || p.x; p.displayY = p.targetY || p.y; p.displayAngle = p.targetAngle || p.angle; }
+                // Lerp toward target
+                let tx = p.targetX !== undefined ? p.targetX : p.x;
+                let ty = p.targetY !== undefined ? p.targetY : p.y;
+                let ta = p.targetAngle !== undefined ? p.targetAngle : p.angle;
+                p.displayX = lerp(p.displayX, tx, LERP_SPEED);
+                p.displayY = lerp(p.displayY, ty, LERP_SPEED);
+                p.displayAngle = lerpAngle(p.displayAngle, ta, LERP_SPEED);
+
+                // Draw ship
                 ctx.save();
-                ctx.globalAlpha = 0.7;
-                ctx.translate(p.x, p.y);
-                ctx.rotate(p.angle);
-                ctx.shadowBlur = 10;
+                ctx.globalAlpha = 0.8;
+                ctx.translate(p.displayX, p.displayY);
+                ctx.rotate(p.displayAngle);
+                ctx.shadowBlur = 15;
                 ctx.shadowColor = p.color;
                 ctx.fillStyle = p.color;
                 ctx.beginPath(); ctx.moveTo(15, 0); ctx.lineTo(-10, 10); ctx.lineTo(-5, 0); ctx.lineTo(-10, -10); ctx.fill();
+                // Engine glow
+                ctx.fillStyle = '#ff8800';
+                ctx.globalAlpha = 0.5;
+                ctx.beginPath(); ctx.arc(-12, 0, 3 + Math.random()*2, 0, Math.PI*2); ctx.fill();
                 ctx.restore();
 
                 // Name tag above
+                ctx.globalAlpha = 1;
                 ctx.fillStyle = p.color;
-                ctx.font = '12px Courier New';
+                ctx.font = 'bold 12px Courier New';
                 ctx.textAlign = 'center';
-                ctx.fillText(p.name, p.x, p.y - 25);
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = p.color;
+                ctx.fillText(p.name, p.displayX, p.displayY - 25);
+                ctx.shadowBlur = 0;
                 ctx.textAlign = 'left';
             }
         }
@@ -1985,7 +2052,7 @@
             ui.mainDesc.innerHTML = html;
             ui.menuBtns.innerHTML = `<button onclick="returnToMenu()">MAIN MENU</button>`;
 
-            mpState.active = false;
+            mpState.active = false; seededRng = null;
         }
 
         // --- Leaderboards (localStorage-based) ---
@@ -2044,7 +2111,7 @@
             document.getElementById('race-timer').style.display = 'none';
             document.getElementById('race-standings').style.display = 'none';
 
-            mpState.active = false;
+            mpState.active = false; seededRng = null;
 
             ui.mainOverlay.classList.remove('hidden');
             ui.mainOverlay.classList.remove('win-theme');
