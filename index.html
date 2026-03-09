@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Void: God Mode Update</title>
+    <title>Neon Void: Multiplayer Update</title>
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <style>
         body { 
             margin: 0; overflow: hidden; background: #000; 
@@ -73,12 +74,107 @@
         #damage-flash { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,0,0,0.4); z-index: 19; pointer-events: none; opacity: 0; transition: opacity 0.1s; }
 
 
+        .nv-input { background: rgba(0,0,0,0.8); border: 2px solid #00ffcc; color: #00ffcc; padding: 12px 20px; font-size: 18px; font-family: inherit; width: 300px; text-align: center; outline: none; text-transform: uppercase; letter-spacing: 2px; }
+        .nv-input:focus { box-shadow: 0 0 20px #00ffcc; }
+        .nv-input::placeholder { color: #555; text-transform: uppercase; }
+        #login-screen .title-text { font-size: 70px; }
+        .login-form { display: flex; flex-direction: column; align-items: center; gap: 15px; margin-top: 20px; }
+        .player-tag { position: absolute; top: 20px; right: 20px; color: #00ffcc; font-size: 14px; z-index: 5; text-shadow: 0 0 10px #00ffcc; pointer-events: none; }
+
+        .lobby-card { background: rgba(0,0,0,0.8); border: 2px solid #00ffcc; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; width: 500px; max-width: 90vw; gap: 20px; }
+        .lobby-card .lobby-info { text-align: left; flex-grow: 1; }
+        .lobby-card .lobby-name { color: #00ffcc; font-size: 18px; font-weight: bold; }
+        .lobby-card .lobby-meta { color: #888; font-size: 14px; margin-top: 5px; }
+        .lobby-card button { min-width: 100px; padding: 10px 20px; font-size: 16px; }
+        .lobby-list { display: flex; flex-direction: column; gap: 10px; max-height: 300px; overflow-y: auto; padding: 10px; }
+
+        .room-code { font-size: 48px; color: #ffcc00; font-weight: 900; letter-spacing: 10px; text-shadow: 0 0 30px #ffcc00; margin: 20px 0; }
+        .player-list { display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; margin: 20px 0; }
+        .player-slot { border: 2px solid #555; padding: 15px 25px; min-width: 120px; text-align: center; background: rgba(0,0,0,0.6); }
+        .player-slot.filled { border-color: #00ffcc; }
+        .player-slot.host { border-color: #ffcc00; }
+        .player-slot .slot-name { font-size: 16px; font-weight: bold; color: #fff; }
+        .player-slot .slot-status { font-size: 12px; color: #888; margin-top: 5px; }
+
+        #mp-hud { position: absolute; top: 20px; right: 20px; z-index: 5; pointer-events: none; text-align: right; }
+        .mp-player-bar { margin-bottom: 8px; }
+        .mp-player-name { font-size: 14px; font-weight: bold; margin-bottom: 2px; }
+        .mp-hp-bar { width: 150px; height: 8px; border: 1px solid #fff; background: rgba(0,0,0,0.5); }
+        .mp-hp-fill { height: 100%; background: #00ffcc; transition: width 0.2s; }
+
+        .race-timer { position: absolute; top: 80px; left: 50%; transform: translateX(-50%); font-size: 36px; color: #ffcc00; font-weight: 900; z-index: 5; text-shadow: 0 0 20px #ffcc00; display: none; }
+        .race-standings { position: absolute; top: 130px; left: 50%; transform: translateX(-50%); z-index: 5; text-align: center; display: none; font-size: 14px; }
+
+        .lb-row { display: flex; justify-content: space-between; width: 400px; max-width: 90vw; padding: 8px 15px; border-bottom: 1px solid #333; }
+        .lb-row.header { color: #ffcc00; font-weight: bold; border-bottom: 2px solid #ffcc00; }
+        .lb-rank { width: 40px; }
+        .lb-name { flex-grow: 1; text-align: left; }
+        .lb-score { width: 100px; text-align: right; }
+
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
         @keyframes flash { 0% { opacity: 0; transform: scale(1); } 50% { opacity: 1; transform: scale(1.05); } 100% { opacity: 0; transform: scale(1); } }
     </style>
 </head>
 <body class="crt">
     <div id="damage-flash"></div>
+
+    <div id="login-screen" class="overlay-screen" style="z-index: 50;">
+        <div class="title-text" style="-webkit-text-stroke: 3px #00ffcc; text-shadow: 0 0 50px #00ffcc;">NEON VOID</div>
+        <div class="subtitle-text">ENTER YOUR CALLSIGN TO BEGIN</div>
+        <div class="login-form">
+            <input type="text" id="username-input" class="nv-input" placeholder="CALLSIGN" maxlength="16" autocomplete="off">
+            <button id="login-btn" onclick="loginUser()" style="border-color:#00ffcc; color:#00ffcc; box-shadow: 0 0 20px #00ffcc;">DEPLOY</button>
+            <div id="login-error" style="color: #ff0055; font-size: 14px; height: 20px;"></div>
+        </div>
+    </div>
+
+    <div id="player-tag" class="player-tag"></div>
+
+    <div id="lobby-browser" class="overlay-screen hidden" style="z-index: 22;">
+        <div style="width:100%; height:100%; overflow-y:auto; display:flex; flex-direction:column; align-items:center; padding:50px 0; box-sizing:border-box;">
+            <div class="title-text" style="-webkit-text-stroke: 3px #00ffcc; text-shadow: 0 0 50px #00ffcc; font-size: 60px;">MULTIPLAYER</div>
+            <div class="subtitle-text">Create or join a lobby. Share the room code with friends.</div>
+            <div class="btn-container" style="margin-bottom: 20px;">
+                <button onclick="createLobby('coop')" style="border-color:#00ffcc; color:#00ffcc;">CREATE CO-OP</button>
+                <button onclick="createLobby('race')" style="border-color:#ff8800; color:#ff8800; box-shadow: 0 0 20px #ff8800;">CREATE RACE</button>
+            </div>
+            <div class="subtitle-text" style="margin-bottom: 10px; font-size: 16px;">OR JOIN WITH CODE:</div>
+            <div style="display:flex; gap:10px; align-items:center;">
+                <input type="text" id="join-code-input" class="nv-input" placeholder="ROOM CODE" maxlength="6" style="width:200px; text-transform:uppercase;">
+                <button onclick="joinLobbyByCode()" style="border-color:#ffcc00; color:#ffcc00; min-width:100px; padding:12px 20px;">JOIN</button>
+            </div>
+            <div id="join-error" style="color:#ff0055; font-size:14px; height:20px; margin-top:10px;"></div>
+            <button onclick="returnToMenu()" style="border-color:#fff; color:#fff; margin-top:30px;">BACK TO MENU</button>
+        </div>
+    </div>
+
+    <div id="lobby-room" class="overlay-screen hidden" style="z-index: 23;">
+        <div class="title-text" style="-webkit-text-stroke: 3px #ffcc00; text-shadow: 0 0 50px #ffcc00; font-size: 50px;" id="lobby-mode-title">CO-OP LOBBY</div>
+        <div class="subtitle-text">Share this code with friends:</div>
+        <div class="room-code" id="room-code-display">------</div>
+        <div class="player-list" id="lobby-player-list"></div>
+        <div id="lobby-status" style="color:#888; font-size:16px; margin:10px 0;">Waiting for players...</div>
+        <div class="btn-container">
+            <button id="lobby-start-btn" onclick="startMultiplayerGame()" style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00; display:none;">START GAME</button>
+            <button onclick="leaveLobby()" style="border-color:#ff0055; color:#ff0055;">LEAVE LOBBY</button>
+        </div>
+    </div>
+
+    <div id="leaderboard-screen" class="overlay-screen hidden" style="z-index: 22;">
+        <div style="width:100%; height:100%; overflow-y:auto; display:flex; flex-direction:column; align-items:center; padding:50px 0; box-sizing:border-box;">
+            <div class="title-text" style="-webkit-text-stroke: 3px #ffcc00; text-shadow: 0 0 50px #ffcc00; font-size: 60px;">LEADERBOARDS</div>
+            <div class="btn-container" style="margin-bottom:20px;">
+                <button onclick="showLeaderboard('infinite')" style="border-color:#00ffcc; color:#00ffcc; padding:10px 20px; min-width:120px;">INFINITE</button>
+                <button onclick="showLeaderboard('race')" style="border-color:#ff8800; color:#ff8800; padding:10px 20px; min-width:120px;">RACE</button>
+            </div>
+            <div id="lb-content" style="display:flex; flex-direction:column; align-items:center; gap:5px;"></div>
+            <button onclick="returnToMenu()" style="border-color:#fff; color:#fff; margin-top:30px;">BACK TO MENU</button>
+        </div>
+    </div>
+
+    <div id="mp-hud" style="display:none;"></div>
+    <div class="race-timer" id="race-timer">00:00</div>
+    <div class="race-standings" id="race-standings"></div>
 
 
     <div id="ui-layer">
@@ -134,7 +230,8 @@
             <button id="btn-toggle-mobile" onclick="toggleMobile()" style="width:100%; border-color:#00ffcc; color:#00ffcc;">MOBILE CONTROLS: OFF</button>
             <button id="btn-toggle-hyper" onclick="toggleHyperSpeed()" style="width:100%; border-color:#ff00ff; color:#ff00ff; box-shadow: 0 0 20px #ff00ff;">HYPER-DRIVE MODE: OFF</button>
             <button id="btn-toggle-hardcore" onclick="toggleHardcore()" style="width:100%; border-color:#ff0000; color:#ff0000; box-shadow: 0 0 20px #ff0000;">NIGHTMARE MODE: OFF</button>
-            <button onclick="resetSaveData()" style="width:100%; border-color:#ff0000; color:#ff0000; margin-top: 30px;">⚠️ WIPE SAVE DATA ⚠️</button>
+            <button onclick="logoutUser()" style="width:100%; border-color:#ffcc00; color:#ffcc00; margin-top: 30px;">CHANGE CALLSIGN</button>
+            <button onclick="resetSaveData()" style="width:100%; border-color:#ff0000; color:#ff0000; margin-top: 10px;">⚠️ WIPE SAVE DATA ⚠️</button>
             <button onclick="returnToMenu()" style="border-color: #fff; color: #fff; margin-top: 10px;">BACK TO MENU</button>
         </div>
     </div>
@@ -458,7 +555,7 @@
 
 
         function getBaseStats() {
-            let base = { dmgMulti: 2.5, fireRateMulti: 1.25, maxHp: 800, speedMulti: 1.2, projCount: 1, homing: false, explosive: false, vampirism: 0, dashCdMulti: 1.0, pierce: 0, guardian: 0, bombDrones: 0, laserDrones: 0, miniDrones: 0, scatterDrones: 0, empDrones: 0, sawDrones: 0, sniperDrones: 0, critChance: 0.15, critMult: 3.0, tesla: 0, timeDilator: false, nukeDash: false, magnet: false, antimatter: false, bloodthirst: false, bloodthirstTimer: 0, wisp: false, wispAngle: 0 };
+            let base = { dmgMulti: 1.5, fireRateMulti: 1.0, maxHp: 500, speedMulti: 1.2, projCount: 1, homing: false, explosive: false, vampirism: 0, dashCdMulti: 1.0, pierce: 0, guardian: 0, bombDrones: 0, laserDrones: 0, miniDrones: 0, scatterDrones: 0, empDrones: 0, sawDrones: 0, sniperDrones: 0, critChance: 0.05, critMult: 2.0, tesla: 0, timeDilator: false, nukeDash: false, magnet: false, antimatter: false, bloodthirst: false, bloodthirstTimer: 0, wisp: false, wispAngle: 0 };
             if (purchasedUpgrades.includes('homing')) base.homing = true; if (purchasedUpgrades.includes('explosive')) base.explosive = true; if (purchasedUpgrades.includes('pierce')) base.pierce += 1; if (purchasedUpgrades.includes('drone_bomb')) base.bombDrones += 1; if (purchasedUpgrades.includes('drone_laser')) base.laserDrones += 1; if (purchasedUpgrades.includes('drone_mini')) base.miniDrones += 1; if (purchasedUpgrades.includes('drone_scatter')) base.scatterDrones += 1; if (purchasedUpgrades.includes('drone_emp')) base.empDrones += 1; if (purchasedUpgrades.includes('drone_saw')) base.sawDrones += 1; if (purchasedUpgrades.includes('drone_sniper')) base.sniperDrones += 1; if (purchasedUpgrades.includes('guardian')) base.guardian += 1; if (purchasedUpgrades.includes('tesla')) base.tesla += 1; if (purchasedUpgrades.includes('time_dilator')) base.timeDilator = true; if (purchasedUpgrades.includes('nuke_dash')) base.nukeDash = true; if (purchasedUpgrades.includes('magnet')) base.magnet = true; if (purchasedUpgrades.includes('antimatter')) base.antimatter = true; if (purchasedUpgrades.includes('bloodthirst')) base.bloodthirst = true; if (purchasedUpgrades.includes('wisp')) base.wisp = true;
             return base;
         }
@@ -846,7 +943,7 @@
         }
 
 
-        const ENEMY_TYPES = { dummy: { hp: 9999999, spd: 0, color: '#00ff00', r: 30, xp: 0 }, chaser: { hp: 80, spd: 4.0, color: '#ff0055', r: 12, xp: 20 }, shooter: { hp: 100, spd: 2.2, color: '#ff8800', r: 14, xp: 30 }, sniper: { hp: 80, spd: 1.2, color: '#ffff00', r: 10, xp: 40 }, tank: { hp: 400, spd: 1.0, color: '#ff0000', r: 20, xp: 60 }, rammer: { hp: 40, spd: 6.5, color: '#00ffff', r: 10, xp: 25 }, heavy_shooter: { hp: 250, spd: 1.0, color: '#ff8800', r: 18, xp: 45 }, pulsar: { hp: 150, spd: 1.5, color: '#ff00ff', r: 16, xp: 40 }, ghost: { hp: 100, spd: 2.0, color: '#cccccc', r: 14, xp: 35 }, mine: { hp: 50, spd: 0.5, color: '#ff0000', r: 15, xp: 50 }, teleporter: { hp: 120, spd: 0, color: '#00ffff', r: 14, xp: 40 }, avatar: { hp: 2500, spd: 0.8, color: '#ffff00', r: 25, xp: 200 }, dark_avatar: { hp: 6000, spd: 1.0, color: '#ff0000', r: 30, xp: 500 }, bad: { hp: 12000, spd: 0.3, color: '#800080', r: 40, xp: 1000 } };
+        const ENEMY_TYPES = { dummy: { hp: 9999999, spd: 0, color: '#00ff00', r: 30, xp: 0 }, chaser: { hp: 120, spd: 4.0, color: '#ff0055', r: 12, xp: 20 }, shooter: { hp: 100, spd: 2.2, color: '#ff8800', r: 14, xp: 30 }, sniper: { hp: 80, spd: 1.2, color: '#ffff00', r: 10, xp: 40 }, tank: { hp: 400, spd: 1.0, color: '#ff0000', r: 20, xp: 60 }, rammer: { hp: 80, spd: 6.5, color: '#00ffff', r: 10, xp: 25 }, heavy_shooter: { hp: 250, spd: 1.0, color: '#ff8800', r: 18, xp: 45 }, pulsar: { hp: 150, spd: 1.5, color: '#ff00ff', r: 16, xp: 40 }, ghost: { hp: 100, spd: 2.0, color: '#cccccc', r: 14, xp: 35 }, mine: { hp: 50, spd: 0.5, color: '#ff0000', r: 15, xp: 50 }, teleporter: { hp: 120, spd: 0, color: '#00ffff', r: 14, xp: 40 }, avatar: { hp: 2500, spd: 0.8, color: '#ffff00', r: 25, xp: 200 }, dark_avatar: { hp: 6000, spd: 1.0, color: '#ff0000', r: 30, xp: 500 }, bad: { hp: 12000, spd: 0.3, color: '#800080', r: 40, xp: 1000 } };
 
 
         class Enemy {
@@ -1015,7 +1112,7 @@
                 playSound('hit'); 
                 
                 state.score += e.xp * 10 * state.combo; 
-                state.combo = Math.min(20.0, state.combo + 0.1); 
+                state.combo = Math.min(10.0, state.combo + 0.1); 
                 ui.combo.style.transform = 'scale(1.2)'; 
                 setTimeout(() => ui.combo.style.transform = 'scale(1)', 50); 
                 
@@ -1025,7 +1122,7 @@
                 
                 if (state.stats.vampirism > 0) player.hp = Math.min(state.stats.maxHp, player.hp + state.stats.vampirism); 
                 if (state.stats.antimatter) triggerExplosion(e.x, e.y, 40 * state.stats.dmgMulti);
-                if (state.stats.bloodthirst) state.stats.bloodthirstTimer = 180;
+                if (state.stats.bloodthirst) state.stats.bloodthirstTimer = 90;
                 
                 let coinMult = state.hardcore ? 5 : 1; 
                 state.runCoins += Math.max(5, e.xp * 2) * coinMult; 
@@ -1258,12 +1355,16 @@
                         updateArr(entities.eBullets, (b, i) => { if (Math.hypot(b.x-player.x, b.y-player.y) < player.radius) { player.takeDamage(b.dmg); entities.eBullets.splice(i,1); return true; } return false; });
                         if (activeBoss && activeBoss.alpha > 0.5 && Math.hypot(activeBoss.x-player.x, activeBoss.y-player.y) < player.radius + activeBoss.radius) { if (player.timers.invuln > 0 || state.mode === 'training') activeBoss.hp -= 10 * state.stats.dmgMulti; else player.takeDamage(10); }
                     }
-                    if (f === framesToRun - 1) { ctx.restore(); }
+                    if (f === framesToRun - 1) {
+                        drawRemotePlayers(ctx);
+                        ctx.restore();
+                    }
                 }
             } catch(err) {
                 console.error("Game Loop Caught an Error but recovered:", err);
             }
-            
+
+            mpSync();
             ui.score.innerText = `SCORE: ${Math.floor(state.score)}`; ui.combo.innerText = `COMBO x${state.combo.toFixed(1)}`; ui.lvl.innerText = state.mode === 'training' ? 'TRAINING MODE' : `LVL: ${state.level}`; ui.coins.innerText = `COINS: ${totalCoins + state.runCoins}`; ui.hp.style.width = `${Math.max(0, (player.hp/state.stats.maxHp)*100)}%`; ui.shield.style.width = `${Math.min(100, player.shield)}%`; ui.xp.style.width = `${(state.xp / state.xpNeeded)*100}%`; 
             requestAnimationFrame(update);
         }
@@ -1390,8 +1491,598 @@
             if (state.currentStage === 15) playCutscene('ending', showWinScreen); else showWinScreen();
         }
         
-        applySettings(); 
-        returnToMenu();
+        // ==================== MULTIPLAYER SYSTEM ====================
+
+        // --- Username / Login ---
+        let currentUsername = localStorage.getItem('neonVoidUsername') || '';
+
+        function loginUser() {
+            const input = document.getElementById('username-input');
+            const err = document.getElementById('login-error');
+            const name = input.value.trim().replace(/[^a-zA-Z0-9_\-]/g, '');
+            if (name.length < 2) { err.textContent = 'CALLSIGN TOO SHORT (MIN 2)'; return; }
+            if (name.length > 16) { err.textContent = 'CALLSIGN TOO LONG (MAX 16)'; return; }
+            currentUsername = name.toUpperCase();
+            localStorage.setItem('neonVoidUsername', currentUsername);
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('player-tag').textContent = 'PILOT: ' + currentUsername;
+            document.getElementById('player-tag').style.display = 'block';
+            playSound('powerup');
+            returnToMenu();
+        }
+
+        function logoutUser() {
+            localStorage.removeItem('neonVoidUsername');
+            currentUsername = '';
+            document.getElementById('player-tag').style.display = 'none';
+            document.getElementById('settings-screen').classList.add('hidden');
+            ui.mainOverlay.classList.add('hidden');
+            document.getElementById('login-screen').classList.remove('hidden');
+            document.getElementById('username-input').value = '';
+        }
+
+        document.getElementById('username-input').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') loginUser();
+        });
+
+        // Show login on load or skip if already logged in
+        function checkLogin() {
+            if (currentUsername) {
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('player-tag').textContent = 'PILOT: ' + currentUsername;
+                document.getElementById('player-tag').style.display = 'block';
+            } else {
+                document.getElementById('login-screen').classList.remove('hidden');
+                ui.mainOverlay.classList.add('hidden');
+            }
+        }
+
+        // --- PeerJS Multiplayer State ---
+        let peer = null;
+        let mpState = {
+            active: false,
+            isHost: false,
+            lobbyCode: '',
+            mode: 'coop', // 'coop' or 'race'
+            connections: [], // DataConnection[]
+            players: {},    // { peerId: { name, x, y, angle, hp, maxHp, alive, color, raceTime } }
+            hostPeerId: '',
+            gameStarted: false,
+            raceStartTime: 0,
+            raceResults: []
+        };
+
+        function generateCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let code = '';
+            for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
+            return code;
+        }
+
+        function initPeer(callback) {
+            if (peer && !peer.destroyed) { if (callback) callback(); return; }
+            peer = new Peer();
+            peer.on('open', (id) => {
+                console.log('PeerJS connected:', id);
+                if (callback) callback();
+            });
+            peer.on('error', (err) => {
+                console.error('PeerJS error:', err);
+                document.getElementById('join-error').textContent = 'CONNECTION ERROR: ' + err.type;
+            });
+            peer.on('connection', (conn) => {
+                handleNewConnection(conn);
+            });
+        }
+
+        function handleNewConnection(conn) {
+            conn.on('open', () => {
+                mpState.connections.push(conn);
+                conn.on('data', (data) => handlePeerData(conn, data));
+                conn.on('close', () => handlePeerDisconnect(conn));
+                // Send lobby state to new joiner
+                if (mpState.isHost) {
+                    conn.send({ type: 'lobby-info', code: mpState.lobbyCode, mode: mpState.mode, host: currentUsername, hostPeerId: peer.id, players: mpState.players });
+                }
+                // Add self info to players list
+                mpState.players[conn.peer] = mpState.players[conn.peer] || { name: '???', x: 0, y: 0, angle: 0, hp: 100, maxHp: 100, alive: true, color: '#ffffff', raceTime: 0 };
+                broadcastLobbyUpdate();
+                updateLobbyUI();
+            });
+        }
+
+        function handlePeerData(conn, data) {
+            switch(data.type) {
+                case 'join-request':
+                    mpState.players[conn.peer] = { name: data.name, x: canvas.width/2, y: canvas.height/2, angle: 0, hp: 500, maxHp: 500, alive: true, color: data.color || '#ffffff', raceTime: 0 };
+                    broadcastLobbyUpdate();
+                    updateLobbyUI();
+                    break;
+                case 'lobby-info':
+                    mpState.lobbyCode = data.code;
+                    mpState.mode = data.mode;
+                    mpState.hostPeerId = data.hostPeerId;
+                    mpState.players = data.players;
+                    mpState.players[peer.id] = { name: currentUsername, x: canvas.width/2, y: canvas.height/2, angle: 0, hp: 500, maxHp: 500, alive: true, color: (SKINS[equippedSkin] || SKINS['default']).color, raceTime: 0 };
+                    updateLobbyUI();
+                    break;
+                case 'lobby-update':
+                    mpState.players = data.players;
+                    updateLobbyUI();
+                    break;
+                case 'game-start':
+                    mpState.gameStarted = true;
+                    mpState.mode = data.mode;
+                    launchMultiplayerGame();
+                    break;
+                case 'player-state':
+                    if (mpState.players[conn.peer]) {
+                        mpState.players[conn.peer].x = data.x;
+                        mpState.players[conn.peer].y = data.y;
+                        mpState.players[conn.peer].angle = data.angle;
+                        mpState.players[conn.peer].hp = data.hp;
+                        mpState.players[conn.peer].maxHp = data.maxHp;
+                        mpState.players[conn.peer].alive = data.alive;
+                    }
+                    break;
+                case 'player-died':
+                    if (mpState.players[conn.peer]) {
+                        mpState.players[conn.peer].alive = false;
+                        mpState.players[conn.peer].raceTime = data.raceTime || 0;
+                        if (mpState.mode === 'race') checkRaceEnd();
+                    }
+                    break;
+                case 'race-result':
+                    mpState.raceResults = data.results;
+                    showRaceResults();
+                    break;
+                case 'peer-left':
+                    delete mpState.players[conn.peer];
+                    broadcastLobbyUpdate();
+                    updateLobbyUI();
+                    break;
+            }
+        }
+
+        function handlePeerDisconnect(conn) {
+            mpState.connections = mpState.connections.filter(c => c !== conn);
+            delete mpState.players[conn.peer];
+            if (mpState.isHost) {
+                broadcastLobbyUpdate();
+            }
+            updateLobbyUI();
+            updateMpHud();
+        }
+
+        function broadcast(data) {
+            mpState.connections.forEach(conn => {
+                if (conn.open) conn.send(data);
+            });
+        }
+
+        function broadcastLobbyUpdate() {
+            broadcast({ type: 'lobby-update', players: mpState.players });
+        }
+
+        // --- Lobby System ---
+        function createLobby(mode) {
+            mpState.mode = mode;
+            mpState.isHost = true;
+            mpState.lobbyCode = generateCode();
+            mpState.gameStarted = false;
+            mpState.connections = [];
+            mpState.players = {};
+            mpState.raceResults = [];
+
+            initPeer(() => {
+                mpState.hostPeerId = peer.id;
+                mpState.players[peer.id] = { name: currentUsername, x: canvas.width/2, y: canvas.height/2, angle: 0, hp: 500, maxHp: 500, alive: true, color: (SKINS[equippedSkin] || SKINS['default']).color, raceTime: 0 };
+                // Store lobby code -> peer ID mapping in the peer's metadata
+                localStorage.setItem('nv_lobby_' + mpState.lobbyCode, peer.id);
+
+                document.getElementById('lobby-browser').classList.add('hidden');
+                document.getElementById('lobby-room').classList.remove('hidden');
+                document.getElementById('lobby-mode-title').textContent = mode === 'coop' ? 'CO-OP LOBBY' : 'SURVIVAL RACE LOBBY';
+                document.getElementById('lobby-mode-title').style.webkitTextStroke = mode === 'coop' ? '3px #00ffcc' : '3px #ff8800';
+                document.getElementById('room-code-display').textContent = mpState.lobbyCode;
+                document.getElementById('lobby-start-btn').style.display = 'inline-block';
+                updateLobbyUI();
+            });
+        }
+
+        function joinLobbyByCode() {
+            const input = document.getElementById('join-code-input');
+            const err = document.getElementById('join-error');
+            const code = input.value.trim().toUpperCase();
+            if (code.length < 3) { err.textContent = 'ENTER A VALID ROOM CODE'; return; }
+
+            // The join code is actually the host's peer ID prefix - we use a signaling trick
+            // The host stores their peer ID in localStorage which only works on same device
+            // For cross-device, the room code IS part of the host's peer ID
+            err.textContent = 'CONNECTING...';
+
+            initPeer(() => {
+                // Try connecting with the code as a peer ID prefix
+                // The host creates their peer with an ID that starts with the lobby code
+                let hostPeerId = localStorage.getItem('nv_lobby_' + code);
+                if (!hostPeerId) {
+                    // For cross-device: the lobby code is used as the peer ID itself
+                    hostPeerId = 'nvoid-' + code;
+                }
+
+                const conn = peer.connect(hostPeerId, { reliable: true });
+                conn.on('open', () => {
+                    mpState.connections.push(conn);
+                    mpState.isHost = false;
+                    mpState.lobbyCode = code;
+                    conn.send({ type: 'join-request', name: currentUsername, color: (SKINS[equippedSkin] || SKINS['default']).color });
+                    conn.on('data', (data) => handlePeerData(conn, data));
+                    conn.on('close', () => {
+                        handlePeerDisconnect(conn);
+                        if (mpState.active) {
+                            mpState.active = false;
+                            returnToMenu();
+                        }
+                    });
+
+                    document.getElementById('lobby-browser').classList.add('hidden');
+                    document.getElementById('lobby-room').classList.remove('hidden');
+                    document.getElementById('lobby-start-btn').style.display = 'none';
+                    err.textContent = '';
+                    updateLobbyUI();
+                });
+                conn.on('error', (e) => {
+                    err.textContent = 'COULD NOT FIND LOBBY: ' + code;
+                });
+            });
+        }
+
+        // Override peer creation to use deterministic ID for hosting
+        function initPeerAsHost(callback) {
+            if (peer && !peer.destroyed) peer.destroy();
+            peer = new Peer('nvoid-' + mpState.lobbyCode);
+            peer.on('open', (id) => {
+                console.log('Host PeerJS connected:', id);
+                if (callback) callback();
+            });
+            peer.on('error', (err) => {
+                console.error('PeerJS host error:', err);
+                // If ID taken, try with random suffix
+                if (err.type === 'unavailable-id') {
+                    mpState.lobbyCode = generateCode();
+                    initPeerAsHost(callback);
+                }
+            });
+            peer.on('connection', (conn) => {
+                handleNewConnection(conn);
+            });
+        }
+
+        // Fix createLobby to use deterministic peer ID
+        function createLobby(mode) {
+            mpState.mode = mode;
+            mpState.isHost = true;
+            mpState.lobbyCode = generateCode();
+            mpState.gameStarted = false;
+            mpState.connections = [];
+            mpState.players = {};
+            mpState.raceResults = [];
+
+            initPeerAsHost(() => {
+                mpState.hostPeerId = peer.id;
+                mpState.players[peer.id] = { name: currentUsername, x: canvas.width/2, y: canvas.height/2, angle: 0, hp: 500, maxHp: 500, alive: true, color: (SKINS[equippedSkin] || SKINS['default']).color, raceTime: 0 };
+
+                document.getElementById('lobby-browser').classList.add('hidden');
+                document.getElementById('lobby-room').classList.remove('hidden');
+                document.getElementById('lobby-mode-title').textContent = mode === 'coop' ? 'CO-OP LOBBY' : 'SURVIVAL RACE LOBBY';
+                document.getElementById('lobby-mode-title').style.webkitTextStroke = mode === 'coop' ? '3px #00ffcc' : '3px #ff8800';
+                document.getElementById('room-code-display').textContent = mpState.lobbyCode;
+                document.getElementById('lobby-start-btn').style.display = 'inline-block';
+                updateLobbyUI();
+            });
+        }
+
+        function leaveLobby() {
+            broadcast({ type: 'peer-left' });
+            mpState.connections.forEach(c => c.close());
+            mpState.connections = [];
+            mpState.players = {};
+            mpState.active = false;
+            mpState.gameStarted = false;
+            if (peer && !peer.destroyed) peer.destroy();
+            peer = null;
+            document.getElementById('lobby-room').classList.add('hidden');
+            document.getElementById('lobby-browser').classList.add('hidden');
+            returnToMenu();
+        }
+
+        function updateLobbyUI() {
+            const list = document.getElementById('lobby-player-list');
+            list.innerHTML = '';
+            const playerIds = Object.keys(mpState.players);
+            for (let i = 0; i < 4; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'player-slot';
+                if (i < playerIds.length) {
+                    const p = mpState.players[playerIds[i]];
+                    slot.classList.add('filled');
+                    if (playerIds[i] === mpState.hostPeerId) slot.classList.add('host');
+                    slot.innerHTML = `<div class="slot-name" style="color:${p.color}">${p.name}</div><div class="slot-status">${playerIds[i] === mpState.hostPeerId ? 'HOST' : 'READY'}</div>`;
+                } else {
+                    slot.innerHTML = `<div class="slot-name" style="color:#555">EMPTY</div><div class="slot-status">WAITING...</div>`;
+                }
+                list.appendChild(slot);
+            }
+            const count = playerIds.length;
+            document.getElementById('lobby-status').textContent = count < 2 ? 'Waiting for players... Share the code above!' : count + ' players ready';
+        }
+
+        function startMultiplayerGame() {
+            if (Object.keys(mpState.players).length < 2) {
+                document.getElementById('lobby-status').textContent = 'NEED AT LEAST 2 PLAYERS!';
+                return;
+            }
+            mpState.gameStarted = true;
+            broadcast({ type: 'game-start', mode: mpState.mode });
+            launchMultiplayerGame();
+        }
+
+        function launchMultiplayerGame() {
+            document.getElementById('lobby-room').classList.add('hidden');
+            mpState.active = true;
+            mpState.raceResults = [];
+            mpState.raceStartTime = Date.now();
+
+            if (mpState.mode === 'race') {
+                // Race mode: everyone starts with same base stats, no upgrades
+                state = { active: true, paused: false, mode: 'race', frame: 0, score: 0, combo: 1, xp: 0, level: 1, xpNeeded: 100, runCoins: 0, kills: 0, shake: 0, currentStage: 1, bossesDefeated: 0, difficulty: 1, nextBossLevel: 5, spawningBoss: false, warping: true, warpFrames: 0, hardcore: false, hyper: false, stats: getBaseStats() };
+                // Reset stats to pure base (no purchased upgrades in race)
+                state.stats = getBaseStats();
+                // Remove purchased upgrade effects for fair race
+                state.stats.homing = 0; state.stats.explosive = 0; state.stats.pierce = 0;
+                state.stats.magnetRange = 50; state.stats.bombDrones = 0; state.stats.antimatter = 0;
+                state.stats.laserDrones = 0; state.stats.miniDrones = 0; state.stats.scatterDrones = 0;
+                state.stats.empDrones = 0; state.stats.sawDrones = 0; state.stats.sniperDrones = 0;
+                state.stats.guardian = 0; state.stats.timeDilator = 0; state.stats.tesla = 0;
+                state.stats.nukeDash = 0; state.stats.wisp = false;
+                ui.status.innerText = 'SURVIVAL RACE';
+                document.getElementById('race-timer').style.display = 'block';
+                document.getElementById('race-standings').style.display = 'block';
+            } else {
+                // Co-op: normal game with your upgrades
+                state = { active: true, paused: false, mode: 'coop', frame: 0, score: 0, combo: 1, xp: 0, level: 1, xpNeeded: 100, runCoins: 0, kills: 0, shake: 0, currentStage: 1, bossesDefeated: 0, difficulty: 1.5, nextBossLevel: 5, spawningBoss: false, warping: true, warpFrames: 0, hardcore: false, hyper: false, stats: getBaseStats() };
+                ui.status.innerText = 'CO-OP MODE';
+            }
+
+            document.getElementById('mp-hud').style.display = 'block';
+            initGameBase();
+        }
+
+        // --- Multiplayer Sync (called every frame in update loop) ---
+        function mpSync() {
+            if (!mpState.active || !peer || peer.destroyed) return;
+
+            // Send our state every 4 frames (~15fps at 60fps game)
+            if (state.frame % 4 === 0 && player) {
+                broadcast({
+                    type: 'player-state',
+                    x: player.x,
+                    y: player.y,
+                    angle: player.angle,
+                    hp: player.hp,
+                    maxHp: state.stats.maxHp,
+                    alive: player.hp > 0
+                });
+            }
+
+            // Update race timer
+            if (mpState.mode === 'race' && state.active) {
+                let elapsed = Math.floor((Date.now() - mpState.raceStartTime) / 1000);
+                let mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+                let secs = (elapsed % 60).toString().padStart(2, '0');
+                document.getElementById('race-timer').textContent = mins + ':' + secs;
+            }
+
+            // Update multiplayer HUD
+            if (state.frame % 10 === 0) updateMpHud();
+        }
+
+        function updateMpHud() {
+            const hud = document.getElementById('mp-hud');
+            if (!mpState.active) { hud.style.display = 'none'; return; }
+            let html = '';
+            for (const [pid, p] of Object.entries(mpState.players)) {
+                if (pid === peer.id) continue; // Don't show self
+                let hpPct = Math.max(0, (p.hp / p.maxHp) * 100);
+                let statusColor = p.alive ? p.color : '#555';
+                html += `<div class="mp-player-bar"><div class="mp-player-name" style="color:${statusColor}">${p.name}${p.alive ? '' : ' [DEAD]'}</div><div class="mp-hp-bar"><div class="mp-hp-fill" style="width:${hpPct}%; background:${statusColor}"></div></div></div>`;
+            }
+            hud.innerHTML = html;
+        }
+
+        // Draw remote players
+        function drawRemotePlayers(ctx) {
+            if (!mpState.active || !peer) return;
+            for (const [pid, p] of Object.entries(mpState.players)) {
+                if (pid === peer.id || !p.alive) continue;
+                ctx.save();
+                ctx.globalAlpha = 0.7;
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.angle);
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = p.color;
+                ctx.fillStyle = p.color;
+                ctx.beginPath(); ctx.moveTo(15, 0); ctx.lineTo(-10, 10); ctx.lineTo(-5, 0); ctx.lineTo(-10, -10); ctx.fill();
+                ctx.restore();
+
+                // Name tag above
+                ctx.fillStyle = p.color;
+                ctx.font = '12px Courier New';
+                ctx.textAlign = 'center';
+                ctx.fillText(p.name, p.x, p.y - 25);
+                ctx.textAlign = 'left';
+            }
+        }
+
+        // Handle multiplayer death
+        function mpPlayerDied() {
+            if (!mpState.active) return;
+            let raceTime = mpState.mode === 'race' ? Math.floor((Date.now() - mpState.raceStartTime) / 1000) : 0;
+            broadcast({ type: 'player-died', raceTime: raceTime });
+
+            if (mpState.mode === 'race') {
+                mpState.players[peer.id].alive = false;
+                mpState.players[peer.id].raceTime = raceTime;
+                checkRaceEnd();
+            }
+        }
+
+        function checkRaceEnd() {
+            if (mpState.mode !== 'race') return;
+            let alive = Object.values(mpState.players).filter(p => p.alive);
+            if (alive.length <= 1) {
+                // Race over - last alive gets current time
+                if (alive.length === 1) {
+                    let winnerId = Object.keys(mpState.players).find(id => mpState.players[id].alive);
+                    mpState.players[winnerId].raceTime = Math.floor((Date.now() - mpState.raceStartTime) / 1000);
+                    mpState.players[winnerId].alive = false; // Mark done
+                }
+                // Build results sorted by time (longest = best)
+                let results = Object.entries(mpState.players).map(([id, p]) => ({ name: p.name, time: p.raceTime, color: p.color }));
+                results.sort((a, b) => b.time - a.time);
+                mpState.raceResults = results;
+
+                if (mpState.isHost) {
+                    broadcast({ type: 'race-result', results: results });
+                }
+                // Save to leaderboard
+                results.forEach((r, i) => {
+                    addLeaderboardEntry('race', r.name, r.time);
+                });
+                showRaceResults();
+            }
+        }
+
+        function showRaceResults() {
+            state.active = false;
+            document.getElementById('race-timer').style.display = 'none';
+            document.getElementById('race-standings').style.display = 'none';
+            document.getElementById('mp-hud').style.display = 'none';
+
+            ui.mainOverlay.classList.remove('hidden');
+            ui.mainOverlay.classList.remove('win-theme');
+            ui.mainTitle.innerText = 'RACE OVER';
+            ui.mainTitle.style.webkitTextStroke = '3px #ff8800';
+            ui.mainTitle.style.textShadow = '0 0 50px #ff8800';
+
+            let html = '<strong style="font-size:24px; color:#ffcc00;">SURVIVAL RANKINGS</strong><br><br>';
+            mpState.raceResults.forEach((r, i) => {
+                let medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '#' + (i+1);
+                let mins = Math.floor(r.time / 60);
+                let secs = r.time % 60;
+                html += `<span style="color:${r.color}; font-size:20px;">${medal} ${r.name} - ${mins}m ${secs}s</span><br>`;
+            });
+            ui.mainDesc.innerHTML = html;
+            ui.menuBtns.innerHTML = `<button onclick="returnToMenu()">MAIN MENU</button>`;
+
+            mpState.active = false;
+        }
+
+        // --- Leaderboards (localStorage-based) ---
+        let leaderboards = { infinite: [], race: [] };
+        try { let lb = JSON.parse(localStorage.getItem('neonVoidLeaderboards')); if (lb) leaderboards = lb; } catch(e) {}
+
+        function addLeaderboardEntry(mode, name, score) {
+            if (!leaderboards[mode]) leaderboards[mode] = [];
+            leaderboards[mode].push({ name: name, score: score, date: Date.now() });
+            leaderboards[mode].sort((a, b) => b.score - a.score);
+            leaderboards[mode] = leaderboards[mode].slice(0, 50); // Keep top 50
+            localStorage.setItem('neonVoidLeaderboards', JSON.stringify(leaderboards));
+        }
+
+        function showLeaderboard(mode) {
+            const content = document.getElementById('lb-content');
+            let entries = leaderboards[mode] || [];
+            let html = `<div class="lb-row header"><span class="lb-rank">#</span><span class="lb-name">PILOT</span><span class="lb-score">${mode === 'race' ? 'TIME' : 'SCORE'}</span></div>`;
+            if (entries.length === 0) {
+                html += '<div style="color:#555; margin-top:20px;">NO ENTRIES YET. PLAY TO SET RECORDS!</div>';
+            }
+            entries.forEach((e, i) => {
+                let scoreText = mode === 'race' ? Math.floor(e.score/60) + 'm ' + (e.score%60) + 's' : Math.floor(e.score).toLocaleString();
+                let color = i === 0 ? '#ffcc00' : i === 1 ? '#cccccc' : i === 2 ? '#cc8833' : '#888';
+                html += `<div class="lb-row"><span class="lb-rank" style="color:${color}">${i+1}</span><span class="lb-name">${e.name}</span><span class="lb-score">${scoreText}</span></div>`;
+            });
+            content.innerHTML = html;
+        }
+
+        function openLeaderboard() {
+            ui.mainOverlay.classList.add('hidden');
+            document.getElementById('leaderboard-screen').classList.remove('hidden');
+            showLeaderboard('infinite');
+        }
+
+        function openMultiplayer() {
+            ui.mainOverlay.classList.add('hidden');
+            document.getElementById('lobby-browser').classList.remove('hidden');
+            document.getElementById('join-error').textContent = '';
+        }
+
+        // ==================== END MULTIPLAYER ====================
+
+        // --- Override returnToMenu to add MP + LB buttons ---
+        const _origReturnToMenu = returnToMenu;
+        returnToMenu = function() {
+            document.getElementById('mission-select').classList.add('hidden');
+            document.getElementById('shop-screen').classList.add('hidden');
+            document.getElementById('settings-screen').classList.add('hidden');
+            document.getElementById('pause-screen').classList.add('hidden');
+            document.getElementById('draw-screen').classList.add('hidden');
+            document.getElementById('lobby-browser').classList.add('hidden');
+            document.getElementById('lobby-room').classList.add('hidden');
+            document.getElementById('leaderboard-screen').classList.add('hidden');
+            document.getElementById('mp-hud').style.display = 'none';
+            document.getElementById('race-timer').style.display = 'none';
+            document.getElementById('race-standings').style.display = 'none';
+
+            mpState.active = false;
+
+            ui.mainOverlay.classList.remove('hidden');
+            ui.mainOverlay.classList.remove('win-theme');
+            ui.mainTitle.innerText = "NEON VOID";
+            ui.mainTitle.style.webkitTextStroke = "3px #ff0055";
+            ui.mainTitle.style.textShadow = "0 0 50px #ff0055";
+            ui.mainDesc.innerHTML = `<strong>ARROW KEYS / WASD</strong> to Move | <strong>SPACE / MOUSE</strong> to Shoot<br><strong>SHIFT / RIGHT-CLICK</strong> to Dash | <strong>[C]</strong> to Toggle Aim | <strong>[ESC]</strong> to Pause<br><span style="color: #ff0055; font-weight:bold;">MULTIPLAYER UPDATE</span>`;
+            document.getElementById('menu-coin-display').innerText = `TOTAL COINS: ${totalCoins}`;
+
+            let unlockedRaw = localStorage.getItem('neonVoidStage');
+            let unlocked = parseInt(unlockedRaw);
+            if(isNaN(unlocked) || unlocked < 1) unlocked = 1;
+            let secretBtn = unlocked > 14 ? `<button onclick="startMission(15)" style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;">T H E  G L I T C H<br><span style="font-size:12px">THE END</span></button>` : `<button style="border-color:#555; color:#555; cursor:not-allowed;">LOCKED<br><span style="font-size:12px">Beat Sector 14</span></button>`;
+
+            ui.menuBtns.innerHTML = `<button onclick="openMissionSelect()">Mission Mode<br><span style="font-size:12px">15 Sectors</span></button><button class="btn-infinite" onclick="startInfinite()">Infinite Mode<br><span style="font-size:12px">Endless Scaling</span></button>${secretBtn}<button style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;" onclick="startTraining()">Training Camp<br><span style="font-size:12px">Test Weapons</span></button><button style="border-color:#00ffcc; color:#00ffcc; box-shadow: 0 0 20px #00ffcc;" onclick="openMultiplayer()">Multiplayer<br><span style="font-size:12px">Co-Op & Race</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00;" onclick="openShop()">The Hangar<br><span style="font-size:12px">Black Market</span></button><button style="border-color:#aa00ff; color:#aa00ff; box-shadow: 0 0 20px #aa00ff;" onclick="openLeaderboard()">Leaderboards<br><span style="font-size:12px">Top Pilots</span></button><button style="border-color:#fff; color:#fff;" onclick="openSettings()">Settings<br><span style="font-size:12px">Sys Config</span></button>`;
+            document.getElementById('menu-coin-display').style.display = 'block';
+            document.getElementById('mobile-controls').style.display = 'none';
+        };
+
+        // --- Override gameOver to hook multiplayer + leaderboards ---
+        const _origGameOver = gameOver;
+        gameOver = function() {
+            // Save leaderboard entry
+            if (state.mode === 'infinite' || state.mode === 'coop') {
+                addLeaderboardEntry('infinite', currentUsername || 'ANON', state.score);
+            }
+            // Notify MP peers
+            if (mpState.active) {
+                mpPlayerDied();
+                if (mpState.mode === 'race') return; // Race handles its own end screen
+            }
+
+            _origGameOver();
+        };
+
+        applySettings();
+        checkLogin();
+        if (currentUsername) returnToMenu();
     </script>
 </body>
 </html>
