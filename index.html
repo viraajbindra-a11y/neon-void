@@ -146,9 +146,27 @@
         .weapon-card .wep-stats { font-size: 12px; color: #555; margin-top: 5px; }
         .milestone-text { position: absolute; top: 25%; left: 50%; transform: translate(-50%, -50%); z-index: 15; pointer-events: none; font-size: 32px; font-weight: 900; color: #ffcc00; text-shadow: 0 0 30px #ffcc00; letter-spacing: 3px; opacity: 0; animation: milestonePop 2s ease-out forwards; }
         @keyframes milestonePop { 0% { opacity: 0; transform: translate(-50%,-50%) scale(0.5); } 15% { opacity: 1; transform: translate(-50%,-50%) scale(1.2); } 30% { transform: translate(-50%,-50%) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%,-50%) translateY(-30px); } }
+
+        #menu-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 19; pointer-events: none; }
+        #achievement-popup { position: absolute; top: 80px; right: 20px; z-index: 35; pointer-events: none; background: rgba(0,0,0,0.92); border: 2px solid #ffcc00; padding: 15px 22px; opacity: 0; transition: opacity 0.4s, transform 0.4s; transform: translateX(120px); box-shadow: 0 0 30px rgba(255,204,0,0.3); max-width: 280px; }
+        #achievement-popup.show { opacity: 1; transform: translateX(0); }
+        .ach-title { color: #ffcc00; font-size: 11px; font-weight: bold; letter-spacing: 3px; text-transform: uppercase; }
+        .ach-name { color: #fff; font-size: 20px; font-weight: 900; margin-top: 4px; letter-spacing: 2px; }
+        .ach-desc { color: #888; font-size: 12px; margin-top: 4px; }
+        #achievement-screen .ach-grid { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; max-width: 700px; }
+        .ach-card { background: rgba(0,0,0,0.8); border: 2px solid #333; padding: 12px 16px; min-width: 200px; max-width: 220px; text-align: left; }
+        .ach-card.unlocked { border-color: #ffcc00; box-shadow: 0 0 15px rgba(255,204,0,0.2); }
+        .ach-card .ach-card-name { font-size: 14px; font-weight: 900; color: #fff; letter-spacing: 1px; }
+        .ach-card.unlocked .ach-card-name { color: #ffcc00; }
+        .ach-card .ach-card-desc { font-size: 11px; color: #666; margin-top: 3px; }
+        .ach-card.unlocked .ach-card-desc { color: #888; }
+        @keyframes deathRing { 0% { transform: scale(0); opacity: 1; } 100% { transform: scale(3); opacity: 0; } }
+        .death-ring { position: absolute; width: 40px; height: 40px; border-radius: 50%; border: 3px solid; pointer-events: none; z-index: 14; animation: deathRing 0.5s ease-out forwards; }
     </style>
 </head>
 <body class="crt">
+    <canvas id="menu-canvas"></canvas>
+    <div id="achievement-popup"><div class="ach-title">ACHIEVEMENT UNLOCKED</div><div class="ach-name" id="ach-popup-name"></div><div class="ach-desc" id="ach-popup-desc"></div></div>
     <div id="damage-flash"></div>
     <div id="powerup-flash"></div>
     <div id="low-hp-vignette"></div>
@@ -248,6 +266,15 @@
         <div style="width:100%; height:100%; overflow-y:auto; display:flex; flex-direction:column; align-items:center; padding:50px 0; box-sizing:border-box;">
             <div class="title-text" style="-webkit-text-stroke: 3px #00ffcc; text-shadow: 0 0 50px #00ffcc; font-size: 60px;">PILOT STATS</div>
             <div id="stats-content" style="display:flex; flex-direction:column; align-items:center; gap:5px; margin-top:20px;"></div>
+            <button onclick="returnToMenu()" style="border-color:#fff; color:#fff; margin-top:30px;">BACK TO MENU</button>
+        </div>
+    </div>
+
+    <div id="achievement-screen" class="overlay-screen hidden" style="z-index: 22;">
+        <div style="width:100%; height:100%; overflow-y:auto; display:flex; flex-direction:column; align-items:center; padding:50px 0; box-sizing:border-box;">
+            <div class="title-text" style="-webkit-text-stroke: 3px #ffcc00; text-shadow: 0 0 50px #ffcc00; font-size: 60px;">ACHIEVEMENTS</div>
+            <div id="ach-progress" style="color: #888; font-size: 16px; margin-bottom: 20px;"></div>
+            <div class="ach-grid" id="ach-grid"></div>
             <button onclick="returnToMenu()" style="border-color:#fff; color:#fff; margin-top:30px;">BACK TO MENU</button>
         </div>
     </div>
@@ -885,9 +912,20 @@
                     if (keys['KeyW'] || keys['ArrowUp'] || keys['KeyS'] || keys['ArrowDown'] || keys['KeyA'] || keys['ArrowLeft'] || keys['KeyD'] || keys['ArrowRight'] || joyData.active) { ctx.fillStyle = '#ff8800'; ctx.beginPath(); ctx.arc(-12, 0, 4 + Math.random()*2, 0, Math.PI*2); ctx.fill(); }
                     let drawColor = this.timers.invuln > 0 ? `hsl(${state.frame * 10 % 360}, 100%, 50%)` : this.baseColor;
                     ctx.shadowBlur = appSettings.graphics === 'high' ? 15 : 0;
-                    ctx.shadowColor = this.timers.overdrive > 0 || state.stats.bloodthirstTimer > 0 ? '#ff8800' : drawColor;
-                    ctx.fillStyle = ctx.shadowColor;
-                    ctx.beginPath(); ctx.moveTo(15, 0); ctx.lineTo(-10, 10); ctx.lineTo(-5, 0); ctx.lineTo(-10, -10); ctx.fill();
+                    let activeColor = this.timers.overdrive > 0 || state.stats.bloodthirstTimer > 0 ? '#ff8800' : drawColor;
+                    ctx.shadowColor = activeColor;
+                    // Main hull
+                    ctx.fillStyle = activeColor;
+                    ctx.beginPath(); ctx.moveTo(18, 0); ctx.lineTo(-4, 8); ctx.lineTo(-8, 4); ctx.lineTo(-6, 0); ctx.lineTo(-8, -4); ctx.lineTo(-4, -8); ctx.closePath(); ctx.fill();
+                    // Wings
+                    ctx.fillStyle = activeColor; ctx.globalAlpha = 0.7;
+                    ctx.beginPath(); ctx.moveTo(5, 5); ctx.lineTo(-12, 14); ctx.lineTo(-14, 10); ctx.lineTo(-6, 5); ctx.closePath(); ctx.fill();
+                    ctx.beginPath(); ctx.moveTo(5, -5); ctx.lineTo(-12, -14); ctx.lineTo(-14, -10); ctx.lineTo(-6, -5); ctx.closePath(); ctx.fill();
+                    ctx.globalAlpha = 1;
+                    // Cockpit
+                    ctx.fillStyle = '#fff'; ctx.globalAlpha = 0.5;
+                    ctx.beginPath(); ctx.arc(6, 0, 3, 0, Math.PI * 2); ctx.fill();
+                    ctx.globalAlpha = 1;
                 }
                 
                 if (this.shield > 0) { ctx.strokeStyle = this.nukeShield ? '#ff0055' : '#aa00ff'; ctx.lineWidth = 2; ctx.shadowColor = appSettings.graphics === 'high' ? ctx.strokeStyle : 'transparent'; ctx.beginPath(); ctx.arc(0, 0, 25 + Math.sin(state.frame*0.1)*3, 0, Math.PI*2); ctx.stroke(); }
@@ -1052,10 +1090,10 @@
             draw(ctx) {
                 ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle); if (this.type === 'ghost') ctx.globalAlpha = this.alpha; let drawColor = this.frozen > 0 && this.type !== 'bad' ? '#00ffff' : this.color; ctx.strokeStyle = drawColor; ctx.lineWidth = 2; if (appSettings.graphics === 'high') { ctx.shadowBlur = 10; ctx.shadowColor = drawColor; } ctx.beginPath();
                 if (this.type === 'dummy') { ctx.arc(0,0,this.radius,0,Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-this.radius,0); ctx.lineTo(this.radius,0); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0,-this.radius); ctx.lineTo(0,this.radius); ctx.stroke(); ctx.fillStyle='rgba(0,255,0,0.2)'; ctx.fill(); }
-                else if (this.type === 'chaser') { ctx.moveTo(12, 0); ctx.lineTo(-10, 10); ctx.lineTo(-10, -10); ctx.closePath(); ctx.stroke(); }
+                else if (this.type === 'chaser') { ctx.moveTo(14, 0); ctx.lineTo(-8, 10); ctx.lineTo(-4, 3); ctx.lineTo(-10, 0); ctx.lineTo(-4, -3); ctx.lineTo(-8, -10); ctx.closePath(); ctx.stroke(); ctx.fillStyle = drawColor; ctx.globalAlpha = 0.15; ctx.fill(); ctx.globalAlpha = 1; }
                 else if (this.type === 'rammer') { ctx.moveTo(15, 0); ctx.lineTo(-15, 10); ctx.lineTo(-15, -10); ctx.closePath(); ctx.stroke(); ctx.fillStyle = 'rgba(0,255,255,0.4)'; ctx.fill(); }
                 else if (this.type === 'sniper') { ctx.moveTo(15, 0); ctx.lineTo(-5, 5); ctx.lineTo(-5, -5); ctx.closePath(); ctx.stroke(); }
-                else if (this.type === 'tank') { ctx.rect(-15, -15, 30, 30); ctx.stroke(); }
+                else if (this.type === 'tank') { ctx.rect(-15, -15, 30, 30); ctx.stroke(); ctx.fillStyle = drawColor; ctx.globalAlpha = 0.2; ctx.fill(); ctx.globalAlpha = 1; ctx.fillStyle = drawColor; ctx.fillRect(8, -4, 14, 8); }
                 else if (this.type === 'teleporter') { ctx.arc(0,0,10,0,Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.arc(0,0,16,0,Math.PI*2); ctx.stroke(); }
                 else if (this.type === 'ghost') { ctx.rect(-12, -12, 24, 24); ctx.stroke(); ctx.fillStyle='rgba(200,200,200,0.5)'; ctx.fill(); }
                 else if (this.type === 'heavy_shooter') { for(let i=0; i<6; i++) ctx.lineTo(18*Math.cos(i*Math.PI/3), 18*Math.sin(i*Math.PI/3)); ctx.closePath(); ctx.stroke(); }
@@ -1189,9 +1227,10 @@
                 entities.enemies.splice(idx, 1);
                 if (mpState.active) broadcast({ type: 'enemy-killed', enemyId: e.id, enemyType: e.type, ex: e.x, ey: e.y });
 
-                spawnParticles(e.x, e.y, e.color, 20);
+                spawnParticles(e.x, e.y, e.color, 25, 1.5);
                 playSound('hit');
-                registerKill(); 
+                registerKill();
+                if (appSettings.graphics === 'high' && e.xp >= 40) deathRingEffect(e.x, e.y, e.color); 
                 
                 state.score += e.xp * 10 * state.combo;
                 state.combo = Math.min(10.0, state.combo + 0.1); resetComboDecay(); 
@@ -1461,6 +1500,10 @@
             updateDashGhosts();
             drawDashGhosts(ctx);
             drawEdgeIndicators(ctx);
+            spawnAsteroid();
+            updateAsteroids(ctx, true);
+            updateExhaust(ctx);
+            if (state.frame % 120 === 0) checkAchievements();
             if (appSettings.autoFire && state.active && !state.paused) mouse.down = true;
             ui.score.innerText = `SCORE: ${Math.floor(state.score)}`; ui.combo.innerText = `COMBO x${state.combo.toFixed(1)}`; ui.lvl.innerText = state.mode === 'training' ? 'TRAINING MODE' : `LVL: ${state.level}`; ui.coins.innerText = `COINS: ${totalCoins + state.runCoins}`; ui.hp.style.width = `${Math.max(0, (player.hp/state.stats.maxHp)*100)}%`; ui.shield.style.width = `${Math.min(100, player.shield)}%`; ui.xp.style.width = `${(state.xp / state.xpNeeded)*100}%`;
             requestAnimationFrame(update);
@@ -1508,15 +1551,16 @@
 
 
         function returnToMenu() {
-            document.getElementById('mission-select').classList.add('hidden'); document.getElementById('shop-screen').classList.add('hidden'); document.getElementById('settings-screen').classList.add('hidden'); document.getElementById('pause-screen').classList.add('hidden'); document.getElementById('draw-screen').classList.add('hidden');
-            ui.mainOverlay.classList.remove('hidden'); ui.mainOverlay.classList.remove('win-theme'); 
-            ui.mainTitle.innerText = "NEON VOID"; ui.mainTitle.style.webkitTextStroke = "3px #ff0055"; ui.mainTitle.style.textShadow = "0 0 50px #ff0055"; 
-            ui.mainDesc.innerHTML = `<strong>ARROW KEYS / WASD</strong> to Move | <strong>SPACE / MOUSE</strong> to Shoot<br><strong>SHIFT / RIGHT-CLICK</strong> to Dash | <strong>[C]</strong> to Toggle Aim | <strong>[ESC]</strong> to Pause<br><span style="color: #ff0055; font-weight:bold;">THE COMPANION & STORY UPDATE</span>`; 
+            document.getElementById('mission-select').classList.add('hidden'); document.getElementById('shop-screen').classList.add('hidden'); document.getElementById('settings-screen').classList.add('hidden'); document.getElementById('pause-screen').classList.add('hidden'); document.getElementById('draw-screen').classList.add('hidden'); document.getElementById('achievement-screen').classList.add('hidden');
+            stopMusic(); startMenuBg(); if (appSettings.music) startMenuMusic();
+            ui.mainOverlay.classList.remove('hidden'); ui.mainOverlay.classList.remove('win-theme');
+            ui.mainTitle.innerText = "NEON VOID"; ui.mainTitle.style.webkitTextStroke = "3px #ff0055"; ui.mainTitle.style.textShadow = "0 0 50px #ff0055";
+            ui.mainDesc.innerHTML = `<strong>ARROW KEYS / WASD</strong> to Move | <strong>SPACE / MOUSE</strong> to Shoot<br><strong>SHIFT / RIGHT-CLICK</strong> to Dash | <strong>[C]</strong> to Toggle Aim | <strong>[ESC]</strong> to Pause<br><span style="color: #ff0055; font-weight:bold;">THE ULTIMATE UPDATE</span>`;
             document.getElementById('menu-coin-display').innerText = `TOTAL COINS: ${totalCoins}`;
-            
+
             let unlockedRaw = localStorage.getItem('neonVoidStage'); let unlocked = parseInt(unlockedRaw); if(isNaN(unlocked) || unlocked < 1) unlocked = 1;
             let secretBtn = unlocked > 14 ? `<button onclick="startMission(15)" style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;">T H E  G L I T C H<br><span style="font-size:12px">THE END</span></button>` : `<button style="border-color:#555; color:#555; cursor:not-allowed;">LOCKED<br><span style="font-size:12px">Beat Sector 14</span></button>`;
-            
+
             ui.menuBtns.innerHTML = `<button onclick="openMissionSelect()">Mission Mode<br><span style="font-size:12px">15 Sectors</span></button><button class="btn-infinite" onclick="startInfinite()">Infinite Mode<br><span style="font-size:12px">Endless Scaling</span></button>${secretBtn}<button style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;" onclick="startTraining()">Training Camp<br><span style="font-size:12px">Test Weapons</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00;" onclick="openShop()">The Hangar<br><span style="font-size:12px">Black Market</span></button><button style="border-color:#fff; color:#fff;" onclick="openSettings()">Settings<br><span style="font-size:12px">Sys Config</span></button>`;
             document.getElementById('menu-coin-display').style.display = 'block'; document.getElementById('mobile-controls').style.display = 'none';
         }
@@ -1555,7 +1599,7 @@
             }
         }
         
-        function initGameBase() { player = new Player(); activeBoss = null; entities = { bullets: [], enemies: [], eBullets: [], particles: [], powerups: [], texts: [], stars: [], trails: [] }; for(let i=0; i<150; i++) entities.stars.push(new Star()); ui.mainOverlay.classList.add('hidden'); document.getElementById('mission-select').classList.add('hidden'); document.getElementById('shop-screen').classList.add('hidden'); document.getElementById('settings-screen').classList.add('hidden'); ui.boss.style.display = 'none'; ui.bossAlert.style.display = 'none'; ui.kills.innerText = "KILLS: 0"; mobileAutoShoot = false; document.getElementById('mob-shoot').style.background = 'rgba(0,255,204,0.2)'; document.getElementById('mob-shoot').style.color = '#00ffcc'; document.getElementById('mobile-controls').style.display = appSettings.mobile ? 'flex' : 'none'; if(audioCtx.state === 'suspended') audioCtx.resume(); killStreak = 0; showCountdown(); if (appSettings.music) startMusic(); update(); }
+        function initGameBase() { player = new Player(); activeBoss = null; asteroids = []; exhaustParticles = []; entities = { bullets: [], enemies: [], eBullets: [], particles: [], powerups: [], texts: [], stars: [], trails: [] }; for(let i=0; i<150; i++) entities.stars.push(new Star()); ui.mainOverlay.classList.add('hidden'); document.getElementById('mission-select').classList.add('hidden'); document.getElementById('shop-screen').classList.add('hidden'); document.getElementById('settings-screen').classList.add('hidden'); ui.boss.style.display = 'none'; ui.bossAlert.style.display = 'none'; ui.kills.innerText = "KILLS: 0"; mobileAutoShoot = false; document.getElementById('mob-shoot').style.background = 'rgba(0,255,204,0.2)'; document.getElementById('mob-shoot').style.color = '#00ffcc'; document.getElementById('mobile-controls').style.display = appSettings.mobile ? 'flex' : 'none'; if(audioCtx.state === 'suspended') audioCtx.resume(); killStreak = 0; stopMenuMusic(); stopMenuBg(); showCountdown(); if (appSettings.music) startMusic(); update(); }
         
         function startMission(stageNum) { 
             let bootMission = () => {
@@ -1983,6 +2027,359 @@
             if (appSettings.music) startMusic(); else stopMusic();
             saveSettings();
             if(document.getElementById('btn-toggle-music')) document.getElementById('btn-toggle-music').innerText = `MUSIC: ${appSettings.music ? 'ON' : 'OFF'}`;
+        }
+
+        // ==================== MENU MUSIC (AMBIENT PAD) ====================
+        let menuMusicNodes = null;
+        function startMenuMusic() {
+            if (menuMusicNodes || !appSettings.music) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            let masterGain = audioCtx.createGain();
+            masterGain.gain.value = 0;
+            masterGain.gain.linearRampToValueAtTime(0.08, audioCtx.currentTime + 2);
+            masterGain.connect(audioCtx.destination);
+            // Deep pad
+            let pad1 = audioCtx.createOscillator(); pad1.type = 'sine'; pad1.frequency.value = 55;
+            let pad1g = audioCtx.createGain(); pad1g.gain.value = 0.4; pad1.connect(pad1g); pad1g.connect(masterGain); pad1.start();
+            let pad2 = audioCtx.createOscillator(); pad2.type = 'sine'; pad2.frequency.value = 82.4;
+            let pad2g = audioCtx.createGain(); pad2g.gain.value = 0.3; pad2.connect(pad2g); pad2g.connect(masterGain); pad2.start();
+            // Shimmer
+            let shimmer = audioCtx.createOscillator(); shimmer.type = 'sine'; shimmer.frequency.value = 440;
+            let shimmerG = audioCtx.createGain(); shimmerG.gain.value = 0.05;
+            let shimmerLFO = audioCtx.createOscillator(); shimmerLFO.type = 'sine'; shimmerLFO.frequency.value = 0.2;
+            let lfoGain = audioCtx.createGain(); lfoGain.gain.value = 0.03;
+            shimmerLFO.connect(lfoGain); lfoGain.connect(shimmerG.gain);
+            shimmer.connect(shimmerG); shimmerG.connect(masterGain); shimmer.start(); shimmerLFO.start();
+            // Slow arp
+            let arpNotes = [220, 261, 330, 392, 440, 392, 330, 261];
+            let arpIdx = 0;
+            let arpInterval = setInterval(() => {
+                if (!appSettings.music) { stopMenuMusic(); return; }
+                let now = audioCtx.currentTime;
+                let arp = audioCtx.createOscillator(); arp.type = 'triangle';
+                arp.frequency.value = arpNotes[arpIdx % arpNotes.length];
+                let ag = audioCtx.createGain(); ag.gain.setValueAtTime(0.06, now);
+                ag.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
+                arp.connect(ag); ag.connect(masterGain);
+                arp.start(now); arp.stop(now + 1.5);
+                arpIdx++;
+            }, 800);
+            menuMusicNodes = { oscs: [pad1, pad2, shimmer, shimmerLFO], masterGain, arpInterval };
+        }
+        function stopMenuMusic() {
+            if (!menuMusicNodes) return;
+            clearInterval(menuMusicNodes.arpInterval);
+            menuMusicNodes.masterGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
+            let nodes = menuMusicNodes;
+            setTimeout(() => { nodes.oscs.forEach(o => { try { o.stop(); } catch(e){} }); nodes.masterGain.disconnect(); }, 600);
+            menuMusicNodes = null;
+        }
+
+        // ==================== ANIMATED MENU BACKGROUND ====================
+        const menuCanvas = document.getElementById('menu-canvas');
+        const menuCtx = menuCanvas.getContext('2d');
+        let menuStars = [];
+        let menuNebulae = [];
+        let menuAnimId = null;
+        function initMenuBg() {
+            menuCanvas.width = window.innerWidth; menuCanvas.height = window.innerHeight;
+            menuStars = [];
+            for (let i = 0; i < 200; i++) {
+                menuStars.push({ x: Math.random() * menuCanvas.width, y: Math.random() * menuCanvas.height, z: Math.random() * 2 + 0.2, twinkle: Math.random() * Math.PI * 2 });
+            }
+            menuNebulae = [];
+            for (let i = 0; i < 5; i++) {
+                menuNebulae.push({ x: Math.random() * menuCanvas.width, y: Math.random() * menuCanvas.height, r: 100 + Math.random() * 200, hue: Math.random() * 60 + 320, speed: (Math.random() - 0.5) * 0.3 });
+            }
+        }
+        let menuFrame = 0;
+        function animateMenuBg() {
+            menuFrame++;
+            menuCtx.fillStyle = 'rgba(0,0,0,0.15)';
+            menuCtx.fillRect(0, 0, menuCanvas.width, menuCanvas.height);
+            // Nebula clouds
+            for (let n of menuNebulae) {
+                n.x += n.speed; n.y += n.speed * 0.5;
+                if (n.x > menuCanvas.width + n.r) n.x = -n.r;
+                if (n.x < -n.r) n.x = menuCanvas.width + n.r;
+                let grad = menuCtx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r);
+                let hue = (n.hue + menuFrame * 0.1) % 360;
+                grad.addColorStop(0, `hsla(${hue}, 80%, 30%, 0.02)`);
+                grad.addColorStop(0.5, `hsla(${hue}, 60%, 20%, 0.01)`);
+                grad.addColorStop(1, 'transparent');
+                menuCtx.fillStyle = grad;
+                menuCtx.fillRect(n.x - n.r, n.y - n.r, n.r * 2, n.r * 2);
+            }
+            // Stars
+            for (let s of menuStars) {
+                s.y += s.z * 0.3;
+                s.twinkle += 0.02;
+                if (s.y > menuCanvas.height) { s.y = 0; s.x = Math.random() * menuCanvas.width; }
+                let alpha = (0.3 + Math.sin(s.twinkle) * 0.3) * (s.z / 2);
+                menuCtx.fillStyle = `rgba(255,255,255,${alpha})`;
+                menuCtx.fillRect(s.x, s.y, s.z, s.z);
+            }
+            // Grid perspective lines
+            menuCtx.strokeStyle = 'rgba(255,0,85,0.03)';
+            menuCtx.lineWidth = 1;
+            let gridY = menuCanvas.height * 0.7;
+            for (let i = 0; i < 15; i++) {
+                let y = gridY + i * 25 + (menuFrame * 0.5) % 25;
+                if (y > menuCanvas.height) continue;
+                menuCtx.beginPath(); menuCtx.moveTo(0, y); menuCtx.lineTo(menuCanvas.width, y); menuCtx.stroke();
+            }
+            for (let i = -10; i <= 10; i++) {
+                let x = menuCanvas.width / 2 + i * 80;
+                menuCtx.beginPath(); menuCtx.moveTo(menuCanvas.width / 2, gridY - 20); menuCtx.lineTo(x, menuCanvas.height); menuCtx.stroke();
+            }
+            menuAnimId = requestAnimationFrame(animateMenuBg);
+        }
+        function startMenuBg() {
+            if (menuAnimId) return;
+            initMenuBg();
+            menuCanvas.style.display = 'block';
+            animateMenuBg();
+        }
+        function stopMenuBg() {
+            if (menuAnimId) { cancelAnimationFrame(menuAnimId); menuAnimId = null; }
+            menuCanvas.style.display = 'none';
+        }
+        window.addEventListener('resize', () => { if (menuAnimId) { menuCanvas.width = window.innerWidth; menuCanvas.height = window.innerHeight; } });
+
+        // ==================== ACHIEVEMENT SYSTEM ====================
+        const ACHIEVEMENTS = {
+            first_blood: { name: 'FIRST BLOOD', desc: 'Kill your first enemy', icon: '💀' },
+            centurion: { name: 'CENTURION', desc: 'Kill 100 enemies total', icon: '⚔️' },
+            mass_extinction: { name: 'MASS EXTINCTION', desc: 'Kill 1,000 enemies total', icon: '☠️' },
+            genocide: { name: 'VOID PURGER', desc: 'Kill 10,000 enemies total', icon: '🔥' },
+            boss_hunter: { name: 'BOSS HUNTER', desc: 'Defeat your first boss', icon: '👹' },
+            boss_slayer: { name: 'BOSS SLAYER', desc: 'Defeat 10 bosses total', icon: '🗡️' },
+            boss_legend: { name: 'BOSS LEGEND', desc: 'Defeat 50 bosses total', icon: '👑' },
+            rich: { name: 'SPACE MOGUL', desc: 'Earn 50,000 lifetime coins', icon: '💰' },
+            tycoon: { name: 'VOID TYCOON', desc: 'Earn 500,000 lifetime coins', icon: '💎' },
+            veteran: { name: 'VETERAN PILOT', desc: 'Play 10 games', icon: '🎖️' },
+            deep_void: { name: 'DEEP VOID', desc: 'Reach level 20 in a run', icon: '🌀' },
+            abyss: { name: 'THE ABYSS', desc: 'Reach level 50 in a run', icon: '🕳️' },
+            six_figures: { name: 'SIX FIGURES', desc: 'Score 100,000 points', icon: '📊' },
+            millionaire: { name: 'MILLIONAIRE', desc: 'Score 1,000,000 points', icon: '🏆' },
+            speed_demon: { name: 'SPEED DEMON', desc: 'Get a 10+ kill streak', icon: '⚡' },
+            untouchable: { name: 'UNTOUCHABLE', desc: 'Reach level 10 without taking damage', icon: '🛡️' },
+            shopaholic: { name: 'SHOPAHOLIC', desc: 'Buy 5 upgrades from the hangar', icon: '🛒' },
+            combo_king: { name: 'COMBO KING', desc: 'Reach x5.0 combo', icon: '🔗' },
+            marathon: { name: 'MARATHON', desc: 'Play for 30 minutes total', icon: '⏱️' }
+        };
+        let unlockedAchievements = [];
+        try { let a = JSON.parse(localStorage.getItem('neonVoidAchievements')); if (Array.isArray(a)) unlockedAchievements = a; } catch(e) {}
+        let achQueue = [];
+        let achShowing = false;
+
+        function checkAchievements() {
+            let checks = {
+                first_blood: () => playerStats.totalKills >= 1,
+                centurion: () => playerStats.totalKills >= 100,
+                mass_extinction: () => playerStats.totalKills >= 1000,
+                genocide: () => playerStats.totalKills >= 10000,
+                boss_hunter: () => playerStats.bossesDefeated >= 1,
+                boss_slayer: () => playerStats.bossesDefeated >= 10,
+                boss_legend: () => playerStats.bossesDefeated >= 50,
+                rich: () => playerStats.totalCoinsEarned >= 50000,
+                tycoon: () => playerStats.totalCoinsEarned >= 500000,
+                veteran: () => playerStats.gamesPlayed >= 10,
+                deep_void: () => playerStats.highestLevel >= 20,
+                abyss: () => playerStats.highestLevel >= 50,
+                six_figures: () => playerStats.highScore >= 100000,
+                millionaire: () => playerStats.highScore >= 1000000,
+                speed_demon: () => killStreak >= 10,
+                shopaholic: () => purchasedUpgrades.length >= 5,
+                combo_king: () => state.combo >= 5.0,
+                marathon: () => playerStats.playTime >= 1800
+            };
+            for (let [id, check] of Object.entries(checks)) {
+                if (!unlockedAchievements.includes(id) && check()) {
+                    unlockedAchievements.push(id);
+                    localStorage.setItem('neonVoidAchievements', JSON.stringify(unlockedAchievements));
+                    achQueue.push(id);
+                }
+            }
+            if (achQueue.length > 0 && !achShowing) showNextAchievement();
+        }
+        function showNextAchievement() {
+            if (achQueue.length === 0) { achShowing = false; return; }
+            achShowing = true;
+            let id = achQueue.shift();
+            let ach = ACHIEVEMENTS[id];
+            document.getElementById('ach-popup-name').textContent = ach.name;
+            document.getElementById('ach-popup-desc').textContent = ach.desc;
+            document.getElementById('achievement-popup').classList.add('show');
+            playSound('powerup');
+            setTimeout(() => {
+                document.getElementById('achievement-popup').classList.remove('show');
+                setTimeout(() => showNextAchievement(), 500);
+            }, 3000);
+        }
+        function openAchievements() {
+            ui.mainOverlay.classList.add('hidden');
+            document.getElementById('achievement-screen').classList.remove('hidden');
+            let grid = document.getElementById('ach-grid');
+            grid.innerHTML = '';
+            let total = Object.keys(ACHIEVEMENTS).length;
+            let unlocked = unlockedAchievements.length;
+            document.getElementById('ach-progress').textContent = `${unlocked} / ${total} UNLOCKED`;
+            for (let [id, ach] of Object.entries(ACHIEVEMENTS)) {
+                let isUnlocked = unlockedAchievements.includes(id);
+                let card = document.createElement('div');
+                card.className = 'ach-card' + (isUnlocked ? ' unlocked' : '');
+                card.innerHTML = `<div class="ach-card-name">${isUnlocked ? ach.icon + ' ' : '🔒 '}${ach.name}</div><div class="ach-card-desc">${ach.desc}</div>`;
+                grid.appendChild(card);
+            }
+        }
+
+        // ==================== ASTEROID HAZARDS ====================
+        let asteroids = [];
+        class Asteroid {
+            constructor() {
+                let side = Math.floor(Math.random() * 4);
+                if (side === 0) { this.x = -60; this.y = Math.random() * canvas.height; }
+                else if (side === 1) { this.x = canvas.width + 60; this.y = Math.random() * canvas.height; }
+                else if (side === 2) { this.x = Math.random() * canvas.width; this.y = -60; }
+                else { this.x = Math.random() * canvas.width; this.y = canvas.height + 60; }
+                let cx = canvas.width / 2 + (Math.random() - 0.5) * canvas.width;
+                let cy = canvas.height / 2 + (Math.random() - 0.5) * canvas.height;
+                let a = Math.atan2(cy - this.y, cx - this.x);
+                let spd = 1 + Math.random() * 2;
+                this.vx = Math.cos(a) * spd; this.vy = Math.sin(a) * spd;
+                this.radius = 18 + Math.random() * 28;
+                this.hp = this.radius * 4; this.maxHp = this.hp;
+                this.rotation = Math.random() * Math.PI * 2;
+                this.rotSpeed = (Math.random() - 0.5) * 0.03;
+                this.vertices = [];
+                let pts = 7 + Math.floor(Math.random() * 4);
+                for (let i = 0; i < pts; i++) this.vertices.push(this.radius * (0.6 + Math.random() * 0.4));
+                this.color = `hsl(${20 + Math.random() * 20}, ${20 + Math.random() * 20}%, ${30 + Math.random() * 20}%)`;
+            }
+            update() {
+                this.x += this.vx; this.y += this.vy;
+                this.rotation += this.rotSpeed;
+            }
+            draw(ctx) {
+                ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.rotation);
+                ctx.strokeStyle = '#888'; ctx.lineWidth = 2; ctx.fillStyle = this.color;
+                if (appSettings.graphics === 'high') { ctx.shadowBlur = 5; ctx.shadowColor = '#555'; }
+                ctx.beginPath();
+                let pts = this.vertices.length;
+                for (let i = 0; i <= pts; i++) {
+                    let a = (Math.PI * 2 / pts) * (i % pts);
+                    let r = this.vertices[i % pts];
+                    if (i === 0) ctx.moveTo(Math.cos(a)*r, Math.sin(a)*r);
+                    else ctx.lineTo(Math.cos(a)*r, Math.sin(a)*r);
+                }
+                ctx.closePath(); ctx.fill(); ctx.stroke();
+                // HP bar
+                if (this.hp < this.maxHp) {
+                    ctx.rotate(-this.rotation);
+                    ctx.fillStyle = '#ff0000'; ctx.fillRect(-15, -this.radius - 10, 30, 4);
+                    ctx.fillStyle = '#00ff00'; ctx.fillRect(-15, -this.radius - 10, 30 * (this.hp / this.maxHp), 4);
+                }
+                ctx.restore();
+            }
+            isOffscreen() {
+                return this.x < -200 || this.x > canvas.width + 200 || this.y < -200 || this.y > canvas.height + 200;
+            }
+        }
+
+        function spawnAsteroid() {
+            if (state.level < 3 || state.spawningBoss || activeBoss) return;
+            if (asteroids.length < 4 && Math.random() < 0.003) {
+                asteroids.push(new Asteroid());
+            }
+        }
+
+        function updateAsteroids(ctx, doRender) {
+            for (let i = asteroids.length - 1; i >= 0; i--) {
+                let a = asteroids[i];
+                a.update();
+                if (doRender) a.draw(ctx);
+                // Player collision
+                if (Math.hypot(a.x - player.x, a.y - player.y) < a.radius + player.radius) {
+                    player.takeDamage(40);
+                    spawnParticles(player.x, player.y, '#888', 10);
+                }
+                // Bullet collision
+                for (let j = entities.bullets.length - 1; j >= 0; j--) {
+                    let b = entities.bullets[j];
+                    if (Math.hypot(b.x - a.x, b.y - a.y) < a.radius) {
+                        a.hp -= b.dmg;
+                        spawnParticles(b.x, b.y, '#888', 3);
+                        spawnText(b.x, b.y, Math.floor(b.dmg), '#888', 14);
+                        if (b.pierce <= 0) { entities.bullets.splice(j, 1); } else { b.pierce--; }
+                    }
+                }
+                // Enemy collision
+                for (let e of entities.enemies) {
+                    if (!e || e.type === 'dummy') continue;
+                    if (Math.hypot(e.x - a.x, e.y - a.y) < a.radius + e.radius) {
+                        e.hp -= 50; spawnParticles(e.x, e.y, '#888', 5);
+                    }
+                }
+                if (a.hp <= 0) {
+                    spawnParticles(a.x, a.y, '#888', 30, 2);
+                    shakeScreen(8);
+                    playSound('hit');
+                    state.score += 500 * state.combo;
+                    // Drop coins
+                    state.runCoins += 50;
+                    asteroids.splice(i, 1);
+                } else if (a.isOffscreen()) {
+                    asteroids.splice(i, 1);
+                }
+            }
+        }
+
+        // ==================== ENGINE EXHAUST PARTICLES ====================
+        let exhaustParticles = [];
+        function updateExhaust(ctx) {
+            // Spawn exhaust when player is moving
+            if (state.active && !state.paused && !state.warping) {
+                let isMoving = keys['KeyW'] || keys['ArrowUp'] || keys['KeyS'] || keys['ArrowDown'] || keys['KeyA'] || keys['ArrowLeft'] || keys['KeyD'] || keys['ArrowRight'] || joyData.active;
+                if (isMoving && state.frame % 2 === 0) {
+                    let backAngle = player.angle + Math.PI;
+                    let spread = (Math.random() - 0.5) * 0.8;
+                    let spd = 2 + Math.random() * 3;
+                    exhaustParticles.push({
+                        x: player.x + Math.cos(backAngle) * 14,
+                        y: player.y + Math.sin(backAngle) * 14,
+                        vx: Math.cos(backAngle + spread) * spd,
+                        vy: Math.sin(backAngle + spread) * spd,
+                        life: 1,
+                        size: 2 + Math.random() * 3,
+                        color: state.stats.bloodthirstTimer > 0 ? '#ff4400' : (player.timers.overdrive > 0 ? '#ff8800' : '#ff6600')
+                    });
+                }
+            }
+            for (let i = exhaustParticles.length - 1; i >= 0; i--) {
+                let p = exhaustParticles[i];
+                p.x += p.vx; p.y += p.vy;
+                p.vx *= 0.92; p.vy *= 0.92;
+                p.life -= 0.06;
+                p.size *= 0.96;
+                if (p.life <= 0) { exhaustParticles.splice(i, 1); continue; }
+                ctx.globalAlpha = p.life * 0.6;
+                ctx.fillStyle = p.color;
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        // ==================== ENHANCED DEATH EFFECTS ====================
+        function deathRingEffect(x, y, color) {
+            let ring = document.createElement('div');
+            ring.className = 'death-ring';
+            ring.style.borderColor = color;
+            ring.style.left = (x - 20) + 'px';
+            ring.style.top = (y - 20) + 'px';
+            ring.style.boxShadow = `0 0 15px ${color}`;
+            document.body.appendChild(ring);
+            setTimeout(() => ring.remove(), 500);
         }
 
         // ==================== MULTIPLAYER SYSTEM ====================
@@ -2577,18 +2974,21 @@
             document.getElementById('lobby-room').classList.add('hidden');
             document.getElementById('leaderboard-screen').classList.add('hidden');
             document.getElementById('stats-screen').classList.add('hidden');
+            document.getElementById('achievement-screen').classList.add('hidden');
             document.getElementById('mp-hud').style.display = 'none';
             document.getElementById('race-timer').style.display = 'none';
             document.getElementById('race-standings').style.display = 'none';
 
             mpState.active = false; seededRng = null;
+            stopMusic(); startMenuBg();
+            if (appSettings.music) startMenuMusic();
 
             ui.mainOverlay.classList.remove('hidden');
             ui.mainOverlay.classList.remove('win-theme');
             ui.mainTitle.innerText = "NEON VOID";
             ui.mainTitle.style.webkitTextStroke = "3px #ff0055";
             ui.mainTitle.style.textShadow = "0 0 50px #ff0055";
-            ui.mainDesc.innerHTML = `<strong>ARROW KEYS / WASD</strong> to Move | <strong>SPACE / MOUSE</strong> to Shoot<br><strong>SHIFT / RIGHT-CLICK</strong> to Dash | <strong>[C]</strong> to Toggle Aim | <strong>[ESC]</strong> to Pause<br><span style="color: #ff0055; font-weight:bold;">MULTIPLAYER UPDATE</span>`;
+            ui.mainDesc.innerHTML = `<strong>ARROW KEYS / WASD</strong> to Move | <strong>SPACE / MOUSE</strong> to Shoot<br><strong>SHIFT / RIGHT-CLICK</strong> to Dash | <strong>[C]</strong> to Toggle Aim | <strong>[ESC]</strong> to Pause<br><span style="color: #ff0055; font-weight:bold;">THE ULTIMATE UPDATE</span>`;
             document.getElementById('menu-coin-display').innerText = `TOTAL COINS: ${totalCoins}`;
 
             let unlockedRaw = localStorage.getItem('neonVoidStage');
@@ -2596,7 +2996,7 @@
             if(isNaN(unlocked) || unlocked < 1) unlocked = 1;
             let secretBtn = unlocked > 14 ? `<button onclick="startMission(15)" style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;">T H E  G L I T C H<br><span style="font-size:12px">THE END</span></button>` : `<button style="border-color:#555; color:#555; cursor:not-allowed;">LOCKED<br><span style="font-size:12px">Beat Sector 14</span></button>`;
 
-            ui.menuBtns.innerHTML = `<button onclick="openMissionSelect()">Mission Mode<br><span style="font-size:12px">15 Sectors</span></button><button class="btn-infinite" onclick="startInfinite()">Infinite Mode<br><span style="font-size:12px">Endless Scaling</span></button>${secretBtn}<button style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;" onclick="startTraining()">Training Camp<br><span style="font-size:12px">Test Weapons</span></button><button style="border-color:#00ffcc; color:#00ffcc; box-shadow: 0 0 20px #00ffcc;" onclick="openMultiplayer()">Multiplayer<br><span style="font-size:12px">Co-Op & Race</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00;" onclick="openShop()">The Hangar<br><span style="font-size:12px">Black Market</span></button><button style="border-color:#aa00ff; color:#aa00ff; box-shadow: 0 0 20px #aa00ff;" onclick="openLeaderboard()">Leaderboards<br><span style="font-size:12px">Top Pilots</span></button><button style="border-color:#00ffcc; color:#00ffcc; box-shadow: 0 0 20px #00ffcc;" onclick="openStats()">Pilot Stats<br><span style="font-size:12px">Career Record</span></button><button style="border-color:#fff; color:#fff;" onclick="openSettings()">Settings<br><span style="font-size:12px">Sys Config</span></button>`;
+            ui.menuBtns.innerHTML = `<button onclick="openMissionSelect()">Mission Mode<br><span style="font-size:12px">15 Sectors</span></button><button class="btn-infinite" onclick="startInfinite()">Infinite Mode<br><span style="font-size:12px">Endless Scaling</span></button>${secretBtn}<button style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;" onclick="startTraining()">Training Camp<br><span style="font-size:12px">Test Weapons</span></button><button style="border-color:#00ffcc; color:#00ffcc; box-shadow: 0 0 20px #00ffcc;" onclick="openMultiplayer()">Multiplayer<br><span style="font-size:12px">Co-Op & Race</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00;" onclick="openShop()">The Hangar<br><span style="font-size:12px">Black Market</span></button><button style="border-color:#aa00ff; color:#aa00ff; box-shadow: 0 0 20px #aa00ff;" onclick="openLeaderboard()">Leaderboards<br><span style="font-size:12px">Top Pilots</span></button><button style="border-color:#00ffcc; color:#00ffcc; box-shadow: 0 0 20px #00ffcc;" onclick="openStats()">Pilot Stats<br><span style="font-size:12px">Career Record</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00;" onclick="openAchievements()">Achievements<br><span style="font-size:12px">${unlockedAchievements.length}/${Object.keys(ACHIEVEMENTS).length} Unlocked</span></button><button style="border-color:#fff; color:#fff;" onclick="openSettings()">Settings<br><span style="font-size:12px">Sys Config</span></button>`;
             document.getElementById('menu-coin-display').style.display = 'block';
             document.getElementById('mobile-controls').style.display = 'none';
         };
@@ -2609,7 +3009,10 @@
                 addLeaderboardEntry('infinite', currentUsername || 'ANON', state.score);
             }
             updatePlayerStatsOnGameOver();
+            checkAchievements();
             stopMusic();
+            startMenuBg();
+            if (appSettings.music) startMenuMusic();
             // Notify MP peers
             if (mpState.active) {
                 mpPlayerDied();
@@ -2621,6 +3024,7 @@
 
         applySettings();
         checkLogin();
+        startMenuBg();
         if (currentUsername) returnToMenu();
     </script>
 </body>
