@@ -892,7 +892,7 @@
             takeDamage(amt) {
                 if (state.mode === 'training' || state.warping) return;
                 if (this.timers.dash > 0 || state.spawningBoss || this.timers.invuln > 0) return;
-                playSound('hit'); shakeScreen(15); spawnParticles(this.x, this.y, '#ff0000', 20);
+                playSound('hit'); shakeScreen(15); triggerChroma(4); spawnParticles(this.x, this.y, '#ff0000', 20);
                 state.combo = 1.0; ui.combo.style.transform = 'scale(1.5)'; setTimeout(() => ui.combo.style.transform = 'scale(1)', 100);
                 ui.damageFlash.style.opacity = '1'; setTimeout(() => ui.damageFlash.style.opacity = '0', 100);
                 
@@ -1041,9 +1041,20 @@
                     ctx.shadowBlur = 10; ctx.shadowColor = this.color;
                 }
                 if (this.isMine && appSettings.graphics === 'high') { ctx.shadowBlur = 15; ctx.shadowColor = '#ff6600'; }
+                // Projectile trail for player bullets
+                if (!this.isEnemy && !this.isMine && appSettings.graphics === 'high') {
+                    ctx.globalAlpha = 0.15;
+                    ctx.fillStyle = this.isCrit ? '#ff0000' : this.color;
+                    for (let t = 1; t <= 4; t++) {
+                        ctx.fillRect(this.x - this.vx*t*0.4 - 1, this.y - this.vy*t*0.4 - 1, 2, 2);
+                    }
+                    ctx.globalAlpha = 1;
+                }
                 ctx.fillStyle = this.isCrit ? '#ff0000' : (this.isMine ? `rgba(255,102,0,${0.5 + Math.sin(state.frame * 0.2) * 0.3})` : this.color);
                 if (this.radius > 6 || this.isMine) { ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); ctx.fill(); if (this.isMine) { ctx.strokeStyle = '#ff6600'; ctx.lineWidth = 1; ctx.stroke(); } }
                 else { ctx.fillRect(this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2); }
+                // Crit glow
+                if (this.isCrit && appSettings.graphics === 'high') { ctx.globalAlpha = 0.3; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius + 3, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1; }
                 ctx.shadowBlur = 0;
             }
         }
@@ -1338,7 +1349,7 @@
 
 
         function triggerNuke() { 
-            playSound('nuke'); shakeScreen(50); ctx.fillStyle = 'rgba(0, 136, 255, 0.8)'; ctx.fillRect(0, 0, canvas.width, canvas.height); 
+            playSound('nuke'); shakeScreen(50); triggerChroma(6); ctx.fillStyle = 'rgba(0, 136, 255, 0.8)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
             for (let i = entities.enemies.length - 1; i >= 0; i--) { let e = entities.enemies[i]; if (!e) continue; spawnParticles(e.x, e.y, e.color, 30, 2); state.score += (e.xp * 10) * state.combo; addXp(e.xp); state.runCoins += (e.xp * 2); entities.enemies.splice(i, 1); state.kills++; } 
             ui.kills.innerText = `KILLS: ${state.kills}`; 
             if (activeBoss && activeBoss.alpha > 0.5) { if (activeBoss.type !== 'TITAN' || !activeBoss.shielded) activeBoss.hp -= 1500 * state.stats.dmgMulti; spawnParticles(activeBoss.x, activeBoss.y, activeBoss.color, 100, 4); spawnText(activeBoss.x, activeBoss.y, "NUKE HIT", '#0088ff', 24); if(activeBoss.hp <= 0 && !activeBoss.isDead) { activeBoss.isDead = true; handleBossDeath(); } } 
@@ -1379,7 +1390,7 @@
 
 
         function handleBossDeath() { 
-            spawnParticles(activeBoss.x, activeBoss.y, activeBoss.color, 150, 5); shakeScreen(60); playSound('hit'); state.kills++; ui.kills.innerText = `KILLS: ${state.kills}`; state.score += 50000 * state.combo; addXp(2000); state.bossesDefeated++; triggerSlowMo(45);
+            spawnParticles(activeBoss.x, activeBoss.y, activeBoss.color, 150, 5); shakeScreen(60); playSound('hit'); state.kills++; ui.kills.innerText = `KILLS: ${state.kills}`; state.score += 50000 * state.combo; addXp(2000); state.bossesDefeated++; triggerSlowMo(45); triggerChroma(8);
             let coinMult = state.hardcore ? 5 : 1; state.runCoins += (25000 + (state.currentStage * 5000)) * coinMult; 
             entities.enemies = []; entities.eBullets = []; 
             if(state.mode === 'mission') { 
@@ -1534,6 +1545,8 @@
             }
 
             drawMuzzleFlashes(ctx);
+            drawChroma(ctx);
+            updateDust(ctx);
             checkComboMilestone();
             mpSync();
             if (state.frame % 3 === 0) drawMinimap();
@@ -2597,6 +2610,57 @@
         function flashEnemy(e) {
             e.flashTimer = 6;
         }
+
+        // ==================== CHROMATIC ABERRATION ====================
+        let chromaIntensity = 0;
+        function triggerChroma(intensity = 5) {
+            chromaIntensity = Math.max(chromaIntensity, intensity);
+        }
+        function drawChroma(ctx) {
+            if (chromaIntensity <= 0 || appSettings.graphics !== 'high') return;
+            let offset = chromaIntensity;
+            ctx.save();
+            ctx.globalCompositeOperation = 'lighter';
+            ctx.globalAlpha = 0.06 * (chromaIntensity / 5);
+            // Red channel shift
+            ctx.drawImage(canvas, offset, 0, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
+            // Blue channel shift
+            ctx.drawImage(canvas, -offset, 0, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
+            ctx.restore();
+            chromaIntensity *= 0.85;
+            if (chromaIntensity < 0.3) chromaIntensity = 0;
+        }
+
+        // ==================== DUST / AMBIENT PARTICLES ====================
+        let dustParticles = [];
+        function initDust() {
+            dustParticles = [];
+            for (let i = 0; i < 30; i++) {
+                dustParticles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: (Math.random() - 0.5) * 0.3,
+                    vy: Math.random() * 0.2 + 0.1,
+                    size: Math.random() * 1.5 + 0.5,
+                    alpha: Math.random() * 0.15 + 0.05
+                });
+            }
+        }
+        function updateDust(ctx) {
+            if (appSettings.graphics !== 'high') return;
+            for (let d of dustParticles) {
+                d.x += d.vx;
+                d.y += d.vy;
+                if (d.y > canvas.height) { d.y = 0; d.x = Math.random() * canvas.width; }
+                if (d.x < 0) d.x = canvas.width;
+                if (d.x > canvas.width) d.x = 0;
+                ctx.globalAlpha = d.alpha;
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(d.x, d.y, d.size, d.size);
+            }
+            ctx.globalAlpha = 1;
+        }
+        initDust();
 
         // ==================== BACKGROUND MUSIC ====================
         let musicPlaying = false;
