@@ -1163,7 +1163,8 @@
             }
             update() {
                 if (this.frozen > 0 && this.type !== 'BAD_BOSS' && this.type !== 'SECRET' && this.type !== 'GLITCH') { this.frozen--; return; }
-                let hyperMult = state.hyper ? 1.5 : 1.0; if (this.y < this.targetY) this.y += 3 * hyperMult; this.timer += hyperMult; this.angle += 0.04 * hyperMult; this.phase = this.hp < this.maxHp * 0.3 ? 3 : (this.hp < this.maxHp * 0.6 ? 2 : 1);
+                let hyperMult = state.hyper ? 1.5 : 1.0; if (this.y < this.targetY) this.y += 3 * hyperMult; this.timer += hyperMult; this.angle += 0.04 * hyperMult; let oldPhase = this.phase; this.phase = this.hp < this.maxHp * 0.3 ? 3 : (this.hp < this.maxHp * 0.6 ? 2 : 1);
+                if (this.phase !== oldPhase && oldPhase > 0) { shakeScreen(25); triggerChroma(5); spawnParticles(this.x, this.y, this.color, 60, 3); spawnText(this.x, this.y - this.radius - 20, this.phase === 2 ? 'PHASE 2' : 'ENRAGED!', this.phase === 2 ? '#ffff00' : '#ff0000', 24); playSound('hit'); }
                 
                 let hpPct = this.hp / this.maxHp;
                 if (this.type !== 'VTSG' && this.type !== 'BAD_BOSS' && this.type !== 'SECRET' && this.type !== 'GLITCH') { ui.bossHp.style.background = hpPct > 0.6 ? '#00ff00' : (hpPct > 0.3 ? '#ffff00' : '#ff0000'); ui.bossHp.style.boxShadow = `0 0 20px ${ui.bossHp.style.background}`; }
@@ -1237,8 +1238,14 @@
 
         function addXp(amt) { state.xp += amt * state.combo; while (state.xp >= state.xpNeeded) { state.xp -= state.xpNeeded; state.level++; state.xpNeeded = Math.floor(state.xpNeeded * 1.5); triggerLevelUp(); } }
         
-        function triggerLevelUp() { 
-            state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.innerHTML = ''; 
+        function triggerLevelUp() {
+            // Level-up burst effect
+            spawnParticles(player.x, player.y, '#00ffcc', 40, 3);
+            shakeScreen(8);
+            triggerChroma(3);
+            // Expanding ring
+            entities.texts.push({ x: player.x, y: player.y, life: 30, draw(ctx) { let progress = 1 - this.life/30; ctx.save(); ctx.strokeStyle = '#00ffcc'; ctx.lineWidth = 3 - progress*3; ctx.globalAlpha = 1 - progress; ctx.beginPath(); ctx.arc(this.x, this.y, progress*120, 0, Math.PI*2); ctx.stroke(); ctx.restore(); }, update() { this.life--; } });
+            state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.innerHTML = '';
             let pool = [...PERKS].sort(() => 0.5 - Math.random()); let choices = []; 
             while (choices.length < 3) choices.push(pool.pop()); 
             choices.forEach(p => { 
@@ -2151,10 +2158,12 @@
         
         function saveRunCoins() { totalCoins += state.runCoins; localStorage.setItem('neonVoidCoins', totalCoins); }
         
-        function gameOver() { state.active = false; saveRunCoins();
+        function gameOver() { state.active = false; saveRunCoins(); triggerChroma(6);
+            let elapsed = Math.floor(state.frame / 60); let mins = Math.floor(elapsed / 60); let secs = elapsed % 60;
             let dailyStr = '';
             if (state.isDaily) { let isNew = saveDailyScore(Math.floor(state.score)); dailyStr = `<br><span style="color:#ff8800; font-size:16px;">DAILY: ${state.dailyMod.name}</span>${isNew ? '<br><span style="color:#00ff00;">NEW DAILY BEST!</span>' : ''}`; }
-            ui.mainOverlay.classList.remove('hidden'); ui.mainOverlay.classList.remove('win-theme'); ui.boss.style.display = 'none'; document.getElementById('mobile-controls').style.display = 'none'; document.getElementById('menu-coin-display').style.display = 'none'; ui.mainTitle.innerText = "YOU DIED"; ui.mainTitle.style.color = "transparent"; ui.mainTitle.style.webkitTextStroke = "3px #ff0055"; ui.mainTitle.style.textShadow = "0 0 50px #ff0055"; ui.mainDesc.innerHTML = `THE VOID CLAIMED YOU. YOUR FAMILY IS LOST FOREVER.<br><br>FINAL SCORE: <span style="color:#00ffcc; font-size:24px;">${Math.floor(state.score)}</span><br>KILLS: <span style="color:#ff8800; font-size:24px;">${state.kills}</span><br>COINS EARNED: <span style="color:#ffcc00; font-size:24px;">+${state.runCoins}</span>${dailyStr}`; if (state.mode === 'mission') ui.menuBtns.innerHTML = `<button onclick="startMission(${state.currentStage})">Retry Sector</button><button onclick="returnToMenu()">Main Menu</button>`; else if (state.isDaily) ui.menuBtns.innerHTML = `<button onclick="startDailyChallenge()">Retry Daily</button><button onclick="returnToMenu()">Main Menu</button>`; else ui.menuBtns.innerHTML = `<button onclick="startInfinite()">Retry Infinite</button><button onclick="returnToMenu()">Main Menu</button>`; }
+            let kpm = elapsed > 0 ? ((state.kills / elapsed) * 60).toFixed(1) : '0';
+            ui.mainOverlay.classList.remove('hidden'); ui.mainOverlay.classList.remove('win-theme'); ui.boss.style.display = 'none'; document.getElementById('mobile-controls').style.display = 'none'; document.getElementById('menu-coin-display').style.display = 'none'; ui.mainTitle.innerText = "YOU DIED"; ui.mainTitle.style.color = "transparent"; ui.mainTitle.style.webkitTextStroke = "3px #ff0055"; ui.mainTitle.style.textShadow = "0 0 50px #ff0055"; ui.mainDesc.innerHTML = `THE VOID CLAIMED YOU. YOUR FAMILY IS LOST FOREVER.<br><br><table style="margin:10px auto; border:1px solid rgba(255,0,85,0.3); border-collapse:collapse; font-size:16px;"><tr><td style="padding:6px 20px; color:#666; text-align:left;">SCORE</td><td style="padding:6px 20px; color:#00ffcc; font-size:22px; text-align:right;">${Math.floor(state.score).toLocaleString()}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">KILLS</td><td style="padding:6px 20px; color:#ff8800; font-size:22px; text-align:right;">${state.kills}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">LEVEL</td><td style="padding:6px 20px; color:#aa00ff; font-size:22px; text-align:right;">${state.level}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">BOSSES</td><td style="padding:6px 20px; color:#ff0055; font-size:22px; text-align:right;">${state.bossesDefeated}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">TIME</td><td style="padding:6px 20px; color:#fff; font-size:20px; text-align:right;">${mins}m ${secs.toString().padStart(2,'0')}s</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">KILLS/MIN</td><td style="padding:6px 20px; color:#ff8800; font-size:18px; text-align:right;">${kpm}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">COINS</td><td style="padding:6px 20px; color:#ffcc00; font-size:22px; text-align:right;">+${state.runCoins.toLocaleString()}</td></tr></table>${dailyStr}`; if (state.mode === 'mission') ui.menuBtns.innerHTML = `<button onclick="startMission(${state.currentStage})">Retry Sector</button><button onclick="returnToMenu()">Main Menu</button>`; else if (state.isDaily) ui.menuBtns.innerHTML = `<button onclick="startDailyChallenge()">Retry Daily</button><button onclick="returnToMenu()">Main Menu</button>`; else ui.menuBtns.innerHTML = `<button onclick="startInfinite()">Retry Infinite</button><button onclick="returnToMenu()">Main Menu</button>`; }
         
         function stageCleared() { state.active = false; saveRunCoins(); ui.mainOverlay.classList.remove('hidden'); ui.mainOverlay.classList.add('win-theme'); ui.boss.style.display = 'none'; document.getElementById('mobile-controls').style.display = 'none'; document.getElementById('menu-coin-display').style.display = 'none'; ui.mainTitle.innerText = `SECTOR ${state.currentStage} CLEARED`; ui.mainTitle.style.webkitTextStroke = "3px #00ffcc"; ui.mainTitle.style.textShadow = "0 0 50px #00ffcc"; ui.mainDesc.innerHTML = `THREAT NEUTRALIZED. YOU ARE GETTING CLOSER.<br><br>FINAL SCORE: <span style="color:#00ffcc; font-size:24px;">${Math.floor(state.score)}</span><br>KILLS: <span style="color:#ff8800; font-size:24px;">${state.kills}</span><br>COINS EARNED: <span style="color:#ffcc00; font-size:24px;">+${state.runCoins}</span>`; ui.menuBtns.innerHTML = `<button onclick="startMission(${state.currentStage + 1})">Next Sector</button><button onclick="returnToMenu()">Main Menu</button>`; }
         
