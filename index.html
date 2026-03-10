@@ -466,7 +466,14 @@
             'bloodthirst': { name: "BLOODTHIRST CORE", desc: "Kills grant massive speed/fire rate", price: 1000000 },
             'wisp': { name: "ASTRAL WISP", desc: "A loyal pet that shoots and grabs items", price: 2000000 },
             'dart_protocol': { name: "PRECISION PROTOCOL", desc: "Extra projectile on every shot", price: 75000 },
-            'alchemist': { name: "ALCHEMIST BREW", desc: "+25% damage and +15% speed permanently", price: 150000 }
+            'alchemist': { name: "ALCHEMIST BREW", desc: "+25% damage and +15% speed permanently", price: 150000 },
+            'shield_gen': { name: "SHIELD GENERATOR", desc: "Dash grants a 2-second shield", price: 175000 },
+            'nano_repair': { name: "NANO REPAIR", desc: "Regenerate 1 HP every 2 seconds", price: 200000 },
+            'coin_boost': { name: "PROFIT ENGINE", desc: "+50% coin earnings from all sources", price: 350000 },
+            'void_siphon': { name: "VOID SIPHON", desc: "Kills restore 3% max HP", price: 450000 },
+            'overcharge': { name: "OVERCHARGE CAPACITOR", desc: "Every 10th shot deals 5x damage", price: 600000 },
+            'phase_shift': { name: "PHASE SHIFT", desc: "Brief invincibility after taking damage", price: 800000 },
+            'quantum_echo': { name: "QUANTUM ECHO", desc: "20% chance to fire a duplicate shot", price: 1500000 }
         };
 
 
@@ -638,9 +645,10 @@
 
 
         function getBaseStats() {
-            let base = { dmgMulti: 1.5, fireRateMulti: 1.0, maxHp: 500, speedMulti: 1.2, projCount: 1, homing: false, explosive: false, vampirism: 0, dashCdMulti: 1.0, pierce: 0, guardian: 0, bombDrones: 0, laserDrones: 0, miniDrones: 0, scatterDrones: 0, empDrones: 0, sawDrones: 0, sniperDrones: 0, critChance: 0.05, critMult: 2.0, tesla: 0, timeDilator: false, nukeDash: false, magnet: false, antimatter: false, bloodthirst: false, bloodthirstTimer: 0, wisp: false, wispAngle: 0 };
+            let base = { dmgMulti: 1.5, fireRateMulti: 1.0, maxHp: 500, speedMulti: 1.2, projCount: 1, homing: false, explosive: false, vampirism: 0, dashCdMulti: 1.0, pierce: 0, guardian: 0, bombDrones: 0, laserDrones: 0, miniDrones: 0, scatterDrones: 0, empDrones: 0, sawDrones: 0, sniperDrones: 0, critChance: 0.05, critMult: 2.0, tesla: 0, timeDilator: false, nukeDash: false, magnet: false, antimatter: false, bloodthirst: false, bloodthirstTimer: 0, wisp: false, wispAngle: 0, shieldGen: false, nanoRepair: false, coinMulti: 1.0, voidSiphon: false, overcharge: false, phaseShift: false, quantumEcho: false };
             if (purchasedUpgrades.includes('homing')) base.homing = true; if (purchasedUpgrades.includes('explosive')) base.explosive = true; if (purchasedUpgrades.includes('pierce')) base.pierce += 1; if (purchasedUpgrades.includes('drone_bomb')) base.bombDrones += 1; if (purchasedUpgrades.includes('drone_laser')) base.laserDrones += 1; if (purchasedUpgrades.includes('drone_mini')) base.miniDrones += 1; if (purchasedUpgrades.includes('drone_scatter')) base.scatterDrones += 1; if (purchasedUpgrades.includes('drone_emp')) base.empDrones += 1; if (purchasedUpgrades.includes('drone_saw')) base.sawDrones += 1; if (purchasedUpgrades.includes('drone_sniper')) base.sniperDrones += 1; if (purchasedUpgrades.includes('guardian')) base.guardian += 1; if (purchasedUpgrades.includes('tesla')) base.tesla += 1; if (purchasedUpgrades.includes('time_dilator')) base.timeDilator = true; if (purchasedUpgrades.includes('nuke_dash')) base.nukeDash = true; if (purchasedUpgrades.includes('magnet')) base.magnet = true; if (purchasedUpgrades.includes('antimatter')) base.antimatter = true; if (purchasedUpgrades.includes('bloodthirst')) base.bloodthirst = true; if (purchasedUpgrades.includes('wisp')) base.wisp = true;
             if (purchasedUpgrades.includes('dart_protocol')) base.projCount += 1; if (purchasedUpgrades.includes('alchemist')) { base.dmgMulti *= 1.25; base.speedMulti *= 1.15; }
+            if (purchasedUpgrades.includes('shield_gen')) base.shieldGen = true; if (purchasedUpgrades.includes('nano_repair')) base.nanoRepair = true; if (purchasedUpgrades.includes('coin_boost')) base.coinMulti = 1.5; if (purchasedUpgrades.includes('void_siphon')) base.voidSiphon = true; if (purchasedUpgrades.includes('overcharge')) base.overcharge = true; if (purchasedUpgrades.includes('phase_shift')) base.phaseShift = true; if (purchasedUpgrades.includes('quantum_echo')) base.quantumEcho = true;
             return base;
         }
 
@@ -743,7 +751,7 @@
             constructor() {
                 this.x = canvas.width / 2; this.y = canvas.height / 2; this.radius = 12; this.hp = state.stats.maxHp;
                 this.shield = 0; this.nukeShield = false; this.angle = -Math.PI / 2; this.lastShot = 0; this.dashCd = 0;
-                this.timers = { overdrive: 0, shield: 0, dash: 0, invuln: 0 }; this.target = null;
+                this.timers = { overdrive: 0, shield: 0, dash: 0, invuln: 0, shieldGen: 0 }; this.target = null; this.shotCount = 0;
                 this.baseColor = (SKINS[equippedSkin] || SKINS['default']).color;
                 ui.hp.style.background = this.baseColor; ui.hp.style.boxShadow = `0 0 10px ${this.baseColor}`;
                 ui.xp.style.background = this.baseColor; ui.xp.style.boxShadow = `0 0 15px ${this.baseColor}`;
@@ -786,6 +794,7 @@
                     this.timers.dash = 12; this.dashCd = Math.floor(60 * state.stats.dashCdMulti);
                     playSound('dash'); shakeScreen(5);
                     if(state.stats.nukeDash){ let p = new Projectile(this.x, this.y, 0, 0, '#ff8800', 300 * state.stats.dmgMulti); p.isBomb = true; p.radius = 15; entities.bullets.push(p); }
+                    if(state.stats.shieldGen) this.timers.shieldGen = 120;
                 }
                 mobileDash = false; this.target = null;
 
@@ -877,30 +886,42 @@
 
 
             shoot() {
-                playSound('shoot'); addMuzzleFlash(this.x, this.y, this.angle); const s = 22; const c = this.timers.overdrive > 0 || state.stats.bloodthirstTimer > 0 ? '#ff8800' : this.baseColor; const dmg = 20 * state.stats.dmgMulti; let count = state.stats.projCount;
+                playSound('shoot'); addMuzzleFlash(this.x, this.y, this.angle); const s = 22; const c = this.timers.overdrive > 0 || state.stats.bloodthirstTimer > 0 ? '#ff8800' : this.baseColor; let dmg = 20 * state.stats.dmgMulti; let count = state.stats.projCount;
                 if(this.timers.overdrive > 0 || state.stats.bloodthirstTimer > 0) count += 2;
-                
-                if (count === 1) { 
-                    entities.bullets.push(new Projectile(this.x, this.y, Math.cos(this.angle)*s, Math.sin(this.angle)*s, c, dmg)); 
-                } else { 
-                    let spread = 0.15 * count; let startAngle = this.angle - (spread / 2); let step = spread / (count - 1); 
-                    for(let i=0; i<count; i++) { let a = startAngle + (step * i); entities.bullets.push(new Projectile(this.x, this.y, Math.cos(a)*s, Math.sin(a)*s, c, dmg)); } 
+                this.shotCount++;
+                let isOvercharged = state.stats.overcharge && this.shotCount % 10 === 0;
+                if (isOvercharged) dmg *= 5;
+
+                if (count === 1) {
+                    let p = new Projectile(this.x, this.y, Math.cos(this.angle)*s, Math.sin(this.angle)*s, isOvercharged ? '#ffff00' : c, dmg);
+                    if (isOvercharged) p.radius = 6;
+                    entities.bullets.push(p);
+                } else {
+                    let spread = 0.15 * count; let startAngle = this.angle - (spread / 2); let step = spread / (count - 1);
+                    for(let i=0; i<count; i++) { let a = startAngle + (step * i); let p = new Projectile(this.x, this.y, Math.cos(a)*s, Math.sin(a)*s, isOvercharged ? '#ffff00' : c, dmg); if(isOvercharged) p.radius = 6; entities.bullets.push(p); }
+                }
+                if (state.stats.quantumEcho && Math.random() < 0.2) {
+                    let offset = (Math.random() - 0.5) * 0.3;
+                    let ep = new Projectile(this.x, this.y, Math.cos(this.angle+offset)*s, Math.sin(this.angle+offset)*s, c, dmg * 0.5);
+                    ep.ghost = true;
+                    entities.bullets.push(ep);
                 }
             }
 
 
             takeDamage(amt) {
                 if (state.mode === 'training' || state.warping) return;
-                if (this.timers.dash > 0 || state.spawningBoss || this.timers.invuln > 0) return;
+                if (this.timers.dash > 0 || state.spawningBoss || this.timers.invuln > 0 || this.timers.shieldGen > 0) return;
                 playSound('hit'); shakeScreen(15); triggerChroma(4); spawnParticles(this.x, this.y, '#ff0000', 20);
                 state.combo = 1.0; ui.combo.style.transform = 'scale(1.5)'; setTimeout(() => ui.combo.style.transform = 'scale(1)', 100);
                 ui.damageFlash.style.opacity = '1'; setTimeout(() => ui.damageFlash.style.opacity = '0', 100);
-                
-                if (this.shield > 0) { 
-                    this.shield -= amt; 
-                    if(this.shield < 0) { if (this.nukeShield) { triggerNuke(); triggerEMP(); this.nukeShield = false; } this.hp += this.shield; this.shield = 0; } 
+
+                if (this.shield > 0) {
+                    this.shield -= amt;
+                    if(this.shield < 0) { if (this.nukeShield) { triggerNuke(); triggerEMP(); this.nukeShield = false; } this.hp += this.shield; this.shield = 0; }
                 } else { this.hp -= amt; }
-                
+
+                if (state.stats.phaseShift) this.timers.invuln = 30;
                 if (this.hp <= 0) gameOver();
             }
 
@@ -935,6 +956,7 @@
                 if (this.shield > 0) { ctx.strokeStyle = this.nukeShield ? '#ff0055' : '#aa00ff'; ctx.lineWidth = 2; ctx.shadowColor = appSettings.graphics === 'high' ? ctx.strokeStyle : 'transparent'; ctx.beginPath(); ctx.arc(0, 0, 25 + Math.sin(state.frame*0.1)*3, 0, Math.PI*2); ctx.stroke(); }
                 if (this.timers.invuln > 0) { ctx.strokeStyle = this.baseColor; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, 30 + Math.sin(state.frame*0.2)*5, 0, Math.PI*2); ctx.stroke(); }
                 if (state.stats.bloodthirstTimer > 0) { ctx.strokeStyle = '#ff0000'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(0,0, 35 + Math.random()*5, 0, Math.PI*2); ctx.stroke(); }
+                if (this.timers.shieldGen > 0) { ctx.strokeStyle = '#00ccff'; ctx.lineWidth = 2; ctx.globalAlpha = 0.4 + Math.sin(state.frame*0.15)*0.2; ctx.beginPath(); ctx.arc(0, 0, 28 + Math.sin(state.frame*0.1)*3, 0, Math.PI*2); ctx.stroke(); ctx.globalAlpha = 1; }
                 ctx.restore();
                 
                 if (state.stats.wisp) {
@@ -1050,9 +1072,11 @@
                     }
                     ctx.globalAlpha = 1;
                 }
+                if (this.ghost) ctx.globalAlpha = 0.4;
                 ctx.fillStyle = this.isCrit ? '#ff0000' : (this.isMine ? `rgba(255,102,0,${0.5 + Math.sin(state.frame * 0.2) * 0.3})` : this.color);
                 if (this.radius > 6 || this.isMine) { ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); ctx.fill(); if (this.isMine) { ctx.strokeStyle = '#ff6600'; ctx.lineWidth = 1; ctx.stroke(); } }
                 else { ctx.fillRect(this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2); }
+                if (this.ghost) ctx.globalAlpha = 1;
                 // Crit glow
                 if (this.isCrit && appSettings.graphics === 'high') { ctx.globalAlpha = 0.3; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius + 3, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1; }
                 ctx.shadowBlur = 0;
@@ -1284,7 +1308,8 @@
                 if (state.stats.vampirism > 0) player.hp = Math.min(state.stats.maxHp, player.hp + state.stats.vampirism); 
                 if (state.stats.antimatter) triggerExplosion(e.x, e.y, 40 * state.stats.dmgMulti);
                 if (state.stats.bloodthirst) state.stats.bloodthirstTimer = 90;
-                
+                if (state.stats.voidSiphon) { let heal = Math.ceil(state.stats.maxHp * 0.03); player.hp = Math.min(state.stats.maxHp, player.hp + heal); spawnParticles(player.x, player.y, '#aa00ff', 5, 0.5); }
+
                 let coinMult = (state.hardcore ? 5 : 1) * (state.stats.coinMulti || 1);
                 state.runCoins += Math.floor(Math.max(5, e.xp * 2) * coinMult);
 
@@ -1357,7 +1382,7 @@
 
         function triggerNuke() { 
             playSound('nuke'); shakeScreen(50); triggerChroma(6); ctx.fillStyle = 'rgba(0, 136, 255, 0.8)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-            for (let i = entities.enemies.length - 1; i >= 0; i--) { let e = entities.enemies[i]; if (!e) continue; spawnParticles(e.x, e.y, e.color, 30, 2); state.score += (e.xp * 10) * state.combo; addXp(e.xp); state.runCoins += (e.xp * 2); entities.enemies.splice(i, 1); state.kills++; } 
+            for (let i = entities.enemies.length - 1; i >= 0; i--) { let e = entities.enemies[i]; if (!e) continue; spawnParticles(e.x, e.y, e.color, 30, 2); state.score += (e.xp * 10) * state.combo; addXp(e.xp); state.runCoins += Math.floor((e.xp * 2) * (state.stats.coinMulti || 1)); entities.enemies.splice(i, 1); state.kills++; }
             ui.kills.innerText = `KILLS: ${state.kills}`; 
             if (activeBoss && activeBoss.alpha > 0.5) { if (activeBoss.type !== 'TITAN' || !activeBoss.shielded) activeBoss.hp -= 1500 * state.stats.dmgMulti; spawnParticles(activeBoss.x, activeBoss.y, activeBoss.color, 100, 4); spawnText(activeBoss.x, activeBoss.y, "NUKE HIT", '#0088ff', 24); if(activeBoss.hp <= 0 && !activeBoss.isDead) { activeBoss.isDead = true; handleBossDeath(); } } 
         }
@@ -1372,7 +1397,7 @@
 
         function triggerBlackHole() { 
             playSound('emp'); shakeScreen(80); ctx.fillStyle = 'rgba(68, 0, 136, 0.8)'; ctx.fillRect(0, 0, canvas.width, canvas.height); 
-            for (let i = entities.enemies.length - 1; i >= 0; i--) { let e = entities.enemies[i]; if (!e) continue; if (e.type === 'bad') { e.hp -= 3000 * state.stats.dmgMulti; continue; } spawnParticles(canvas.width/2, canvas.height/2, e.color, 10, 2); state.score += (e.xp * 15) * state.combo; addXp(e.xp * 2); let coinMult = state.hardcore ? 5 : 1; state.runCoins += Math.max(10, e.xp * 2) * coinMult; entities.enemies.splice(i, 1); state.kills++; } 
+            for (let i = entities.enemies.length - 1; i >= 0; i--) { let e = entities.enemies[i]; if (!e) continue; if (e.type === 'bad') { e.hp -= 3000 * state.stats.dmgMulti; continue; } spawnParticles(canvas.width/2, canvas.height/2, e.color, 10, 2); state.score += (e.xp * 15) * state.combo; addXp(e.xp * 2); let coinMult = (state.hardcore ? 5 : 1) * (state.stats.coinMulti || 1); state.runCoins += Math.floor(Math.max(10, e.xp * 2) * coinMult); entities.enemies.splice(i, 1); state.kills++; }
             ui.kills.innerText = `KILLS: ${state.kills}`; if (activeBoss && activeBoss.alpha > 0.5) activeBoss.hp -= 3000 * state.stats.dmgMulti; spawnText(canvas.width/2, canvas.height/2, "EVENT HORIZON", '#aa00ff', 36); 
         }
 
@@ -1398,13 +1423,18 @@
 
         function handleBossDeath() { 
             spawnParticles(activeBoss.x, activeBoss.y, activeBoss.color, 150, 5); shakeScreen(60); playSound('hit'); state.kills++; ui.kills.innerText = `KILLS: ${state.kills}`; state.score += 50000 * state.combo; addXp(2000); state.bossesDefeated++; triggerSlowMo(45); triggerChroma(8);
-            let coinMult = state.hardcore ? 5 : 1; state.runCoins += (25000 + (state.currentStage * 5000)) * coinMult; 
+            let coinMult = (state.hardcore ? 5 : 1) * (state.stats.coinMulti || 1); state.runCoins += Math.floor((25000 + (state.currentStage * 5000)) * coinMult);
             entities.enemies = []; entities.eBullets = []; 
             if(state.mode === 'mission') { 
                 let unlockedRaw = localStorage.getItem('neonVoidStage'); let unlocked = parseInt(unlockedRaw); if(isNaN(unlocked) || unlocked < 1) unlocked = 1; 
                 let targetStage = state.currentStage === 15 ? 15 : state.currentStage + 1; 
                 if (targetStage > unlocked && targetStage <= 15) localStorage.setItem('neonVoidStage', targetStage); 
-                setTimeout(() => { if (state.currentStage === 15) winGame(); else stageCleared(); }, 2000); 
+                let defeatKey = 'defeat' + state.currentStage;
+                if (STORY[defeatKey]) {
+                    setTimeout(() => { playCutscene(defeatKey, () => { if (state.currentStage === 15) winGame(); else stageCleared(); }); }, 2000);
+                } else {
+                    setTimeout(() => { if (state.currentStage === 15) winGame(); else stageCleared(); }, 2000);
+                }
             } else { activeBoss = null; ui.boss.style.display = 'none'; state.difficulty += 0.5; state.nextBossLevel = state.level + 5; } 
         }
 
@@ -1426,7 +1456,7 @@
                     if (state.warping) {
                         state.warpFrames++; if (state.warpFrames > 60) state.warping = false;
                     } else {
-                        player.update(); if (f === framesToRun - 1) player.draw(ctx); 
+                        player.update(); if (state.stats.nanoRepair && state.frame % 120 === 0 && player.hp < state.stats.maxHp) { player.hp = Math.min(state.stats.maxHp, player.hp + 1); spawnParticles(player.x, player.y, '#00ff88', 3, 0.3); } if (f === framesToRun - 1) player.draw(ctx);
                         spawnWave(); 
                         if (activeBoss) { activeBoss.update(); if (f === framesToRun - 1) activeBoss.draw(ctx); } 
                         if (activeOrbitalStrike) { activeOrbitalStrike.update(); if (f === framesToRun - 1) activeOrbitalStrike.draw(ctx); if (activeOrbitalStrike.life <= 0) activeOrbitalStrike = null; }
@@ -1588,10 +1618,22 @@
                 { speaker: "COMMANDER VALE", color: "#00ffcc", text: "Every second we waste, more of who they are gets overwritten. You need to move. Now." },
                 { speaker: "YOU", color: "#ffffff", text: "Then get out of my way." }
             ],
+            boss2: [
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "Pilot, sensors are going haywire. This isn't a normal hostile." },
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "It's a Vortex — a living tear in spacetime. This is the same energy signature that hit Colony 9." },
+                { speaker: "YOU", color: "#ffffff", text: "Then it knows where my family is." },
+                { speaker: "VORTEX", color: "#aa00ff", text: "W E  A R E  T H E  D O O R.  Y O U  C A N N O T  C L O S E  W H A T  W A S  O P E N E D." }
+            ],
             boss3: [
                 { speaker: "REAVER", color: "#ffffff", text: "ANOTHER MOTH TO THE FLAME. YOUR KIND NEVER LEARNS." },
                 { speaker: "YOU", color: "#ffffff", text: "My kind? I'm the one you should be running from." },
                 { speaker: "REAVER", color: "#ffffff", text: "BRAVE WORDS FOR A DEAD PILOT." }
+            ],
+            boss4: [
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "The Nebula Weaver — it creates its web from neural energy. From people's thoughts." },
+                { speaker: "YOU", color: "#ffffff", text: "You're saying it's built from human minds?" },
+                { speaker: "NEBULA WEAVER", color: "#00ffff", text: "SO MANY VOICES IN MY THREADS. THEY SCREAM SUCH BEAUTIFUL PATTERNS." },
+                { speaker: "YOU", color: "#ffffff", text: "I'll cut every last thread." }
             ],
             boss5: [
                 { speaker: "COMMANDER VALE", color: "#00ffcc", text: "Pilot, I need to tell you something. We've been tracking the neural drain patterns." },
@@ -1601,11 +1643,32 @@
                 { speaker: "TITAN CORE", color: "#ffcc00", text: "EVERY MEMORY. EVERY DREAM. EVERY MOMENT THEY LOVED YOU. DELICIOUS FUEL." },
                 { speaker: "YOU", color: "#ffffff", text: "I'll make you choke on those words." }
             ],
+            boss6: [
+                { speaker: "???", color: "#ff0055", text: "Do you recognize my voice yet?" },
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "Pilot... the Wraith's neural signature. It matches—" },
+                { speaker: "YOU", color: "#ffffff", text: "Don't say it." },
+                { speaker: "WRAITH", color: "#ff0055", text: "THEY MADE ME FROM WHAT THEY TOOK. I HAVE YOUR DAUGHTER'S LAUGH. YOUR PARTNER'S DREAMS." },
+                { speaker: "YOU", color: "#ffffff", text: "You're not them. You're what they did to them." },
+                { speaker: "WRAITH", color: "#ff0055", text: "DESTROY ME AND YOU DESTROY A PIECE OF THEM FOREVER." },
+                { speaker: "YOU", color: "#ffffff", text: "...Then I'll be gentle about it." }
+            ],
             boss7: [
                 { speaker: "ORACLE", color: "#00ffcc", text: "I SEE ALL TIMELINES, PILOT. IN EVERY ONE... YOU FAIL." },
                 { speaker: "YOU", color: "#ffffff", text: "Then you're looking at the wrong timeline." },
                 { speaker: "ORACLE", color: "#00ffcc", text: "NO. I SEE THE TRUTH YOU DON'T. YOUR COMMANDER IS HIDING SOMETHING." },
                 { speaker: "COMMANDER VALE", color: "#00ffcc", text: "Don't listen to it! It's trying to manipulate you." }
+            ],
+            boss8: [
+                { speaker: "SINGULARITY", color: "#4444ff", text: "I AM THE WEIGHT OF A THOUSAND COLLAPSED MINDS. COME. ADD YOURS." },
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "Its gravity well is pulling in everything. Even light can't escape." },
+                { speaker: "YOU", color: "#ffffff", text: "Good thing I'm not light. I'm the thing that breaks through the dark." },
+                { speaker: "SINGULARITY", color: "#4444ff", text: "THE ORACLE TRIED TO WARN YOU. YOU SHOULD HAVE LISTENED." }
+            ],
+            boss9: [
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "Sector 9. After this, we enter the Void God's domain. No one's come back from there." },
+                { speaker: "OMEGA CORE", color: "#ff0000", text: "TURN BACK, INSECT. WHAT LIES BEYOND ME WILL BREAK YOUR MIND." },
+                { speaker: "YOU", color: "#ffffff", text: "My mind's already broken. That's what makes me dangerous." },
+                { speaker: "OMEGA CORE", color: "#ff0000", text: "THEN YOU WILL MAKE A FINE OFFERING TO THE VOID GOD." }
             ],
             boss10: [
                 { speaker: "???", color: "#ff0055", text: "Do you remember us yet?" },
@@ -1616,6 +1679,13 @@
                 { speaker: "COMMANDER VALE", color: "#00ffcc", text: "Pilot, focus! That's a lie. Kill the Void God. That's an order!" },
                 { speaker: "YOU", color: "#ffffff", text: "...We'll talk after this thing is dead." }
             ],
+            boss11: [
+                { speaker: "TRUE SUN GOD", color: "#ffff00", text: "I AM THE LIGHT THAT BURNS AWAY LIES. LOOK UPON THE TRUTH, PILOT." },
+                { speaker: "TRUE SUN GOD", color: "#ffff00", text: "YOUR COMMANDER OPENED THE GATE. YOUR FAMILY PAID THE PRICE. AND NOW SHE SENDS YOU TO CLEAN UP HER MISTAKE." },
+                { speaker: "YOU", color: "#ffffff", text: "I know what Vale did. I'm not fighting for her." },
+                { speaker: "TRUE SUN GOD", color: "#ffff00", text: "THEN WHO DO YOU FIGHT FOR? GHOSTS? ECHOES? THEY ARE ALREADY PART OF US." },
+                { speaker: "YOU", color: "#ffffff", text: "They're not ghosts until I say they are." }
+            ],
             boss12: [
                 { speaker: "COMMANDER VALE", color: "#00ffcc", text: "I know what the Void God told you. I need to explain—" },
                 { speaker: "YOU", color: "#ffffff", text: "Did you know? About Colony 9?" },
@@ -1624,6 +1694,13 @@
                 { speaker: "YOU", color: "#ffffff", text: "You could have told me." },
                 { speaker: "COMMANDER VALE", color: "#00ffcc", text: "Would you still have fought if you knew I was the reason they were taken?" },
                 { speaker: "YOU", color: "#ffffff", text: "...Doesn't matter. I'm not fighting for you. I'm fighting for them." }
+            ],
+            boss13: [
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "Pilot... this is it. The B.A.D. Leviathan. It's the size of a small moon." },
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "Beyond it is the Omniverse itself. If you can break through this, nothing can stop you." },
+                { speaker: "B.A.D. LEVIATHAN", color: "#800080", text: "I HAVE CONSUMED CIVILIZATIONS. YOU ARE NOTHING." },
+                { speaker: "YOU", color: "#ffffff", text: "Maybe. But nothing is exactly what's going to tear you apart." },
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "For what it's worth... I believe in you. More than I've believed in anything." }
             ],
             boss14: [
                 { speaker: "???", color: "#ff0055", text: "You're so close now. Can you feel us?" },
@@ -1641,6 +1718,25 @@
                 { speaker: "YOU", color: "#ffffff", text: "I hear you. I'm coming. Just hold on a little longer." },
                 { speaker: "THE GLITCH", color: "#00ff00", text: "T O  F R E E  T H E M  Y O U  M U S T  D E S T R O Y  M E.  B U T  I  A M  T H E  O N L Y  T H I N G  K E E P I N G  T H E M  A L I V E." },
                 { speaker: "YOU", color: "#ffffff", text: "Then I'll find another way. I always do." }
+            ],
+            defeat5: [
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "Titan Core is down. But pilot... the neural drain data we recovered—" },
+                { speaker: "YOU", color: "#ffffff", text: "I heard what it said. My family's memories being burned for power." },
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "We can reverse it. But we need to go deeper. Much deeper." },
+                { speaker: "YOU", color: "#ffffff", text: "Then we go deeper." }
+            ],
+            defeat6: [
+                { speaker: "YOU", color: "#ffffff", text: "...Tell me that wasn't really them." },
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "It was an echo. A copy. Your family's core patterns are still intact deeper in the Void." },
+                { speaker: "YOU", color: "#ffffff", text: "How many more of those things did they make?" },
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "I don't know. But every one you destroy weakens the Glitch Engine's hold on them." },
+                { speaker: "YOU", color: "#ffffff", text: "Then they all die." }
+            ],
+            defeat10: [
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "Pilot, I need you to hear me out—" },
+                { speaker: "YOU", color: "#ffffff", text: "Did you open the Void Gate? Yes or no." },
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "...Yes. But I didn't know—" },
+                { speaker: "YOU", color: "#ffffff", text: "We're done talking about this. Get me to the next sector." }
             ],
             ending: [
                 { speaker: "SYSTEM", color: "#00ffcc", text: "GLITCH ENGINE: CRITICAL FAILURE. NEURAL PATTERN EXTRACTION: REVERSED." },
@@ -1925,10 +2021,22 @@
                 { scene: 'signal_trace', bg: '#000810' },
                 { scene: 'ship_launch', bg: '#000810' }
             ],
+            boss2: [
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'ship_charge', bg: '#050010' },
+                { scene: 'boss_appear', bg: '#050010', bossColor: '#aa00ff', bossType: 'circle' }
+            ],
             boss3: [
                 { scene: 'boss_appear', bg: '#080008', bossColor: '#ffffff', bossType: 'triangle' },
                 { scene: 'ship_charge', bg: '#080008' },
                 { scene: 'boss_appear', bg: '#080008', bossColor: '#ffffff', bossType: 'triangle' }
+            ],
+            boss4: [
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'neural_drain', bg: '#001010' },
+                { scene: 'boss_appear', bg: '#001010', bossColor: '#00ffff', bossType: 'diamond' },
+                { scene: 'ship_charge', bg: '#001010' }
             ],
             boss5: [
                 { scene: 'cockpit', bg: '#000810' },
@@ -1938,11 +2046,32 @@
                 { scene: 'boss_appear', bg: '#0a0800', bossColor: '#ffcc00', bossType: 'hex' },
                 { scene: 'ship_charge', bg: '#0a0800' }
             ],
+            boss6: [
+                { scene: 'static', bg: '#000', text_glow: '#ff0055' },
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'boss_appear', bg: '#0a0005', bossColor: '#ff0055', bossType: 'circle' },
+                { scene: 'ship_charge', bg: '#0a0005' },
+                { scene: 'boss_appear', bg: '#0a0005', bossColor: '#ff0055', bossType: 'circle' },
+                { scene: 'cockpit', bg: '#000810' }
+            ],
             boss7: [
                 { scene: 'boss_appear', bg: '#001010', bossColor: '#00ffcc', bossType: 'diamond' },
                 { scene: 'ship_charge', bg: '#001010' },
                 { scene: 'boss_appear', bg: '#001010', bossColor: '#00ffcc', bossType: 'diamond' },
                 { scene: 'cockpit', bg: '#000810' }
+            ],
+            boss8: [
+                { scene: 'boss_appear', bg: '#000020', bossColor: '#4444ff', bossType: 'circle' },
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'ship_charge', bg: '#000020' },
+                { scene: 'boss_appear', bg: '#000020', bossColor: '#4444ff', bossType: 'circle' }
+            ],
+            boss9: [
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'boss_appear', bg: '#0a0000', bossColor: '#ff0000', bossType: 'hex' },
+                { scene: 'ship_charge', bg: '#0a0000' },
+                { scene: 'boss_appear', bg: '#0a0000', bossColor: '#ff0000', bossType: 'hex' }
             ],
             boss10: [
                 { scene: 'static', bg: '#000', text_glow: '#ff0055' },
@@ -1953,6 +2082,13 @@
                 { scene: 'cockpit', bg: '#000810' },
                 { scene: 'cockpit', bg: '#000810' }
             ],
+            boss11: [
+                { scene: 'boss_appear', bg: '#0a0800', bossColor: '#ffff00', bossType: 'hex' },
+                { scene: 'boss_appear', bg: '#0a0800', bossColor: '#ffff00', bossType: 'hex' },
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'boss_appear', bg: '#0a0800', bossColor: '#ffff00', bossType: 'hex' },
+                { scene: 'ship_charge', bg: '#0a0800' }
+            ],
             boss12: [
                 { scene: 'cockpit', bg: '#000810' },
                 { scene: 'cockpit', bg: '#000810' },
@@ -1961,6 +2097,13 @@
                 { scene: 'cockpit', bg: '#000810' },
                 { scene: 'cockpit', bg: '#000810' },
                 { scene: 'ship_charge', bg: '#000810' }
+            ],
+            boss13: [
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'boss_appear', bg: '#080008', bossColor: '#800080', bossType: 'circle' },
+                { scene: 'ship_charge', bg: '#080008' },
+                { scene: 'cockpit', bg: '#000810' }
             ],
             boss14: [
                 { scene: 'static', bg: '#000', text_glow: '#ff0055' },
@@ -1978,6 +2121,25 @@
                 { scene: 'cockpit', bg: '#000810' },
                 { scene: 'glitch_world', bg: '#000500' },
                 { scene: 'ship_charge', bg: '#000500' }
+            ],
+            defeat5: [
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'neural_drain', bg: '#0a0500' },
+                { scene: 'ship_charge', bg: '#0a0500' }
+            ],
+            defeat6: [
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'ship_charge', bg: '#0a0005' }
+            ],
+            defeat10: [
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'ship_charge', bg: '#000810' }
             ],
             ending: [
                 { scene: 'glitch_world', bg: '#000500' },
@@ -2518,7 +2680,7 @@
                 let sysName = `SYSTEM: SECTOR ${stageNum}`; if (stageNum === 14) sysName = 'SYSTEM: OMNIVERSAL ANOMALY DETECTED'; if (stageNum === 15) sysName = 'SYSTEM: [FATAL ERROR] GLITCH FOUND'; if (appSettings.hardcore) sysName += ' [NIGHTMARE]'; if (appSettings.hyper) sysName += ' [HYPER-DRIVE]'; 
                 ui.status.innerText = sysName; initGameBase(); 
             };
-            if (stageNum === 1) playCutscene('intro', bootMission); else if (stageNum === 3) playCutscene('boss3', bootMission); else if (stageNum === 5) playCutscene('boss5', bootMission); else if (stageNum === 7) playCutscene('boss7', bootMission); else if (stageNum === 10) playCutscene('boss10', bootMission); else if (stageNum === 12) playCutscene('boss12', bootMission); else if (stageNum === 14) playCutscene('boss14', bootMission); else if (stageNum === 15) playCutscene('boss15', bootMission); else bootMission();
+            if (stageNum === 1) playCutscene('intro', bootMission); else if (stageNum === 2) playCutscene('boss2', bootMission); else if (stageNum === 3) playCutscene('boss3', bootMission); else if (stageNum === 4) playCutscene('boss4', bootMission); else if (stageNum === 5) playCutscene('boss5', bootMission); else if (stageNum === 6) playCutscene('boss6', bootMission); else if (stageNum === 7) playCutscene('boss7', bootMission); else if (stageNum === 8) playCutscene('boss8', bootMission); else if (stageNum === 9) playCutscene('boss9', bootMission); else if (stageNum === 10) playCutscene('boss10', bootMission); else if (stageNum === 11) playCutscene('boss11', bootMission); else if (stageNum === 12) playCutscene('boss12', bootMission); else if (stageNum === 13) playCutscene('boss13', bootMission); else if (stageNum === 14) playCutscene('boss14', bootMission); else if (stageNum === 15) playCutscene('boss15', bootMission); else bootMission();
         }
 
 
@@ -3422,7 +3584,7 @@
                     playSound('hit');
                     state.score += 500 * state.combo;
                     // Drop coins
-                    state.runCoins += 50;
+                    state.runCoins += Math.floor(50 * (state.stats.coinMulti || 1));
                     asteroids.splice(i, 1);
                 } else if (a.isOffscreen()) {
                     asteroids.splice(i, 1);
