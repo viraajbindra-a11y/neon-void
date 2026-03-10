@@ -1633,16 +1633,177 @@
         let cutsceneAnimId = null;
         let cutsceneParticles = [];
 
-        const CUTSCENE_THEMES = {
-            intro: { bg: '#000810', stars: true, shipFly: true, color: '#00ffcc' },
-            boss3: { bg: '#0a0005', stars: true, color: '#ffffff', pulse: true },
-            boss5: { bg: '#0a0800', stars: true, color: '#ffcc00', voidRift: true },
-            boss7: { bg: '#050010', stars: true, color: '#00ffcc', eyeEffect: true },
-            boss10: { bg: '#0a0000', stars: true, color: '#ffffff', voidRift: true, shakeEffect: true },
-            boss12: { bg: '#000508', stars: true, color: '#00ffcc', rain: true },
-            boss14: { bg: '#000000', stars: true, color: '#00ffff', voidRift: true, warpEffect: true },
-            boss15: { bg: '#000500', stars: true, color: '#00ff00', glitchEffect: true },
-            ending: { bg: '#000810', stars: true, color: '#00ff00', shipFly: true, lightBeams: true }
+        // --- Cutscene Scene Renderer ---
+        let csActors = [];
+        let csDebris = [];
+        let csFlashes = [];
+
+        function drawShip(ctx, x, y, size, color, angle, engineOn) {
+            ctx.save(); ctx.translate(x, y); ctx.rotate(angle || 0);
+            ctx.fillStyle = color; ctx.strokeStyle = color; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(size, 0); ctx.lineTo(-size*0.5, size*0.5); ctx.lineTo(-size*0.3, 0); ctx.lineTo(-size*0.5, -size*0.5); ctx.closePath(); ctx.fill();
+            ctx.fillStyle = '#fff'; ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.arc(size*0.3, 0, size*0.15, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1;
+            if (engineOn) {
+                for (let t = 1; t <= 5; t++) {
+                    ctx.globalAlpha = 0.6 - t*0.1;
+                    ctx.fillStyle = t%2===0 ? '#ff8800' : '#ffcc00';
+                    ctx.beginPath(); ctx.arc(-size*0.5 - t*size*0.15, (Math.random()-0.5)*size*0.2, size*0.12 - t*0.01*size, 0, Math.PI*2); ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+            }
+            ctx.restore();
+        }
+
+        function drawColony(ctx, x, y, size, damage) {
+            ctx.save(); ctx.translate(x, y);
+            // Dome structure
+            ctx.strokeStyle = damage > 0.5 ? '#ff4400' : '#00ffcc'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(0, 0, size, Math.PI, 0); ctx.stroke();
+            // Base
+            ctx.fillStyle = '#223344'; ctx.fillRect(-size*1.2, 0, size*2.4, size*0.3);
+            // Windows (flickering if damaged)
+            for (let i = -3; i <= 3; i++) {
+                ctx.fillStyle = (damage > 0.3 && Math.random() > 0.5) ? '#000' : '#00ffcc';
+                ctx.globalAlpha = damage > 0.3 ? 0.3 + Math.random()*0.7 : 0.8;
+                ctx.fillRect(i*size*0.25 - 3, -size*0.3, 6, 8);
+            }
+            ctx.globalAlpha = 1;
+            // Fire if damaged
+            if (damage > 0) {
+                for (let i = 0; i < Math.floor(damage * 8); i++) {
+                    let fx = (Math.random()-0.5)*size*1.5;
+                    let fy = -Math.random()*size*0.8;
+                    ctx.fillStyle = Math.random()>0.5 ? '#ff4400' : '#ff8800';
+                    ctx.globalAlpha = 0.4 + Math.random()*0.4;
+                    ctx.beginPath(); ctx.arc(fx, fy, 3+Math.random()*8, 0, Math.PI*2); ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+            }
+            ctx.restore();
+        }
+
+        function drawVoidPortal(ctx, x, y, size, frame) {
+            ctx.save(); ctx.translate(x, y);
+            // Outer ring
+            for (let r = 0; r < 3; r++) {
+                let s = size + r*15 + Math.sin(frame*0.05 + r)*5;
+                ctx.strokeStyle = `rgba(128,0,255,${0.3 - r*0.08})`;
+                ctx.lineWidth = 3 - r;
+                ctx.beginPath(); ctx.arc(0, 0, s, 0, Math.PI*2); ctx.stroke();
+            }
+            // Inner void
+            let grad = ctx.createRadialGradient(0, 0, 0, 0, 0, size);
+            grad.addColorStop(0, 'rgba(0,0,0,0.9)');
+            grad.addColorStop(0.6, 'rgba(80,0,160,0.4)');
+            grad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(0, 0, size, 0, Math.PI*2); ctx.fill();
+            // Swirl
+            ctx.strokeStyle = 'rgba(200,100,255,0.3)'; ctx.lineWidth = 1.5;
+            for (let i = 0; i < 4; i++) {
+                ctx.beginPath();
+                let startAngle = frame*0.02 + i*Math.PI/2;
+                for (let t = 0; t < 40; t++) {
+                    let a = startAngle + t*0.15;
+                    let r = size*0.1 + t*size*0.02;
+                    let px = Math.cos(a)*r, py = Math.sin(a)*r;
+                    t === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+                }
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        function drawBossShape(ctx, x, y, size, color, frame, type) {
+            ctx.save(); ctx.translate(x, y); ctx.rotate(frame * 0.01);
+            ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            if (type === 'triangle') { ctx.beginPath(); for(let i=0; i<3; i++) ctx.lineTo(size*Math.cos(i*Math.PI*2/3), size*Math.sin(i*Math.PI*2/3)); ctx.closePath(); }
+            else if (type === 'hex') { ctx.beginPath(); for(let i=0; i<6; i++) ctx.lineTo(size*Math.cos(i*Math.PI/3), size*Math.sin(i*Math.PI/3)); ctx.closePath(); }
+            else if (type === 'diamond') { ctx.beginPath(); ctx.moveTo(0, -size); ctx.lineTo(size, 0); ctx.lineTo(0, size); ctx.lineTo(-size, 0); ctx.closePath(); }
+            else { ctx.beginPath(); ctx.arc(0, 0, size, 0, Math.PI*2); }
+            ctx.fill(); ctx.stroke();
+            // Eye
+            ctx.fillStyle = color; ctx.globalAlpha = 0.5 + Math.sin(frame*0.08)*0.3;
+            ctx.beginPath(); ctx.arc(0, 0, size*0.25, 0, Math.PI*2); ctx.fill();
+            ctx.globalAlpha = 1; ctx.restore();
+        }
+
+        // Scene configs: each cutscene step can have its own visual scene
+        const CUTSCENE_SCENES = {
+            intro: [
+                { scene: 'static', bg: '#000', text_glow: '#ff0055' },
+                { scene: 'cockpit_boot', bg: '#000810' },
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'colony_destroyed', bg: '#0a0000' },
+                { scene: 'colony_destroyed', bg: '#0a0000' },
+                { scene: 'signal_trace', bg: '#000810' },
+                { scene: 'signal_trace', bg: '#000810' },
+                { scene: 'ship_launch', bg: '#000810' }
+            ],
+            boss3: [
+                { scene: 'boss_appear', bg: '#080008', bossColor: '#ffffff', bossType: 'triangle' },
+                { scene: 'ship_charge', bg: '#080008' },
+                { scene: 'boss_appear', bg: '#080008', bossColor: '#ffffff', bossType: 'triangle' }
+            ],
+            boss5: [
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'neural_drain', bg: '#0a0500' },
+                { scene: 'boss_appear', bg: '#0a0800', bossColor: '#ffcc00', bossType: 'hex' },
+                { scene: 'boss_appear', bg: '#0a0800', bossColor: '#ffcc00', bossType: 'hex' },
+                { scene: 'boss_appear', bg: '#0a0800', bossColor: '#ffcc00', bossType: 'hex' },
+                { scene: 'ship_charge', bg: '#0a0800' }
+            ],
+            boss7: [
+                { scene: 'boss_appear', bg: '#001010', bossColor: '#00ffcc', bossType: 'diamond' },
+                { scene: 'ship_charge', bg: '#001010' },
+                { scene: 'boss_appear', bg: '#001010', bossColor: '#00ffcc', bossType: 'diamond' },
+                { scene: 'cockpit', bg: '#000810' }
+            ],
+            boss10: [
+                { scene: 'static', bg: '#000', text_glow: '#ff0055' },
+                { scene: 'boss_appear', bg: '#0a0000', bossColor: '#ffffff', bossType: 'circle' },
+                { scene: 'boss_appear', bg: '#0a0000', bossColor: '#ffffff', bossType: 'circle' },
+                { scene: 'cockpit', bg: '#0a0000' },
+                { scene: 'boss_appear', bg: '#0a0000', bossColor: '#ffffff', bossType: 'circle' },
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'cockpit', bg: '#000810' }
+            ],
+            boss12: [
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'colony_destroyed', bg: '#0a0000' },
+                { scene: 'colony_destroyed', bg: '#0a0000' },
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'ship_charge', bg: '#000810' }
+            ],
+            boss14: [
+                { scene: 'static', bg: '#000', text_glow: '#ff0055' },
+                { scene: 'boss_appear', bg: '#000508', bossColor: '#00ffff', bossType: 'circle' },
+                { scene: 'boss_appear', bg: '#000508', bossColor: '#00ffff', bossType: 'circle' },
+                { scene: 'ship_charge', bg: '#000508' },
+                { scene: 'boss_appear', bg: '#000508', bossColor: '#00ffff', bossType: 'circle' },
+                { scene: 'cockpit', bg: '#000810' }
+            ],
+            boss15: [
+                { scene: 'glitch_world', bg: '#000500' },
+                { scene: 'glitch_world', bg: '#000500' },
+                { scene: 'glitch_world', bg: '#000500' },
+                { scene: 'static', bg: '#000', text_glow: '#ff0055' },
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'glitch_world', bg: '#000500' },
+                { scene: 'ship_charge', bg: '#000500' }
+            ],
+            ending: [
+                { scene: 'glitch_world', bg: '#000500' },
+                { scene: 'collapse', bg: '#0a0000' },
+                { scene: 'collapse', bg: '#0a0000' },
+                { scene: 'static', bg: '#000', text_glow: '#ffcc00' },
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'ship_launch', bg: '#001020' }
+            ]
         };
 
         function startCutsceneAnim(sceneId) {
@@ -1650,93 +1811,209 @@
             bgCanvas.width = window.innerWidth;
             bgCanvas.height = window.innerHeight;
             let bgCtx = bgCanvas.getContext('2d');
-            let theme = CUTSCENE_THEMES[sceneId] || CUTSCENE_THEMES.intro;
             cutsceneParticles = [];
-            for (let i = 0; i < 100; i++) cutsceneParticles.push({ x: Math.random() * bgCanvas.width, y: Math.random() * bgCanvas.height, s: Math.random() * 2 + 0.5, b: Math.random() });
+            for (let i = 0; i < 120; i++) cutsceneParticles.push({ x: Math.random() * bgCanvas.width, y: Math.random() * bgCanvas.height, s: Math.random() * 2 + 0.5, b: Math.random() });
+            csDebris = [];
             let frame = 0;
+            let currentSceneId = sceneId;
+
+            function getSceneConfig() {
+                let scenes = CUTSCENE_SCENES[currentSceneId];
+                if (!scenes) return { scene: 'space', bg: '#000810' };
+                let step = Math.min(cutsceneStep, scenes.length - 1);
+                return scenes[step] || { scene: 'space', bg: '#000810' };
+            }
+
             function animateCutscene() {
                 frame++;
-                bgCtx.fillStyle = theme.bg;
-                bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
-                // Stars
-                if (theme.stars) {
-                    for (let p of cutsceneParticles) {
-                        p.y += p.s * 0.5;
-                        if (p.y > bgCanvas.height) { p.y = 0; p.x = Math.random() * bgCanvas.width; }
-                        bgCtx.fillStyle = `rgba(255,255,255,${0.3 + p.b * 0.7})`;
-                        bgCtx.fillRect(p.x, p.y, p.s > 1.5 ? 2 : 1, p.s > 1.5 ? 2 : 1);
+                let w = bgCanvas.width, h = bgCanvas.height;
+                let cfg = getSceneConfig();
+
+                // Background
+                bgCtx.fillStyle = cfg.bg || '#000810';
+                bgCtx.fillRect(0, 0, w, h);
+
+                // Always draw stars
+                for (let p of cutsceneParticles) {
+                    p.y += p.s * 0.3;
+                    if (p.y > h) { p.y = 0; p.x = Math.random() * w; }
+                    bgCtx.fillStyle = `rgba(255,255,255,${0.2 + p.b * 0.6})`;
+                    bgCtx.fillRect(p.x, p.y, p.s > 1.5 ? 2 : 1, p.s > 1.5 ? 2 : 1);
+                }
+
+                let scene = cfg.scene || 'space';
+
+                if (scene === 'cockpit' || scene === 'cockpit_boot') {
+                    // Cockpit interior - HUD lines and console glow
+                    bgCtx.strokeStyle = 'rgba(0,255,204,0.1)'; bgCtx.lineWidth = 1;
+                    // Console frame
+                    bgCtx.strokeRect(w*0.1, h*0.05, w*0.8, h*0.5);
+                    bgCtx.strokeRect(w*0.12, h*0.07, w*0.76, h*0.46);
+                    // HUD elements
+                    bgCtx.fillStyle = 'rgba(0,255,204,0.05)';
+                    bgCtx.fillRect(w*0.15, h*0.1, w*0.3, h*0.08);
+                    bgCtx.fillRect(w*0.55, h*0.1, w*0.25, h*0.08);
+                    // Scanlines
+                    bgCtx.fillStyle = 'rgba(0,255,204,0.03)';
+                    for (let sy = 0; sy < h*0.5; sy += 4) bgCtx.fillRect(w*0.1, h*0.05 + sy, w*0.8, 1);
+                    // Boot text
+                    if (scene === 'cockpit_boot') {
+                        bgCtx.fillStyle = '#00ffcc'; bgCtx.font = '14px Courier New'; bgCtx.globalAlpha = 0.6;
+                        let lines = ['> NEURAL LINK: ESTABLISHING...', '> PILOT VITALS: CHECKING...', '> WEAPONS SYSTEMS: ONLINE', '> NAV COMPUTER: BOOTING...', '> MEMORY BANKS: CORRUPTED [!]', '> CRYOSLEEP TIMER: 347 DAYS'];
+                        let showLines = Math.min(lines.length, Math.floor(frame / 20));
+                        for (let i = 0; i < showLines; i++) bgCtx.fillText(lines[i], w*0.18, h*0.15 + i*22);
+                        bgCtx.globalAlpha = 1;
+                    }
+                    // Radar blip
+                    bgCtx.strokeStyle = 'rgba(0,255,204,0.15)';
+                    bgCtx.beginPath(); bgCtx.arc(w*0.75, h*0.35, 40, 0, Math.PI*2); bgCtx.stroke();
+                    let ra = frame * 0.03;
+                    bgCtx.strokeStyle = 'rgba(0,255,204,0.3)'; bgCtx.beginPath();
+                    bgCtx.moveTo(w*0.75, h*0.35); bgCtx.lineTo(w*0.75 + Math.cos(ra)*40, h*0.35 + Math.sin(ra)*40); bgCtx.stroke();
+                }
+                else if (scene === 'colony_destroyed') {
+                    // Destroyed colony in space
+                    drawColony(bgCtx, w*0.5, h*0.35, 60, 0.8 + Math.sin(frame*0.03)*0.2);
+                    // Floating debris
+                    for (let i = 0; i < 12; i++) {
+                        let dx = w*0.3 + ((i*97 + frame*0.3) % (w*0.4));
+                        let dy = h*0.15 + ((i*53 + frame*0.2) % (h*0.35));
+                        bgCtx.fillStyle = '#445566'; bgCtx.globalAlpha = 0.4;
+                        bgCtx.fillRect(dx, dy, 3+i%4, 2+i%3);
+                        bgCtx.globalAlpha = 1;
                     }
                 }
-                // Ship flying across
-                if (theme.shipFly) {
-                    let sx = (frame * 2) % (bgCanvas.width + 200) - 100;
-                    let sy = bgCanvas.height * 0.3 + Math.sin(frame * 0.02) * 30;
-                    bgCtx.save(); bgCtx.translate(sx, sy);
-                    bgCtx.fillStyle = theme.color; bgCtx.globalAlpha = 0.6;
-                    bgCtx.beginPath(); bgCtx.moveTo(20, 0); bgCtx.lineTo(-10, 8); bgCtx.lineTo(-10, -8); bgCtx.closePath(); bgCtx.fill();
-                    // Engine trail
-                    bgCtx.globalAlpha = 0.3;
-                    for (let t = 1; t <= 8; t++) {
-                        bgCtx.fillStyle = t % 2 === 0 ? '#ff8800' : '#ffcc00';
-                        bgCtx.beginPath(); bgCtx.arc(-10 - t * 6, (Math.random()-0.5) * 4, 3 - t * 0.3, 0, Math.PI*2); bgCtx.fill();
+                else if (scene === 'signal_trace') {
+                    // Signal wave visualization
+                    bgCtx.strokeStyle = '#00ffcc'; bgCtx.lineWidth = 2; bgCtx.globalAlpha = 0.6;
+                    bgCtx.beginPath();
+                    for (let sx = 0; sx < w; sx += 3) {
+                        let sy = h*0.3 + Math.sin(sx*0.02 + frame*0.05)*30 + Math.sin(sx*0.05 + frame*0.08)*15;
+                        sx === 0 ? bgCtx.moveTo(sx, sy) : bgCtx.lineTo(sx, sy);
                     }
-                    bgCtx.restore();
+                    bgCtx.stroke();
+                    // Pulse points (family signals)
+                    bgCtx.globalAlpha = 0.4 + Math.sin(frame*0.1)*0.3;
+                    bgCtx.fillStyle = '#ffcc00';
+                    for (let i = 0; i < 3; i++) {
+                        let px = w*0.3 + i*w*0.15 + Math.sin(frame*0.02 + i)*20;
+                        let py = h*0.3 + Math.sin(px*0.02 + frame*0.05)*30;
+                        bgCtx.beginPath(); bgCtx.arc(px, py, 5+Math.sin(frame*0.1+i)*3, 0, Math.PI*2); bgCtx.fill();
+                    }
+                    bgCtx.globalAlpha = 1;
+                    // Text overlay
+                    bgCtx.fillStyle = '#00ffcc'; bgCtx.font = '12px Courier New'; bgCtx.globalAlpha = 0.4;
+                    bgCtx.fillText('SIGNAL ORIGIN: VOID SECTOR 9', w*0.15, h*0.15);
+                    bgCtx.fillText('NEURAL SIGNATURES: 3 DETECTED', w*0.15, h*0.18);
+                    bgCtx.globalAlpha = 1;
                 }
-                // Void rift
-                if (theme.voidRift) {
-                    let cx = bgCanvas.width / 2, cy = bgCanvas.height * 0.35;
-                    let size = 50 + Math.sin(frame * 0.03) * 20;
-                    let grad = bgCtx.createRadialGradient(cx, cy, 0, cx, cy, size);
-                    grad.addColorStop(0, 'rgba(128,0,128,0.4)');
-                    grad.addColorStop(0.5, 'rgba(255,0,85,0.15)');
-                    grad.addColorStop(1, 'rgba(0,0,0,0)');
-                    bgCtx.fillStyle = grad; bgCtx.beginPath(); bgCtx.arc(cx, cy, size, 0, Math.PI*2); bgCtx.fill();
-                    // Tendrils
-                    bgCtx.strokeStyle = `rgba(128,0,128,${0.2 + Math.sin(frame*0.05)*0.1})`;
-                    bgCtx.lineWidth = 1;
-                    for (let i = 0; i < 6; i++) {
-                        let a = frame * 0.01 + i * Math.PI / 3;
-                        bgCtx.beginPath(); bgCtx.moveTo(cx, cy);
-                        bgCtx.quadraticCurveTo(cx + Math.cos(a) * 100, cy + Math.sin(a) * 80, cx + Math.cos(a + 0.5) * 200, cy + Math.sin(a + 0.5) * 150);
-                        bgCtx.stroke();
+                else if (scene === 'ship_launch') {
+                    // Ship accelerating away
+                    let shipX = w*0.3 + Math.min(frame*1.5, w*0.5);
+                    let shipY = h*0.3 + Math.sin(frame*0.02)*10;
+                    drawShip(bgCtx, shipX, shipY, 25, '#00ffcc', 0, true);
+                    // Speed lines
+                    if (frame > 30) {
+                        bgCtx.strokeStyle = 'rgba(0,255,204,0.15)'; bgCtx.lineWidth = 1;
+                        for (let i = 0; i < 20; i++) {
+                            let lx = (i*67 + frame*5) % w;
+                            let ly = (i*41) % h;
+                            bgCtx.beginPath(); bgCtx.moveTo(lx, ly); bgCtx.lineTo(lx - 40 - frame*0.5, ly); bgCtx.stroke();
+                        }
                     }
                 }
-                // Glitch effect
-                if (theme.glitchEffect && frame % 15 < 3) {
-                    bgCtx.fillStyle = `rgba(0,255,0,${Math.random() * 0.15})`;
-                    bgCtx.fillRect(0, Math.random() * bgCanvas.height, bgCanvas.width, Math.random() * 20);
-                    bgCtx.fillStyle = `rgba(255,0,0,${Math.random() * 0.1})`;
-                    bgCtx.fillRect(Math.random() * bgCanvas.width, 0, Math.random() * 30, bgCanvas.height);
+                else if (scene === 'ship_charge') {
+                    // Ship charging at boss
+                    let shipX = w*0.2 + Math.sin(frame*0.05)*15;
+                    let shipY = h*0.3;
+                    drawShip(bgCtx, shipX, shipY, 20, '#00ffcc', 0, true);
+                    // Charging weapon glow
+                    bgCtx.globalAlpha = 0.2 + Math.sin(frame*0.1)*0.15;
+                    bgCtx.fillStyle = '#ffffff';
+                    bgCtx.beginPath(); bgCtx.arc(shipX + 25, shipY, 8 + Math.sin(frame*0.15)*4, 0, Math.PI*2); bgCtx.fill();
+                    bgCtx.globalAlpha = 1;
                 }
-                // Light beams (ending)
-                if (theme.lightBeams) {
-                    bgCtx.globalAlpha = 0.05 + Math.sin(frame * 0.02) * 0.03;
+                else if (scene === 'boss_appear') {
+                    let bc = cfg.bossColor || '#ff0055';
+                    let bt = cfg.bossType || 'circle';
+                    let enterY = Math.min(frame * 0.8, h*0.3);
+                    drawBossShape(bgCtx, w*0.5, enterY, 50 + Math.sin(frame*0.03)*5, bc, frame, bt);
+                    // Your ship at bottom
+                    drawShip(bgCtx, w*0.3, h*0.55, 15, '#00ffcc', 0, false);
+                    // Tension lines between
+                    bgCtx.strokeStyle = `rgba(255,0,85,${0.05 + Math.sin(frame*0.05)*0.03})`; bgCtx.lineWidth = 1;
+                    bgCtx.beginPath(); bgCtx.moveTo(w*0.3, h*0.55); bgCtx.lineTo(w*0.5, enterY); bgCtx.stroke();
+                }
+                else if (scene === 'neural_drain') {
+                    // Visualization of minds being drained
+                    drawVoidPortal(bgCtx, w*0.5, h*0.3, 40 + Math.sin(frame*0.02)*10, frame);
+                    // Souls being pulled in
                     for (let i = 0; i < 5; i++) {
-                        let a = frame * 0.005 + i * Math.PI * 2 / 5;
-                        bgCtx.fillStyle = i % 2 === 0 ? '#00ffcc' : '#ffcc00';
-                        bgCtx.beginPath();
-                        bgCtx.moveTo(bgCanvas.width / 2, bgCanvas.height * 0.3);
-                        bgCtx.lineTo(bgCanvas.width / 2 + Math.cos(a) * bgCanvas.width, bgCanvas.height);
-                        bgCtx.lineTo(bgCanvas.width / 2 + Math.cos(a + 0.1) * bgCanvas.width, bgCanvas.height);
-                        bgCtx.fill();
+                        let a = frame*0.01 + i*Math.PI*2/5;
+                        let r = 100 + Math.sin(frame*0.03 + i)*20;
+                        let sx = w*0.5 + Math.cos(a)*r;
+                        let sy = h*0.3 + Math.sin(a)*r*0.6;
+                        bgCtx.fillStyle = '#ffcc00'; bgCtx.globalAlpha = 0.3 + Math.sin(frame*0.05+i)*0.2;
+                        bgCtx.beginPath(); bgCtx.arc(sx, sy, 4, 0, Math.PI*2); bgCtx.fill();
+                        // Trail towards center
+                        bgCtx.strokeStyle = 'rgba(255,204,0,0.15)'; bgCtx.lineWidth = 1;
+                        bgCtx.beginPath(); bgCtx.moveTo(sx, sy); bgCtx.lineTo(w*0.5, h*0.3); bgCtx.stroke();
                     }
                     bgCtx.globalAlpha = 1;
                 }
-                // Pulsing border
-                if (theme.pulse) {
-                    bgCtx.strokeStyle = `rgba(255,255,255,${0.05 + Math.sin(frame * 0.05) * 0.05})`;
-                    bgCtx.lineWidth = 2;
-                    bgCtx.strokeRect(10, 10, bgCanvas.width - 20, bgCanvas.height - 20);
-                }
-                // Rain
-                if (theme.rain) {
-                    bgCtx.strokeStyle = 'rgba(0,255,204,0.1)'; bgCtx.lineWidth = 1;
-                    for (let i = 0; i < 30; i++) {
-                        let rx = (i * 47 + frame * 3) % bgCanvas.width;
-                        let ry = (frame * 4 + i * 31) % bgCanvas.height;
-                        bgCtx.beginPath(); bgCtx.moveTo(rx, ry); bgCtx.lineTo(rx - 2, ry + 15); bgCtx.stroke();
+                else if (scene === 'glitch_world') {
+                    // Glitched environment
+                    if (frame % 10 < 3) {
+                        bgCtx.fillStyle = `rgba(0,255,0,${Math.random()*0.08})`;
+                        bgCtx.fillRect(0, Math.random()*h, w, Math.random()*30+5);
+                    }
+                    // Binary rain
+                    bgCtx.fillStyle = 'rgba(0,255,0,0.15)'; bgCtx.font = '12px Courier New';
+                    for (let i = 0; i < 15; i++) {
+                        let cx = (i*67) % w;
+                        let cy = (frame*2 + i*43) % h;
+                        bgCtx.fillText(Math.random()>0.5 ? '1' : '0', cx, cy);
+                    }
+                    // Distortion blocks
+                    if (frame % 20 < 5) {
+                        bgCtx.fillStyle = `rgba(${Math.random()*50},${Math.random()*255},${Math.random()*50},0.1)`;
+                        bgCtx.fillRect(Math.random()*w, Math.random()*h, Math.random()*100+20, Math.random()*10+2);
                     }
                 }
+                else if (scene === 'collapse') {
+                    // Dimension collapsing
+                    let intensity = Math.min(1, frame * 0.005);
+                    // Cracks
+                    bgCtx.strokeStyle = `rgba(255,100,0,${0.3 * intensity})`; bgCtx.lineWidth = 2;
+                    for (let i = 0; i < 6; i++) {
+                        let sx = w*0.5 + (Math.random()-0.5)*w*intensity;
+                        let sy = h*0.3;
+                        bgCtx.beginPath(); bgCtx.moveTo(sx, sy);
+                        for (let j = 0; j < 5; j++) {
+                            sx += (Math.random()-0.5)*60; sy += Math.random()*50;
+                            bgCtx.lineTo(sx, sy);
+                        }
+                        bgCtx.stroke();
+                    }
+                    // Implosion point
+                    bgCtx.fillStyle = `rgba(255,255,255,${0.1 * intensity})`;
+                    bgCtx.beginPath(); bgCtx.arc(w*0.5, h*0.35, 30 + Math.sin(frame*0.1)*20, 0, Math.PI*2); bgCtx.fill();
+                    // Ship escaping
+                    drawShip(bgCtx, w*0.3 + frame*0.5, h*0.5 - frame*0.1, 15, '#00ffcc', -0.3, true);
+                }
+                else if (scene === 'static') {
+                    // TV static / interference
+                    for (let sy = 0; sy < h; sy += 2) {
+                        bgCtx.fillStyle = `rgba(${Math.random()*40},${Math.random()*40},${Math.random()*40},0.3)`;
+                        bgCtx.fillRect(0, sy, w, 2);
+                    }
+                    if (cfg.text_glow) {
+                        bgCtx.fillStyle = cfg.text_glow; bgCtx.globalAlpha = 0.03 + Math.sin(frame*0.1)*0.02;
+                        bgCtx.fillRect(0, 0, w, h);
+                        bgCtx.globalAlpha = 1;
+                    }
+                }
+
                 cutsceneAnimId = requestAnimationFrame(animateCutscene);
             }
             animateCutscene();
