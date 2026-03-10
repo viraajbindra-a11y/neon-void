@@ -680,7 +680,7 @@
 
 
         function shakeScreen(amt) { state.shake = Math.max(state.shake, amt); }
-        function spawnParticles(x, y, color, count, speedMulti = 1) { if (appSettings.graphics === 'low') count = Math.max(1, Math.floor(count / 3)); for(let i = 0; i < count; i++) { entities.particles.push(new Particle(x, y, color, speedMulti)); } }
+        function spawnParticles(x, y, color, count, speedMulti = 1) { if (appSettings.graphics === 'low') count = Math.max(1, Math.floor(count / 5)); for(let i = 0; i < count; i++) { entities.particles.push(new Particle(x, y, color, speedMulti)); } }
         function spawnText(x, y, text, color, size = 16) { entities.texts.push(new FloatingText(x, y, text, color, size)); }
         
         function getNearestEnemy(x, y) {
@@ -786,7 +786,7 @@
                 this.y = Math.max(this.radius, Math.min(canvas.height - this.radius, this.y));
 
 
-                if (dx !== 0 || dy !== 0) { entities.trails.push(new Trail(this.x, this.y, state.stats.bloodthirstTimer > 0 ? '#ff0000' : this.baseColor)); }
+                if ((dx !== 0 || dy !== 0) && appSettings.graphics === 'high') { entities.trails.push(new Trail(this.x, this.y, state.stats.bloodthirstTimer > 0 ? '#ff0000' : this.baseColor)); }
 
 
                 if (this.dashCd > 0) this.dashCd--;
@@ -827,7 +827,7 @@
                     state.stats.wispAngle += 0.05;
                     let wx = this.x + Math.cos(state.stats.wispAngle) * 50;
                     let wy = this.y + Math.sin(state.stats.wispAngle) * 50;
-                    entities.trails.push(new Trail(wx, wy, '#ffffff'));
+                    if (appSettings.graphics === 'high') entities.trails.push(new Trail(wx, wy, '#ffffff'));
                     
                     if (state.frame % 45 === 0) {
                         let wTarget = this.target || getNearestEnemy(wx, wy);
@@ -1448,7 +1448,7 @@
             try {
                 for(let f = 0; f < framesToRun; f++) {
                     state.frame++; 
-                    if (f === framesToRun - 1) { ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.globalCompositeOperation = 'lighter'; entities.stars.forEach(s => { s.draw(ctx); }); ctx.globalCompositeOperation = 'source-over'; }
+                    if (f === framesToRun - 1) { ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'; ctx.fillRect(0, 0, canvas.width, canvas.height); if (appSettings.graphics === 'high') ctx.globalCompositeOperation = 'lighter'; entities.stars.forEach(s => { s.draw(ctx); }); ctx.globalCompositeOperation = 'source-over'; }
                     entities.stars.forEach(s => { s.update(); });
                     
                     if (f === framesToRun - 1) { ctx.save(); if (state.shake > 0) { ctx.translate((Math.random()-0.5)*state.shake, (Math.random()-0.5)*state.shake); state.shake *= 0.85; if(state.shake < 0.5) state.shake = 0; } }
@@ -1764,10 +1764,13 @@
             ctx.save(); ctx.translate(x, y); ctx.rotate(angle || 0);
             // Engine glow behind ship
             if (engineOn) {
-                let eg = ctx.createRadialGradient(-size*0.4, 0, 0, -size*0.4, 0, size*0.8);
-                eg.addColorStop(0, 'rgba(255,136,0,0.4)'); eg.addColorStop(1, 'transparent');
-                ctx.fillStyle = eg; ctx.fillRect(-size*1.5, -size*0.6, size*1.2, size*1.2);
-                for (let t = 1; t <= 8; t++) {
+                if (appSettings.graphics === 'high') {
+                    let eg = ctx.createRadialGradient(-size*0.4, 0, 0, -size*0.4, 0, size*0.8);
+                    eg.addColorStop(0, 'rgba(255,136,0,0.4)'); eg.addColorStop(1, 'transparent');
+                    ctx.fillStyle = eg; ctx.fillRect(-size*1.5, -size*0.6, size*1.2, size*1.2);
+                }
+                let engineTrails = appSettings.graphics === 'low' ? 3 : 8;
+                for (let t = 1; t <= engineTrails; t++) {
                     ctx.globalAlpha = 0.7 - t*0.08;
                     ctx.fillStyle = t%2===0 ? '#ff8800' : '#ffcc00';
                     let flicker = (Math.random()-0.5)*size*0.15;
@@ -1910,11 +1913,13 @@
             ctx.save(); ctx.translate(x, y);
             // Menacing aura
             let bossRGB = color === '#ffffff' ? '255,255,255' : color === '#ffcc00' ? '255,204,0' : color === '#00ffcc' ? '0,255,204' : color === '#00ffff' ? '0,255,255' : '255,0,85';
-            let auraGrad = ctx.createRadialGradient(0, 0, size*0.5, 0, 0, size*2);
-            auraGrad.addColorStop(0, `rgba(${bossRGB},0.25)`);
-            auraGrad.addColorStop(1, 'transparent');
-            ctx.fillStyle = auraGrad;
-            ctx.beginPath(); ctx.arc(0, 0, size*1.8 + Math.sin(frame*0.03)*10, 0, Math.PI*2); ctx.fill();
+            if (appSettings.graphics === 'high') {
+                let auraGrad = ctx.createRadialGradient(0, 0, size*0.5, 0, 0, size*2);
+                auraGrad.addColorStop(0, `rgba(${bossRGB},0.25)`);
+                auraGrad.addColorStop(1, 'transparent');
+                ctx.fillStyle = auraGrad;
+                ctx.beginPath(); ctx.arc(0, 0, size*1.8 + Math.sin(frame*0.03)*10, 0, Math.PI*2); ctx.fill();
+            }
             // Orbiting particles
             for (let i = 0; i < 8; i++) {
                 let oa = frame*0.02 + i*Math.PI/4;
@@ -1938,11 +1943,13 @@
             ctx.globalAlpha = 1;
             // Eye - pulsing with pupil
             let eyeSize = size*0.3 + Math.sin(frame*0.06)*size*0.05;
-            let eyeGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, eyeSize);
-            eyeGrad.addColorStop(0, '#ffffff');
-            eyeGrad.addColorStop(0.4, color);
-            eyeGrad.addColorStop(1, 'transparent');
-            ctx.fillStyle = eyeGrad;
+            if (appSettings.graphics === 'high') {
+                let eyeGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, eyeSize);
+                eyeGrad.addColorStop(0, '#ffffff');
+                eyeGrad.addColorStop(0.4, color);
+                eyeGrad.addColorStop(1, 'transparent');
+                ctx.fillStyle = eyeGrad;
+            } else { ctx.fillStyle = color; }
             ctx.beginPath(); ctx.arc(0, 0, eyeSize, 0, Math.PI*2); ctx.fill();
             // Pupil that tracks
             let pupilX = Math.sin(frame*0.02)*eyeSize*0.2;
@@ -2671,7 +2678,7 @@
             }
         }
         
-        function initGameBase() { player = new Player(); activeBoss = null; asteroids = []; exhaustParticles = []; entities = { bullets: [], enemies: [], eBullets: [], particles: [], powerups: [], texts: [], stars: [], trails: [] }; for(let i=0; i<150; i++) entities.stars.push(new Star()); ui.mainOverlay.classList.add('hidden'); document.getElementById('mission-select').classList.add('hidden'); document.getElementById('shop-screen').classList.add('hidden'); document.getElementById('settings-screen').classList.add('hidden'); ui.boss.style.display = 'none'; ui.bossAlert.style.display = 'none'; ui.kills.innerText = "KILLS: 0"; mobileAutoShoot = false; document.getElementById('mob-shoot').style.background = 'rgba(0,255,204,0.2)'; document.getElementById('mob-shoot').style.color = '#00ffcc'; document.getElementById('mobile-controls').style.display = appSettings.mobile ? 'flex' : 'none'; if(audioCtx.state === 'suspended') audioCtx.resume(); killStreak = 0; lastScoreEggCheck = 0; idleFrames = 0; idleMessageShown = false; killFlavorCooldown = 0; lastComboMilestone = 0; muzzleFlashes = []; slowMoActive = false; slowMoFrames = 0; stopMenuMusic(); stopMenuBg(); showCountdown(); if (appSettings.music) startMusic(); update(); }
+        function initGameBase() { player = new Player(); activeBoss = null; asteroids = []; exhaustParticles = []; entities = { bullets: [], enemies: [], eBullets: [], particles: [], powerups: [], texts: [], stars: [], trails: [] }; let starCount = appSettings.graphics === 'low' ? 40 : 150; for(let i=0; i<starCount; i++) entities.stars.push(new Star()); ui.mainOverlay.classList.add('hidden'); document.getElementById('mission-select').classList.add('hidden'); document.getElementById('shop-screen').classList.add('hidden'); document.getElementById('settings-screen').classList.add('hidden'); ui.boss.style.display = 'none'; ui.bossAlert.style.display = 'none'; ui.kills.innerText = "KILLS: 0"; mobileAutoShoot = false; document.getElementById('mob-shoot').style.background = 'rgba(0,255,204,0.2)'; document.getElementById('mob-shoot').style.color = '#00ffcc'; document.getElementById('mobile-controls').style.display = appSettings.mobile ? 'flex' : 'none'; if(audioCtx.state === 'suspended') audioCtx.resume(); killStreak = 0; lastScoreEggCheck = 0; idleFrames = 0; idleMessageShown = false; killFlavorCooldown = 0; lastComboMilestone = 0; muzzleFlashes = []; slowMoActive = false; slowMoFrames = 0; stopMenuMusic(); stopMenuBg(); showCountdown(); if (appSettings.music) startMusic(); update(); }
         
         function startMission(stageNum) { 
             let bootMission = () => {
@@ -2896,6 +2903,7 @@
         // ==================== DASH AFTERIMAGE ====================
         let dashGhosts = [];
         function updateDashGhosts() {
+            if (appSettings.graphics === 'low') { dashGhosts = []; return; }
             if (player.timers.dash > 0 && state.frame % 3 === 0) {
                 dashGhosts.push({ x: player.x, y: player.y, angle: player.angle, alpha: 0.6, life: 15 });
             }
@@ -3087,9 +3095,11 @@
         // ==================== MUZZLE FLASH ====================
         let muzzleFlashes = [];
         function addMuzzleFlash(x, y, angle) {
+            if (appSettings.graphics === 'low') return;
             muzzleFlashes.push({ x, y, angle, life: 4 });
         }
         function drawMuzzleFlashes(c) {
+            if (appSettings.graphics === 'low') { muzzleFlashes = []; return; }
             for (let i = muzzleFlashes.length - 1; i >= 0; i--) {
                 let m = muzzleFlashes[i];
                 m.life--;
@@ -3595,6 +3605,7 @@
         // ==================== ENGINE EXHAUST PARTICLES ====================
         let exhaustParticles = [];
         function updateExhaust(ctx) {
+            if (appSettings.graphics === 'low') { exhaustParticles = []; return; }
             // Spawn exhaust when player is moving
             if (state.active && !state.paused && !state.warping) {
                 let isMoving = keys['KeyW'] || keys['ArrowUp'] || keys['KeyS'] || keys['ArrowDown'] || keys['KeyA'] || keys['ArrowLeft'] || keys['KeyD'] || keys['ArrowRight'] || joyData.active;
