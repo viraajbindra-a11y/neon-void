@@ -279,6 +279,15 @@
         </div>
     </div>
 
+    <div id="codex-screen" class="overlay-screen hidden" style="z-index: 22;">
+        <div style="width:100%; height:100%; overflow-y:auto; display:flex; flex-direction:column; align-items:center; padding:50px 0; box-sizing:border-box;">
+            <div class="title-text" style="-webkit-text-stroke: 3px #ff8800; text-shadow: 0 0 50px #ff8800; font-size: 60px;">PILOT CODEX</div>
+            <div style="color: #888; font-size: 14px; margin-bottom: 20px;">Mission logs recovered from neural blackbox</div>
+            <div id="codex-grid" style="display:flex; flex-direction:column; gap:10px; max-width:700px; width:90%;"></div>
+            <button onclick="closeCodex()" style="border-color:#fff; color:#fff; margin-top:30px;">BACK</button>
+        </div>
+    </div>
+
     <div id="main-overlay" class="overlay-screen">
         <div class="title-text" id="main-title">NEON VOID</div>
         <div class="subtitle-text" id="main-desc">
@@ -309,6 +318,8 @@
             <button id="btn-toggle-hyper" onclick="toggleHyperSpeed()" style="width:100%; border-color:#ff00ff; color:#ff00ff; box-shadow: 0 0 20px #ff00ff;">HYPER-DRIVE MODE: OFF</button>
             <button id="btn-toggle-hardcore" onclick="toggleHardcore()" style="width:100%; border-color:#ff0000; color:#ff0000; box-shadow: 0 0 20px #ff0000;">NIGHTMARE MODE: OFF</button>
             <button onclick="logoutUser()" style="width:100%; border-color:#ffcc00; color:#ffcc00; margin-top: 30px;">CHANGE CALLSIGN</button>
+            <button onclick="exportSave()" style="width:100%; border-color:#00ff88; color:#00ff88; margin-top: 30px;">EXPORT SAVE DATA</button>
+            <button onclick="importSave()" style="width:100%; border-color:#00ff88; color:#00ff88;">IMPORT SAVE DATA</button>
             <button onclick="resetSaveData()" style="width:100%; border-color:#ff0000; color:#ff0000; margin-top: 10px;">⚠️ WIPE SAVE DATA ⚠️</button>
             <button onclick="returnToMenu()" style="border-color: #fff; color: #fff; margin-top: 10px;">BACK TO MENU</button>
         </div>
@@ -333,6 +344,9 @@
             <h2 style="color: #ff0000; text-decoration: underline; margin-top: 20px; letter-spacing: 5px; text-shadow: 0 0 10px #ff0000;">ILLEGAL UPGRADES</h2>
             <div class="subtitle-text">Purchase these forbidden technologies to permanently buff your ship.</div>
             <div class="btn-container" id="upgrade-grid" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; max-width: 1000px; margin-bottom: 30px;"></div>
+            <h2 style="color: #aa00ff; text-decoration: underline; margin-top: 20px; letter-spacing: 5px; text-shadow: 0 0 10px #aa00ff;">PRESTIGE</h2>
+            <div id="prestige-section" style="text-align:center; margin-bottom: 30px;"></div>
+            <button onclick="openCodex()" style="border-color: #ff8800; color: #ff8800; box-shadow: 0 0 20px #ff8800; margin-bottom: 10px;">PILOT CODEX<br><span style="font-size:12px;">Mission Logs</span></button>
             <button onclick="returnToMenu()" style="border-color: #fff; color: #fff; box-shadow: 0 0 20px #fff; margin-bottom: 50px;">BACK TO MENU</button>
         </div>
     </div>
@@ -445,6 +459,7 @@
         let purchasedUpgrades = [];
         try { let p = JSON.parse(localStorage.getItem('neonVoidUpgrades')); if(Array.isArray(p)) purchasedUpgrades = p; } catch(e){}
 
+        let prestigeLevel = parseInt(localStorage.getItem('neonVoidPrestige')) || 0;
 
         const PERMANENT_UPGRADES = {
             'homing': { name: "SMART MUNITIONS", desc: "Projectiles passively track targets", price: 5000 },
@@ -649,6 +664,7 @@
             if (purchasedUpgrades.includes('homing')) base.homing = true; if (purchasedUpgrades.includes('explosive')) base.explosive = true; if (purchasedUpgrades.includes('pierce')) base.pierce += 1; if (purchasedUpgrades.includes('drone_bomb')) base.bombDrones += 1; if (purchasedUpgrades.includes('drone_laser')) base.laserDrones += 1; if (purchasedUpgrades.includes('drone_mini')) base.miniDrones += 1; if (purchasedUpgrades.includes('drone_scatter')) base.scatterDrones += 1; if (purchasedUpgrades.includes('drone_emp')) base.empDrones += 1; if (purchasedUpgrades.includes('drone_saw')) base.sawDrones += 1; if (purchasedUpgrades.includes('drone_sniper')) base.sniperDrones += 1; if (purchasedUpgrades.includes('guardian')) base.guardian += 1; if (purchasedUpgrades.includes('tesla')) base.tesla += 1; if (purchasedUpgrades.includes('time_dilator')) base.timeDilator = true; if (purchasedUpgrades.includes('nuke_dash')) base.nukeDash = true; if (purchasedUpgrades.includes('magnet')) base.magnet = true; if (purchasedUpgrades.includes('antimatter')) base.antimatter = true; if (purchasedUpgrades.includes('bloodthirst')) base.bloodthirst = true; if (purchasedUpgrades.includes('wisp')) base.wisp = true;
             if (purchasedUpgrades.includes('dart_protocol')) base.projCount += 1; if (purchasedUpgrades.includes('alchemist')) { base.dmgMulti *= 1.25; base.speedMulti *= 1.15; }
             if (purchasedUpgrades.includes('shield_gen')) base.shieldGen = true; if (purchasedUpgrades.includes('nano_repair')) base.nanoRepair = true; if (purchasedUpgrades.includes('coin_boost')) base.coinMulti = 1.5; if (purchasedUpgrades.includes('void_siphon')) base.voidSiphon = true; if (purchasedUpgrades.includes('overcharge')) base.overcharge = true; if (purchasedUpgrades.includes('phase_shift')) base.phaseShift = true; if (purchasedUpgrades.includes('quantum_echo')) base.quantumEcho = true;
+            if (prestigeLevel > 0) { base.dmgMulti *= (1 + prestigeLevel * 0.1); base.maxHp += prestigeLevel * 50; base.coinMulti *= (1 + prestigeLevel * 0.05); }
             return base;
         }
 
@@ -1103,7 +1119,7 @@
         }
 
 
-        const ENEMY_TYPES = { dummy: { hp: 9999999, spd: 0, color: '#00ff00', r: 30, xp: 0 }, chaser: { hp: 120, spd: 4.0, color: '#ff0055', r: 12, xp: 20 }, shooter: { hp: 100, spd: 2.2, color: '#ff8800', r: 14, xp: 30 }, sniper: { hp: 80, spd: 1.2, color: '#ffff00', r: 10, xp: 40 }, tank: { hp: 400, spd: 1.0, color: '#ff0000', r: 20, xp: 60 }, rammer: { hp: 80, spd: 6.5, color: '#00ffff', r: 10, xp: 25 }, heavy_shooter: { hp: 250, spd: 1.0, color: '#ff8800', r: 18, xp: 45 }, pulsar: { hp: 150, spd: 1.5, color: '#ff00ff', r: 16, xp: 40 }, ghost: { hp: 100, spd: 2.0, color: '#cccccc', r: 14, xp: 35 }, mine: { hp: 50, spd: 0.5, color: '#ff0000', r: 15, xp: 50 }, teleporter: { hp: 120, spd: 0, color: '#00ffff', r: 14, xp: 40 }, avatar: { hp: 2500, spd: 0.8, color: '#ffff00', r: 25, xp: 200 }, dark_avatar: { hp: 6000, spd: 1.0, color: '#ff0000', r: 30, xp: 500 }, bad: { hp: 12000, spd: 0.3, color: '#800080', r: 40, xp: 1000 }, orbiter: { hp: 150, spd: 3.0, color: '#ff88ff', r: 12, xp: 35 }, splitter: { hp: 200, spd: 2.5, color: '#88ff00', r: 16, xp: 45 }, shielder: { hp: 300, spd: 1.5, color: '#4488ff', r: 18, xp: 55 }, bomber: { hp: 180, spd: 2.0, color: '#ff6600', r: 16, xp: 55 }, healer: { hp: 150, spd: 1.8, color: '#00ff88', r: 14, xp: 60 } };
+        const ENEMY_TYPES = { dummy: { hp: 9999999, spd: 0, color: '#00ff00', r: 30, xp: 0 }, chaser: { hp: 120, spd: 4.0, color: '#ff0055', r: 12, xp: 20 }, shooter: { hp: 100, spd: 2.2, color: '#ff8800', r: 14, xp: 30 }, sniper: { hp: 80, spd: 1.2, color: '#ffff00', r: 10, xp: 40 }, tank: { hp: 400, spd: 1.0, color: '#ff0000', r: 20, xp: 60 }, rammer: { hp: 80, spd: 6.5, color: '#00ffff', r: 10, xp: 25 }, heavy_shooter: { hp: 250, spd: 1.0, color: '#ff8800', r: 18, xp: 45 }, pulsar: { hp: 150, spd: 1.5, color: '#ff00ff', r: 16, xp: 40 }, ghost: { hp: 100, spd: 2.0, color: '#cccccc', r: 14, xp: 35 }, mine: { hp: 50, spd: 0.5, color: '#ff0000', r: 15, xp: 50 }, teleporter: { hp: 120, spd: 0, color: '#00ffff', r: 14, xp: 40 }, avatar: { hp: 2500, spd: 0.8, color: '#ffff00', r: 25, xp: 200 }, dark_avatar: { hp: 6000, spd: 1.0, color: '#ff0000', r: 30, xp: 500 }, bad: { hp: 12000, spd: 0.3, color: '#800080', r: 40, xp: 1000 }, orbiter: { hp: 150, spd: 3.0, color: '#ff88ff', r: 12, xp: 35 }, splitter: { hp: 200, spd: 2.5, color: '#88ff00', r: 16, xp: 45 }, shielder: { hp: 300, spd: 1.5, color: '#4488ff', r: 18, xp: 55 }, bomber: { hp: 180, spd: 2.0, color: '#ff6600', r: 16, xp: 55 }, healer: { hp: 150, spd: 1.8, color: '#00ff88', r: 14, xp: 60 }, swarm: { hp: 30, spd: 5.5, color: '#ff88ff', r: 6, xp: 10 }, leech: { hp: 200, spd: 1.8, color: '#88ff00', r: 16, xp: 50 }, cloaked: { hp: 120, spd: 3.0, color: '#336699', r: 12, xp: 45 } };
 
 
         class Enemy {
@@ -1136,6 +1152,8 @@
                 if (this.type === 'shielder') { if (!this.shieldHp) { this.shieldHp = this.maxHp * 0.5; this.shieldMax = this.shieldHp; } if (this.shieldHp > 0 && timerInt % 60 === 0) { entities.eBullets.push(new Projectile(this.x, this.y, Math.cos(this.angle)*8, Math.sin(this.angle)*8, '#4488ff', state.hardcore?40:20, true)); } }
                 if (this.type === 'bomber' && timerInt % 90 === 0) { let p = new Projectile(this.x, this.y, 0, 0, '#ff6600', 0, true); p.life = 180; p.radius = 8; p.isMine = true; entities.eBullets.push(p); }
                 if (this.type === 'healer' && timerInt % 60 === 0) { for (let ne of entities.enemies) { if (ne && ne !== this && ne.type !== 'dummy' && Math.hypot(ne.x - this.x, ne.y - this.y) < 200) { ne.hp = Math.min(ne.maxHp, ne.hp + ne.maxHp * 0.05); } } }
+                if (this.type === 'cloaked') { this.alpha = dist < 200 ? Math.max(0.3, 1 - (dist / 200)) : 0.05; }
+                if (this.type === 'leech' && dist < 100 && timerInt % 10 === 0) { player.takeDamage(2); this.hp = Math.min(this.maxHp, this.hp + 5); spawnParticles(this.x, this.y, '#88ff00', 2, 0.3); }
             }
             
             draw(ctx) {
@@ -1157,11 +1175,14 @@
                 else if (this.type === 'shielder') { for(let i=0; i<6; i++) ctx.lineTo(18*Math.cos(i*Math.PI/3), 18*Math.sin(i*Math.PI/3)); ctx.closePath(); ctx.stroke(); if (this.shieldHp > 0) { ctx.beginPath(); ctx.arc(0, 0, this.radius + 12, 0, Math.PI*2); ctx.strokeStyle = '#88bbff'; ctx.lineWidth = 3; ctx.stroke(); } }
                 else if (this.type === 'bomber') { ctx.arc(0, 0, 14, 0, Math.PI*2); ctx.stroke(); ctx.fillStyle = '#ff6600'; ctx.globalAlpha = 0.3; ctx.fill(); ctx.globalAlpha = 1; ctx.fillStyle = '#fff'; ctx.font = 'bold 10px Courier'; ctx.textAlign = 'center'; ctx.fillText('!', 0, 4); }
                 else if (this.type === 'healer') { ctx.moveTo(0, -14); ctx.lineTo(5, -5); ctx.lineTo(14, 0); ctx.lineTo(5, 5); ctx.lineTo(0, 14); ctx.lineTo(-5, 5); ctx.lineTo(-14, 0); ctx.lineTo(-5, -5); ctx.closePath(); ctx.stroke(); ctx.fillStyle = '#00ff88'; ctx.globalAlpha = 0.3; ctx.fill(); ctx.globalAlpha = 1; ctx.fillStyle = '#fff'; ctx.font = 'bold 10px Courier'; ctx.textAlign = 'center'; ctx.fillText('+', 0, 4); if (Math.floor(this.timer) % 60 < 30) { ctx.beginPath(); ctx.arc(0, 0, 200 * ((Math.floor(this.timer) % 60) / 60), 0, Math.PI*2); ctx.strokeStyle = 'rgba(0,255,136,0.15)'; ctx.lineWidth = 2; ctx.stroke(); } }
+                else if (this.type === 'swarm') { ctx.arc(0, 0, 5, 0, Math.PI*2); ctx.fillStyle = drawColor; ctx.fill(); ctx.stroke(); }
+                else if (this.type === 'leech') { ctx.moveTo(0, -14); for(let i=0; i<6; i++) { let a = (i/6)*Math.PI*2 - Math.PI/2; ctx.lineTo(Math.cos(a)*(i%2===0?14:8), Math.sin(a)*(i%2===0?14:8)); } ctx.closePath(); ctx.stroke(); ctx.fillStyle = 'rgba(136,255,0,0.4)'; ctx.fill(); }
+                else if (this.type === 'cloaked') { ctx.globalAlpha = this.alpha || 0.05; ctx.moveTo(12, 0); ctx.lineTo(-6, 10); ctx.lineTo(-6, -10); ctx.closePath(); ctx.stroke(); ctx.fillStyle = drawColor; ctx.globalAlpha = (this.alpha || 0.05) * 0.5; ctx.fill(); }
                 else { ctx.rect(-10, -10, 20, 20); ctx.stroke(); }
                 if (this.hp < this.maxHp && this.type !== 'mine' && this.type !== 'ghost' && this.type !== 'dummy') { ctx.rotate(-this.angle); ctx.fillStyle = 'red'; ctx.fillRect(-15, -this.radius - 10, 30 * (this.hp/this.maxHp), 4); } ctx.restore();
             }
         }
-        const BOSSES = [ { type: "SENTRY", name: "SENTRY", col: "#ff4400", hp: 4000, size: 50 }, { type: "VORTEX", name: "VORTEX", col: "#aa00ff", hp: 7000, size: 60 }, { type: "REAVER", name: "REAVER", col: "#ffffff", hp: 11000, size: 55 }, { type: "NEBULA", name: "NEBULA WEAVER", col: "#00ffff", hp: 16000, size: 70 }, { type: "TITAN", name: "TITAN CORE", col: "#ffcc00", hp: 22000, size: 80 }, { type: "WRAITH", name: "WRAITH", col: "#ff0055", hp: 80000, size: 80 }, { type: "ORACLE", name: "ORACLE", col: "#00ffcc", hp: 40000, size: 75 }, { type: "SINGULARITY", name: "SINGULARITY", col: "#4444ff", hp: 55000, size: 60 }, { type: "OMEGA", name: "OMEGA CORE", col: "#ff0000", hp: 75000, size: 90 }, { type: "VOID", name: "VOID GOD", col: "#ffffff", hp: 100000, size: 120 }, { type: "SUN_GOD", name: "TRUE SUN GOD", col: "#ffff00", hp: 200000, size: 150 }, { type: "VTSG", name: "VENGEFUL TRUE SUN GOD", col: "#ff0000", hp: 600000, size: 180 }, { type: "BAD_BOSS", name: "B.A.D. LEVIATHAN", col: "#800080", hp: 1500000, size: 250 }, { type: "SECRET", name: "THE OMNIVERSE", col: "#ffffff", hp: 5000000, size: 200 }, { type: "GLITCH", name: "THE GLITCH", col: "#00ff00", hp: 12000000, size: 100 } ];
+        const BOSSES = [ { type: "SENTRY", name: "SENTRY", col: "#ff4400", hp: 4000, size: 50 }, { type: "VORTEX", name: "VORTEX", col: "#aa00ff", hp: 7000, size: 60 }, { type: "REAVER", name: "REAVER", col: "#ffffff", hp: 11000, size: 55 }, { type: "NEBULA", name: "NEBULA WEAVER", col: "#00ffff", hp: 16000, size: 70 }, { type: "TITAN", name: "TITAN CORE", col: "#ffcc00", hp: 22000, size: 80 }, { type: "WRAITH", name: "WRAITH", col: "#ff0055", hp: 80000, size: 80 }, { type: "ORACLE", name: "ORACLE", col: "#00ffcc", hp: 40000, size: 75 }, { type: "SINGULARITY", name: "SINGULARITY", col: "#4444ff", hp: 55000, size: 60 }, { type: "OMEGA", name: "OMEGA CORE", col: "#ff0000", hp: 75000, size: 90 }, { type: "VOID", name: "VOID GOD", col: "#ffffff", hp: 100000, size: 120 }, { type: "SUN_GOD", name: "TRUE SUN GOD", col: "#ffff00", hp: 200000, size: 150 }, { type: "VTSG", name: "VENGEFUL TRUE SUN GOD", col: "#ff0000", hp: 600000, size: 180 }, { type: "BAD_BOSS", name: "B.A.D. LEVIATHAN", col: "#800080", hp: 1500000, size: 250 }, { type: "SECRET", name: "THE OMNIVERSE", col: "#ffffff", hp: 5000000, size: 200 }, { type: "GLITCH", name: "THE GLITCH", col: "#00ff00", hp: 12000000, size: 100 }, { type: "PARADOX", name: "CHRONOS PARADOX", col: "#ff00ff", hp: 25000000, size: 130 } ];
 
 
         class Boss {
@@ -1208,6 +1229,7 @@
                 
                 if (this.type !== 'NEBULA' && this.type !== 'SUN_GOD' && this.type !== 'VTSG' && this.type !== 'BAD_BOSS' && this.type !== 'GLITCH' && this.y >= this.targetY) { let fr = this.phase === 1 ? 20 : (this.phase === 2 ? 12 : 8); if (timerInt % fr === 0 && this.state !== 'dash') { playSound('hit'); let count = this.type === 'SECRET' ? 24 : 24; for (let i=0; i<count; i++) { let a = (Math.PI*2/count)*i + (this.angle); entities.eBullets.push(new Projectile(this.x, this.y, Math.cos(a)*8, Math.sin(a)*8, this.color, state.hardcore?50:25, true)); } } }
                 if (this.type === 'GLITCH' && this.y >= this.targetY) { if (timerInt % 15 === 0) { let a = Math.random() * Math.PI * 2; let p = new Projectile(this.x, this.y, Math.cos(a)*10, Math.sin(a)*10, '#00ff00', state.hardcore?60:30, true); p.radius = 8; entities.eBullets.push(p); } if (timerInt % 150 === 0) { playSound('hit'); for(let i=0; i<12; i++) { let a = (Math.PI*2/12)*i; entities.eBullets.push(new Projectile(this.x, this.y, Math.cos(a)*12, Math.sin(a)*12, '#ffffff', state.hardcore?60:30, true)); } } }
+                if (this.type === 'PARADOX' && this.y >= this.targetY) { if (timerInt % 120 === 0) { playSound('dash'); this.x = Math.max(150, Math.min(canvas.width-150, player.x + (Math.random()-0.5)*500)); this.y = Math.max(150, Math.min(300, 100 + Math.random()*200)); spawnParticles(this.x, this.y, '#ff00ff', 30, 2); } if (timerInt % 12 === 0) { let a = Math.atan2(player.y - this.y, player.x - this.x) + (Math.random()-0.5)*0.4; let p = new Projectile(this.x, this.y, Math.cos(a)*11, Math.sin(a)*11, '#ff00ff', state.hardcore?80:40, true); p.radius = 8; entities.eBullets.push(p); } if (timerInt % 180 === 0) { for(let i=0; i<16; i++) { let a = (Math.PI*2/16)*i + timerInt*0.01; entities.eBullets.push(new Projectile(this.x, this.y, Math.cos(a)*7, Math.sin(a)*7, '#aa00ff', state.hardcore?60:30, true)); } } if (this.phase >= 2 && timerInt % 60 === 0 && entities.enemies.length < 6) { entities.enemies.push(new Enemy(this.x + (Math.random()-0.5)*200, this.y + 150, 'cloaked')); entities.enemies.push(new Enemy(this.x + (Math.random()-0.5)*200, this.y + 150, 'teleporter')); } if (this.phase >= 3 && timerInt % 8 === 0) { let a = timerInt * 0.05; entities.eBullets.push(new Projectile(this.x, this.y, Math.cos(a)*9, Math.sin(a)*9, '#ffffff', state.hardcore?50:25, true)); } }
                 if (this.type === 'BAD_BOSS' && this.y >= this.targetY) { if (timerInt % 500 === 0 && entities.enemies.length < 4) { entities.enemies.push(new Enemy(this.x - 200, this.y + 100, 'bad')); entities.enemies.push(new Enemy(this.x + 200, this.y + 100, 'bad')); } if (timerInt % 100 === 0) { playSound('hit'); for(let i=0; i<20; i++) { let a = (Math.PI*2/20)*i; let proj = new Projectile(this.x, this.y, Math.cos(a)*5, Math.sin(a)*5, '#800080', state.hardcore?70:35, true); proj.radius = 7; entities.eBullets.push(proj); } } if (this.phase >= 2 && timerInt % 30 === 0) { let a = Math.atan2(player.y - this.y, player.x - this.x); let proj = new Projectile(this.x, this.y, Math.cos(a)*7, Math.sin(a)*7, '#ff00ff', state.hardcore?50:25, true); proj.radius = 15; entities.eBullets.push(proj); } }
                 if (this.type === 'VTSG' && this.y >= this.targetY) { if (timerInt % 450 === 0 && entities.enemies.length < 6) { entities.enemies.push(new Enemy(this.x - 200, this.y + 150, 'dark_avatar')); entities.enemies.push(new Enemy(this.x + 200, this.y + 150, 'dark_avatar')); } if (this.phase >= 2) { this.beamAngle += 0.012 * hyperMult; for (let i = 0; i < 8; i++) { let a = this.beamAngle + (i * Math.PI / 4); let pa = Math.atan2(player.y - this.y, player.x - this.x); let diff = Math.abs(pa - a) % (Math.PI*2); if (diff > Math.PI) diff = Math.PI*2 - diff; if (diff < 0.12) player.takeDamage(state.hardcore?20:10); } } if (timerInt % 18 === 0) { let a = Math.atan2(player.y - this.y, player.x - this.x) + (Math.random()-0.5)*0.5; let proj = new Projectile(this.x, this.y, Math.cos(a)*13, Math.sin(a)*13, '#ff0000', state.hardcore?70:35, true); proj.radius = 12; entities.eBullets.push(proj); } if (timerInt % 110 === 0) { for(let i=0; i<3; i++) { let p = new Projectile(this.x, this.y, (Math.random()-0.5)*15, -10, '#440000', state.hardcore?50:25, true); p.isHoming = true; entities.eBullets.push(p); } } }
                 if (this.type === 'SUN_GOD' && this.y >= this.targetY) { if (timerInt % 400 === 0 && entities.enemies.length < 4) { entities.enemies.push(new Enemy(this.x - 150, this.y + 100, 'avatar')); entities.enemies.push(new Enemy(this.x + 150, this.y + 100, 'avatar')); } if (this.phase >= 2) { this.beamAngle += 0.01 * hyperMult; for (let i = 0; i < 6; i++) { let a = this.beamAngle + (i * Math.PI / 3); let pa = Math.atan2(player.y - this.y, player.x - this.x); let diff = Math.abs(pa - a) % (Math.PI*2); if (diff > Math.PI) diff = Math.PI*2 - diff; if (diff < 0.12) player.takeDamage(state.hardcore?15:5); } } if (timerInt % 25 === 0) { let a = Math.atan2(player.y - this.y, player.x - this.x) + (Math.random()-0.5)*0.5; let proj = new Projectile(this.x, this.y, Math.cos(a)*10, Math.sin(a)*10, '#ffff00', state.hardcore?50:25, true); proj.radius = 10; entities.eBullets.push(proj); } if (timerInt % 140 === 0) { let p1 = new Projectile(this.x, this.y, -10, -5, '#ff8800', state.hardcore?40:20, true); p1.isHoming = true; let p2 = new Projectile(this.x, this.y, 10, -5, '#ff8800', state.hardcore?40:20, true); p2.isHoming = true; entities.eBullets.push(p1, p2); } }
@@ -1404,6 +1426,7 @@
 
         function spawnWave() {
             if (state.mode === 'training') { if (entities.enemies.length < 5 && state.frame % 120 === 0) { entities.enemies.push(new Enemy((gameRng() * (canvas.width - 200)) + 100, (gameRng() * (canvas.height - 200)) + 100, 'dummy')); } return; }
+            if (state.mode === 'boss_rush') { if (!activeBoss && !state.spawningBoss && state.bossesDefeated < 15) { state.spawningBoss = true; setTimeout(() => { activeBoss = new Boss(state.bossesDefeated); state.spawningBoss = false; }, 1500); } return; }
             if (state.warping || activeBoss || state.spawningBoss || countdownActive) return;
             let spawnRate = Math.max(10, 50 - state.level * 2); let maxEnemies = 25 + state.level * 3;
             if (state.frame % spawnRate === 0 && entities.enemies.length < maxEnemies) {
@@ -1412,10 +1435,11 @@
                 let x = r1 < 0.5 ? (r2 < 0.5 ? -100 : canvas.width+100) : r3 * canvas.width;
                 let y = (x < 0 || x > canvas.width) ? r4 * canvas.height : (r4 < 0.5 ? -100 : canvas.height+100);
                 let roll = r5; let type = 'chaser';
-                if (state.level > 2 && roll > 0.5) type = 'shooter'; if (state.level > 3 && roll > 0.6) type = 'splitter'; if (state.level > 4 && roll > 0.65) type = 'rammer'; if (state.level > 5 && roll > 0.72) type = 'sniper'; if (state.level > 5 && roll > 0.75) type = 'bomber'; if (state.level > 6 && roll > 0.78) type = 'orbiter'; if (state.level > 6 && roll > 0.82) type = 'ghost'; if (state.level > 7 && roll > 0.84) type = 'healer'; if (state.level > 7 && roll > 0.86) type = 'shielder'; if (state.level > 7 && roll > 0.9) type = 'heavy_shooter'; if (state.level > 8 && roll > 0.92) type = 'pulsar'; if (state.level > 9 && roll > 0.95) type = 'tank'; if (state.level > 10 && roll > 0.97) type = 'mine'; if (state.level > 12 && roll > 0.98) type = 'teleporter'; if (state.level > 15 && roll > 0.99) type = 'bad';
+                if (state.level > 2 && roll > 0.5) type = 'shooter'; if (state.level > 3 && roll > 0.6) type = 'splitter'; if (state.level > 4 && roll > 0.65) type = 'rammer'; if (state.level > 5 && roll > 0.72) type = 'sniper'; if (state.level > 5 && roll > 0.75) type = 'bomber'; if (state.level > 6 && roll > 0.78) type = 'orbiter'; if (state.level > 6 && roll > 0.82) type = 'ghost'; if (state.level > 3 && roll > 0.45 && roll < 0.5) type = 'swarm'; if (state.level > 7 && roll > 0.84) type = 'healer'; if (state.level > 7 && roll > 0.86) type = 'shielder'; if (state.level > 7 && roll > 0.9) type = 'heavy_shooter'; if (state.level > 8 && roll > 0.92) type = 'pulsar'; if (state.level > 6 && roll > 0.83 && roll < 0.84) type = 'cloaked'; if (state.level > 9 && roll > 0.95) type = 'tank'; if (state.level > 8 && roll > 0.94 && roll < 0.95) type = 'leech'; if (state.level > 10 && roll > 0.97) type = 'mine'; if (state.level > 12 && roll > 0.98) type = 'teleporter'; if (state.level > 15 && roll > 0.99) type = 'bad';
                 let newEnemy = new Enemy(x, y, type);
                 tryGoldEnemy(newEnemy);
                 entities.enemies.push(newEnemy);
+                if (type === 'swarm') { for (let si = 0; si < 4; si++) entities.enemies.push(new Enemy(x + (Math.random()-0.5)*60, y + (Math.random()-0.5)*60, 'swarm')); }
             }
             if (state.level >= state.nextBossLevel) { state.spawningBoss = true; ui.bossAlert.style.display = 'block'; playSound('hit'); let bossLine = BOSS_LINES[Math.floor(Math.random() * BOSS_LINES.length)]; spawnText(canvas.width/2, canvas.height/2 + 60, bossLine, '#ff0055', 16); setTimeout(() => { ui.bossAlert.style.display = 'none'; entities.enemies = []; activeBoss = new Boss(state.bossesDefeated); state.spawningBoss = false; }, 3000); }
         }
@@ -1430,12 +1454,21 @@
                 let targetStage = state.currentStage === 15 ? 15 : state.currentStage + 1; 
                 if (targetStage > unlocked && targetStage <= 15) localStorage.setItem('neonVoidStage', targetStage); 
                 let defeatKey = 'defeat' + state.currentStage;
+                if (state.currentStage === 16) { localStorage.setItem('neonVoidStage', '16'); }
                 if (STORY[defeatKey]) {
-                    setTimeout(() => { playCutscene(defeatKey, () => { if (state.currentStage === 15) winGame(); else stageCleared(); }); }, 2000);
+                    setTimeout(() => { playCutscene(defeatKey, () => { if (state.currentStage >= 15) winGame(); else stageCleared(); }); }, 2000);
                 } else {
-                    setTimeout(() => { if (state.currentStage === 15) winGame(); else stageCleared(); }, 2000);
+                    setTimeout(() => { if (state.currentStage >= 15) winGame(); else stageCleared(); }, 2000);
                 }
-            } else { activeBoss = null; ui.boss.style.display = 'none'; state.difficulty += 0.5; state.nextBossLevel = state.level + 5; } 
+            } else if (state.mode === 'boss_rush') {
+                if (state.bossesDefeated >= 15) {
+                    bossRushComplete();
+                } else {
+                    activeBoss = null; ui.boss.style.display = 'none';
+                    spawnText(canvas.width/2, canvas.height/2, `BOSS ${state.bossesDefeated}/15`, '#ffcc00', 36);
+                    setTimeout(() => { activeBoss = new Boss(state.bossesDefeated); state.spawningBoss = false; }, 2000);
+                }
+            } else { activeBoss = null; ui.boss.style.display = 'none'; state.difficulty += 0.5; state.nextBossLevel = state.level + 5; }
         }
 
 
@@ -1601,7 +1634,7 @@
             if (state.frame % 30 === 0) checkScoreEggs();
             checkIdle();
             if (appSettings.autoFire && state.active && !state.paused) mouse.down = true;
-            ui.score.innerText = `SCORE: ${Math.floor(state.score)}`; ui.combo.innerText = `COMBO x${state.combo.toFixed(1)}`; ui.lvl.innerText = state.mode === 'training' ? 'TRAINING MODE' : `LVL: ${state.level}`; ui.coins.innerText = `COINS: ${totalCoins + state.runCoins}`; ui.hp.style.width = `${Math.max(0, (player.hp/state.stats.maxHp)*100)}%`; ui.shield.style.width = `${Math.min(100, player.shield)}%`; ui.xp.style.width = `${(state.xp / state.xpNeeded)*100}%`;
+            ui.score.innerText = `SCORE: ${Math.floor(state.score)}`; ui.combo.innerText = `COMBO x${state.combo.toFixed(1)}`; ui.lvl.innerText = state.mode === 'training' ? 'TRAINING MODE' : (state.mode === 'boss_rush' ? `BOSS ${Math.min(state.bossesDefeated + 1, 15)}/15 | ${Math.floor(state.frame/3600)}:${(Math.floor(state.frame/60)%60).toString().padStart(2,'0')}` : `LVL: ${state.level}`); ui.coins.innerText = `COINS: ${totalCoins + state.runCoins}`; ui.hp.style.width = `${Math.max(0, (player.hp/state.stats.maxHp)*100)}%`; ui.shield.style.width = `${Math.min(100, player.shield)}%`; ui.xp.style.width = `${(state.xp / state.xpNeeded)*100}%`;
             requestAnimationFrame(update);
         }
 
@@ -1747,6 +1780,19 @@
                 { speaker: "COMMANDER VALE", color: "#00ffcc", text: "Pilot... I'm sorry. For everything. The rescue shuttle is locked on your signal." },
                 { speaker: "YOU", color: "#ffffff", text: "Save the apology, Vale. Just get us home." },
                 { speaker: "SYSTEM", color: "#00ff00", text: "EXTRACTION COMPLETE. ALL NEURAL SIGNATURES RECOVERED. WELCOME HOME, PILOT." }
+            ],
+            boss16: [
+                { speaker: "SYSTEM", color: "#ff00ff", text: "WARNING: TEMPORAL ANOMALY DETECTED. TIMELINE INTEGRITY: 12%." },
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "Pilot, this shouldn't exist. Something is rewriting the timeline. Something from outside our reality." },
+                { speaker: "CHRONOS PARADOX", color: "#ff00ff", text: "I AM EVERY BATTLE YOU HAVE FOUGHT. EVERY DEATH. EVERY VICTORY. I AM THE LOOP THAT NEVER ENDS." },
+                { speaker: "YOU", color: "#ffffff", text: "Then I'll end it. One more time." },
+                { speaker: "CHRONOS PARADOX", color: "#ff00ff", text: "YOU CANNOT KILL TIME ITSELF, PILOT. BUT YOU ARE WELCOME TO TRY." }
+            ],
+            defeat16: [
+                { speaker: "CHRONOS PARADOX", color: "#ff00ff", text: "IM...POSSIBLE... THE LOOP... IS BROKEN..." },
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "Pilot! The temporal field is collapsing! Every timeline is converging!" },
+                { speaker: "YOU", color: "#ffffff", text: "Let it collapse. We don't need loops anymore." },
+                { speaker: "SYSTEM", color: "#ff00ff", text: "TEMPORAL PARADOX RESOLVED. YOU EXIST OUTSIDE THE LOOP NOW. THERE IS ONLY FORWARD." }
             ]
         };
 
@@ -2157,6 +2203,19 @@
                 { scene: 'cockpit', bg: '#000810' },
                 { scene: 'cockpit', bg: '#000810' },
                 { scene: 'ship_launch', bg: '#001020' }
+            ],
+            boss16: [
+                { scene: 'static', bg: '#000', text_glow: '#ff00ff' },
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'boss_appear', bg: '#0a000a', bossColor: '#ff00ff', bossType: 'circle' },
+                { scene: 'ship_charge', bg: '#0a000a' },
+                { scene: 'boss_appear', bg: '#0a000a', bossColor: '#ff00ff', bossType: 'circle' }
+            ],
+            defeat16: [
+                { scene: 'boss_appear', bg: '#0a000a', bossColor: '#ff00ff', bossType: 'circle' },
+                { scene: 'collapse', bg: '#0a0000' },
+                { scene: 'cockpit', bg: '#000810' },
+                { scene: 'static', bg: '#000', text_glow: '#ff00ff' }
             ]
         };
 
@@ -2628,7 +2687,7 @@
 
 
         function returnToMenu() {
-            document.getElementById('mission-select').classList.add('hidden'); document.getElementById('shop-screen').classList.add('hidden'); document.getElementById('settings-screen').classList.add('hidden'); document.getElementById('pause-screen').classList.add('hidden'); document.getElementById('draw-screen').classList.add('hidden'); document.getElementById('achievement-screen').classList.add('hidden');
+            document.getElementById('mission-select').classList.add('hidden'); document.getElementById('shop-screen').classList.add('hidden'); document.getElementById('settings-screen').classList.add('hidden'); document.getElementById('pause-screen').classList.add('hidden'); document.getElementById('draw-screen').classList.add('hidden'); document.getElementById('achievement-screen').classList.add('hidden'); document.getElementById('codex-screen').classList.add('hidden');
             stopMusic(); startMenuBg(); if (appSettings.music) startMenuMusic();
             ui.mainOverlay.classList.remove('hidden'); ui.mainOverlay.classList.remove('win-theme');
             ui.mainTitle.innerText = "NEON VOID"; ui.mainTitle.style.webkitTextStroke = "3px #ff0055"; ui.mainTitle.style.textShadow = "0 0 50px #ff0055";
@@ -2637,10 +2696,13 @@
 
             let unlockedRaw = localStorage.getItem('neonVoidStage'); let unlocked = parseInt(unlockedRaw); if(isNaN(unlocked) || unlocked < 1) unlocked = 1;
             let secretBtn = unlocked > 14 ? `<button onclick="startMission(15)" style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;">T H E  G L I T C H<br><span style="font-size:12px">THE END</span></button>` : `<button style="border-color:#555; color:#555; cursor:not-allowed;">LOCKED<br><span style="font-size:12px">Beat Sector 14</span></button>`;
+            let paradoxBtn = unlocked > 15 ? `<button onclick="startSecretBoss()" style="border-color:#ff00ff; color:#ff00ff; box-shadow: 0 0 30px #ff00ff; animation: pulse 1s infinite;">S E C T O R  ???<br><span style="font-size:12px">CHRONOS PARADOX</span></button>` : '';
+            let rushBest = parseInt(localStorage.getItem('neonVoidBossRushBest')) || 0;
+            let rushLabel = rushBest > 0 ? `Best: ${Math.floor(rushBest/60)}m ${(rushBest%60).toString().padStart(2,'0')}s` : 'All 15 Bosses';
 
             let dailyChallenge = getDailyChallenge();
             let dailyBest = getDailyBestScore();
-            ui.menuBtns.innerHTML = `<button onclick="openMissionSelect()">Mission Mode<br><span style="font-size:12px">15 Sectors</span></button><button class="btn-infinite" onclick="startInfinite()">Infinite Mode<br><span style="font-size:12px">Endless Scaling</span></button>${secretBtn}<button style="border-color:#ff8800; color:#ff8800; box-shadow: 0 0 20px #ff8800;" onclick="startDailyChallenge()">Daily Challenge<br><span style="font-size:12px">${dailyChallenge.name}${dailyBest > 0 ? ' | Best: ' + dailyBest : ''}</span></button><button style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;" onclick="startTraining()">Training Camp<br><span style="font-size:12px">Test Weapons</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00;" onclick="openShop()">The Hangar<br><span style="font-size:12px">Black Market</span></button><button style="border-color:#fff; color:#fff;" onclick="openSettings()">Settings<br><span style="font-size:12px">Sys Config</span></button>`;
+            ui.menuBtns.innerHTML = `<button onclick="openMissionSelect()">Mission Mode<br><span style="font-size:12px">15 Sectors</span></button><button class="btn-infinite" onclick="startInfinite()">Infinite Mode<br><span style="font-size:12px">Endless Scaling</span></button><button style="border-color:#ff0055; color:#ff0055; box-shadow: 0 0 20px #ff0055;" onclick="startBossRush()">Boss Rush<br><span style="font-size:12px">${rushLabel}</span></button>${secretBtn}${paradoxBtn}<button style="border-color:#ff8800; color:#ff8800; box-shadow: 0 0 20px #ff8800;" onclick="startDailyChallenge()">Daily Challenge<br><span style="font-size:12px">${dailyChallenge.name}${dailyBest > 0 ? ' | Best: ' + dailyBest : ''}</span></button><button style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;" onclick="startTraining()">Training Camp<br><span style="font-size:12px">Test Weapons</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00;" onclick="openShop()">The Hangar<br><span style="font-size:12px">Black Market</span></button><button style="border-color:#fff; color:#fff;" onclick="openSettings()">Settings<br><span style="font-size:12px">Sys Config</span></button>`;
             document.getElementById('menu-coin-display').style.display = 'block'; document.getElementById('mobile-controls').style.display = 'none';
         }
 
@@ -2676,6 +2738,7 @@
                 if (isUnlocked) { btn.innerText = "UNLOCKED"; btn.style.background = '#ff8800'; btn.style.color = '#000'; btn.disabled = true; } else { let costText = upg.price >= 1000000 ? (upg.price/1000000) + 'M' : (upg.price >= 1000 ? (upg.price/1000) + 'K' : upg.price); btn.innerText = `BUY: ${costText}`; if (totalCoins >= upg.price) { btn.onclick = () => { totalCoins -= upg.price; purchasedUpgrades.push(id); localStorage.setItem('neonVoidCoins', totalCoins); localStorage.setItem('neonVoidUpgrades', JSON.stringify(purchasedUpgrades)); playSound('buy'); renderShop(); }; } else { btn.style.opacity = '0.5'; btn.style.cursor = 'not-allowed'; } }
                 card.appendChild(btn); upGrid.appendChild(card);
             }
+            renderPrestige();
         }
         
         function initGameBase() { player = new Player(); activeBoss = null; asteroids = []; exhaustParticles = []; entities = { bullets: [], enemies: [], eBullets: [], particles: [], powerups: [], texts: [], stars: [], trails: [] }; let starCount = appSettings.graphics === 'low' ? 40 : 150; for(let i=0; i<starCount; i++) entities.stars.push(new Star()); ui.mainOverlay.classList.add('hidden'); document.getElementById('mission-select').classList.add('hidden'); document.getElementById('shop-screen').classList.add('hidden'); document.getElementById('settings-screen').classList.add('hidden'); ui.boss.style.display = 'none'; ui.bossAlert.style.display = 'none'; ui.kills.innerText = "KILLS: 0"; mobileAutoShoot = false; document.getElementById('mob-shoot').style.background = 'rgba(0,255,204,0.2)'; document.getElementById('mob-shoot').style.color = '#00ffcc'; document.getElementById('mobile-controls').style.display = appSettings.mobile ? 'flex' : 'none'; if(audioCtx.state === 'suspended') audioCtx.resume(); killStreak = 0; lastScoreEggCheck = 0; idleFrames = 0; idleMessageShown = false; killFlavorCooldown = 0; lastComboMilestone = 0; muzzleFlashes = []; slowMoActive = false; slowMoFrames = 0; stopMenuMusic(); stopMenuBg(); showCountdown(); if (appSettings.music) startMusic(); update(); }
@@ -2709,19 +2772,35 @@
             let dailyStr = '';
             if (state.isDaily) { let isNew = saveDailyScore(Math.floor(state.score)); dailyStr = `<br><span style="color:#ff8800; font-size:16px;">DAILY: ${state.dailyMod.name}</span>${isNew ? '<br><span style="color:#00ff00;">NEW DAILY BEST!</span>' : ''}`; }
             let kpm = elapsed > 0 ? ((state.kills / elapsed) * 60).toFixed(1) : '0';
-            ui.mainOverlay.classList.remove('hidden'); ui.mainOverlay.classList.remove('win-theme'); ui.boss.style.display = 'none'; document.getElementById('mobile-controls').style.display = 'none'; document.getElementById('menu-coin-display').style.display = 'none'; ui.mainTitle.innerText = "YOU DIED"; ui.mainTitle.style.color = "transparent"; ui.mainTitle.style.webkitTextStroke = "3px #ff0055"; ui.mainTitle.style.textShadow = "0 0 50px #ff0055"; ui.mainDesc.innerHTML = `THE VOID CLAIMED YOU. YOUR FAMILY IS LOST FOREVER.<br><br><table style="margin:10px auto; border:1px solid rgba(255,0,85,0.3); border-collapse:collapse; font-size:16px;"><tr><td style="padding:6px 20px; color:#666; text-align:left;">SCORE</td><td style="padding:6px 20px; color:#00ffcc; font-size:22px; text-align:right;">${Math.floor(state.score).toLocaleString()}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">KILLS</td><td style="padding:6px 20px; color:#ff8800; font-size:22px; text-align:right;">${state.kills}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">LEVEL</td><td style="padding:6px 20px; color:#aa00ff; font-size:22px; text-align:right;">${state.level}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">BOSSES</td><td style="padding:6px 20px; color:#ff0055; font-size:22px; text-align:right;">${state.bossesDefeated}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">TIME</td><td style="padding:6px 20px; color:#fff; font-size:20px; text-align:right;">${mins}m ${secs.toString().padStart(2,'0')}s</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">KILLS/MIN</td><td style="padding:6px 20px; color:#ff8800; font-size:18px; text-align:right;">${kpm}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">COINS</td><td style="padding:6px 20px; color:#ffcc00; font-size:22px; text-align:right;">+${state.runCoins.toLocaleString()}</td></tr></table>${dailyStr}`; if (state.mode === 'mission') ui.menuBtns.innerHTML = `<button onclick="startMission(${state.currentStage})">Retry Sector</button><button onclick="returnToMenu()">Main Menu</button>`; else if (state.isDaily) ui.menuBtns.innerHTML = `<button onclick="startDailyChallenge()">Retry Daily</button><button onclick="returnToMenu()">Main Menu</button>`; else ui.menuBtns.innerHTML = `<button onclick="startInfinite()">Retry Infinite</button><button onclick="returnToMenu()">Main Menu</button>`; }
+            ui.mainOverlay.classList.remove('hidden'); ui.mainOverlay.classList.remove('win-theme'); ui.boss.style.display = 'none'; document.getElementById('mobile-controls').style.display = 'none'; document.getElementById('menu-coin-display').style.display = 'none'; ui.mainTitle.innerText = "YOU DIED"; ui.mainTitle.style.color = "transparent"; ui.mainTitle.style.webkitTextStroke = "3px #ff0055"; ui.mainTitle.style.textShadow = "0 0 50px #ff0055"; ui.mainDesc.innerHTML = `THE VOID CLAIMED YOU. YOUR FAMILY IS LOST FOREVER.<br><br><table style="margin:10px auto; border:1px solid rgba(255,0,85,0.3); border-collapse:collapse; font-size:16px;"><tr><td style="padding:6px 20px; color:#666; text-align:left;">SCORE</td><td style="padding:6px 20px; color:#00ffcc; font-size:22px; text-align:right;">${Math.floor(state.score).toLocaleString()}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">KILLS</td><td style="padding:6px 20px; color:#ff8800; font-size:22px; text-align:right;">${state.kills}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">LEVEL</td><td style="padding:6px 20px; color:#aa00ff; font-size:22px; text-align:right;">${state.level}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">BOSSES</td><td style="padding:6px 20px; color:#ff0055; font-size:22px; text-align:right;">${state.bossesDefeated}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">TIME</td><td style="padding:6px 20px; color:#fff; font-size:20px; text-align:right;">${mins}m ${secs.toString().padStart(2,'0')}s</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">KILLS/MIN</td><td style="padding:6px 20px; color:#ff8800; font-size:18px; text-align:right;">${kpm}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">COINS</td><td style="padding:6px 20px; color:#ffcc00; font-size:22px; text-align:right;">+${state.runCoins.toLocaleString()}</td></tr></table>${dailyStr}`; if (state.mode === 'mission') ui.menuBtns.innerHTML = `<button onclick="startMission(${state.currentStage})">Retry Sector</button><button onclick="returnToMenu()">Main Menu</button>`; else if (state.mode === 'boss_rush') ui.menuBtns.innerHTML = `<button onclick="startBossRush()">Retry Boss Rush</button><button onclick="returnToMenu()">Main Menu</button>`; else if (state.isDaily) ui.menuBtns.innerHTML = `<button onclick="startDailyChallenge()">Retry Daily</button><button onclick="returnToMenu()">Main Menu</button>`; else ui.menuBtns.innerHTML = `<button onclick="startInfinite()">Retry Infinite</button><button onclick="returnToMenu()">Main Menu</button>`; }
         
         function stageCleared() { state.active = false; saveRunCoins(); ui.mainOverlay.classList.remove('hidden'); ui.mainOverlay.classList.add('win-theme'); ui.boss.style.display = 'none'; document.getElementById('mobile-controls').style.display = 'none'; document.getElementById('menu-coin-display').style.display = 'none'; ui.mainTitle.innerText = `SECTOR ${state.currentStage} CLEARED`; ui.mainTitle.style.webkitTextStroke = "3px #00ffcc"; ui.mainTitle.style.textShadow = "0 0 50px #00ffcc"; ui.mainDesc.innerHTML = `THREAT NEUTRALIZED. YOU ARE GETTING CLOSER.<br><br>FINAL SCORE: <span style="color:#00ffcc; font-size:24px;">${Math.floor(state.score)}</span><br>KILLS: <span style="color:#ff8800; font-size:24px;">${state.kills}</span><br>COINS EARNED: <span style="color:#ffcc00; font-size:24px;">+${state.runCoins}</span>`; ui.menuBtns.innerHTML = `<button onclick="startMission(${state.currentStage + 1})">Next Sector</button><button onclick="returnToMenu()">Main Menu</button>`; }
         
-        function winGame() { 
+        function winGame() {
             let showWinScreen = () => {
-                state.active = false; saveRunCoins(); ui.mainOverlay.classList.remove('hidden'); ui.mainOverlay.classList.add('win-theme'); ui.boss.style.display = 'none'; document.getElementById('mobile-controls').style.display = 'none'; document.getElementById('menu-coin-display').style.display = 'none'; 
-                if (state.currentStage >= 15) { ui.mainTitle.innerText = "SYSTEM RESTORED"; ui.mainTitle.style.webkitTextStroke = "3px #00ff00"; ui.mainTitle.style.textShadow = "0 0 50px #00ff00"; ui.mainDesc.innerHTML = `THE GLITCH HAS BEEN PURGED. YOU HAVE SAVED YOUR FAMILY.<br><br>FINAL SCORE: <span style="color:#00ffcc; font-size:24px;">${Math.floor(state.score)}</span><br>COINS EARNED: <span style="color:#ffcc00; font-size:24px;">+${state.runCoins}</span>`; } 
-                else if (state.currentStage === 14) { ui.mainTitle.innerText = "OMNIVERSE CONQUERED"; ui.mainTitle.style.webkitTextStroke = "3px #ffffff"; ui.mainTitle.style.textShadow = "0 0 50px #ffffff"; ui.mainDesc.innerHTML = `YOU ARE THE APEX. THERE IS NOTHING LEFT TO FIGHT.<br><br>FINAL SCORE: <span style="color:#00ffcc; font-size:24px;">${Math.floor(state.score)}</span><br>COINS EARNED: <span style="color:#ffcc00; font-size:24px;">+${state.runCoins}</span>`; } 
-                else { ui.mainTitle.innerText = "IMPOSSIBLE"; ui.mainTitle.style.webkitTextStroke = "3px #800080"; ui.mainTitle.style.textShadow = "0 0 50px #800080"; ui.mainDesc.innerHTML = `YOU DEFEATED THE B.A.D. LEVIATHAN.<br><br>FINAL SCORE: <span style="color:#00ffcc; font-size:24px;">${Math.floor(state.score)}</span><br>COINS EARNED: <span style="color:#ffcc00; font-size:24px;">+${state.runCoins}</span>`; } 
-                ui.menuBtns.innerHTML = `<button class="btn-infinite" onclick="startInfinite()">Enter Infinite Loop</button><button onclick="returnToMenu()">Main Menu</button>`; 
+                state.active = false; saveRunCoins(); ui.mainOverlay.classList.remove('hidden'); ui.mainOverlay.classList.add('win-theme'); ui.boss.style.display = 'none'; document.getElementById('mobile-controls').style.display = 'none'; document.getElementById('menu-coin-display').style.display = 'none';
+                let isPerfect = player.hp >= state.stats.maxHp;
+                if (state.currentStage === 16) {
+                    ui.mainTitle.innerText = "THE PARADOX ENDING"; ui.mainTitle.style.webkitTextStroke = "3px #ff00ff"; ui.mainTitle.style.textShadow = "0 0 50px #ff00ff";
+                    ui.mainDesc.innerHTML = `YOU BROKE THE LOOP. TIME ITSELF BOWS TO YOU.<br>YOU EXIST OUTSIDE THE CYCLE NOW. THERE IS ONLY FORWARD.<br><br>FINAL SCORE: <span style="color:#ff00ff; font-size:24px;">${Math.floor(state.score).toLocaleString()}</span><br>COINS EARNED: <span style="color:#ffcc00; font-size:24px;">+${state.runCoins.toLocaleString()}</span><br><br><span style="color:#ff00ff; font-size:14px;">ACHIEVEMENT: TRUE MASTER OF THE VOID</span>`;
+                } else if (state.currentStage === 15 && isPerfect) {
+                    ui.mainTitle.innerText = "PERFECT ENDING"; ui.mainTitle.style.webkitTextStroke = "3px #ffcc00"; ui.mainTitle.style.textShadow = "0 0 50px #ffcc00";
+                    ui.mainDesc.innerHTML = `THE GLITCH IS PURGED. NOT A SCRATCH ON YOU.<br>YOUR FAMILY IS SAFE. YOU KEPT YOUR PROMISE.<br><br>FINAL SCORE: <span style="color:#ffcc00; font-size:24px;">${Math.floor(state.score).toLocaleString()}</span><br>COINS EARNED: <span style="color:#ffcc00; font-size:24px;">+${state.runCoins.toLocaleString()}</span><br><br><span style="color:#ffcc00; font-size:14px;">FLAWLESS VICTORY</span>`;
+                } else if (state.currentStage >= 15) {
+                    ui.mainTitle.innerText = "SYSTEM RESTORED"; ui.mainTitle.style.webkitTextStroke = "3px #00ff00"; ui.mainTitle.style.textShadow = "0 0 50px #00ff00";
+                    ui.mainDesc.innerHTML = `THE GLITCH HAS BEEN PURGED. YOU HAVE SAVED YOUR FAMILY.<br><br>FINAL SCORE: <span style="color:#00ffcc; font-size:24px;">${Math.floor(state.score).toLocaleString()}</span><br>COINS EARNED: <span style="color:#ffcc00; font-size:24px;">+${state.runCoins.toLocaleString()}</span>`;
+                } else if (state.currentStage === 14) {
+                    ui.mainTitle.innerText = "OMNIVERSE CONQUERED"; ui.mainTitle.style.webkitTextStroke = "3px #ffffff"; ui.mainTitle.style.textShadow = "0 0 50px #ffffff";
+                    ui.mainDesc.innerHTML = `YOU ARE THE APEX. THERE IS NOTHING LEFT TO FIGHT.<br><br>FINAL SCORE: <span style="color:#00ffcc; font-size:24px;">${Math.floor(state.score).toLocaleString()}</span><br>COINS EARNED: <span style="color:#ffcc00; font-size:24px;">+${state.runCoins.toLocaleString()}</span>`;
+                } else {
+                    ui.mainTitle.innerText = "IMPOSSIBLE"; ui.mainTitle.style.webkitTextStroke = "3px #800080"; ui.mainTitle.style.textShadow = "0 0 50px #800080";
+                    ui.mainDesc.innerHTML = `YOU DEFEATED THE B.A.D. LEVIATHAN.<br><br>FINAL SCORE: <span style="color:#00ffcc; font-size:24px;">${Math.floor(state.score).toLocaleString()}</span><br>COINS EARNED: <span style="color:#ffcc00; font-size:24px;">+${state.runCoins.toLocaleString()}</span>`;
+                }
+                ui.menuBtns.innerHTML = `<button class="btn-infinite" onclick="startInfinite()">Enter Infinite Loop</button><button onclick="returnToMenu()">Main Menu</button>`;
             };
-            if (state.currentStage === 15) playCutscene('ending', showWinScreen); else showWinScreen();
+            if (state.currentStage === 16) playCutscene('defeat16', showWinScreen);
+            else if (state.currentStage === 15) playCutscene('ending', showWinScreen);
+            else showWinScreen();
         }
         
         // ==================== KILL STREAK SYSTEM ====================
@@ -2928,7 +3007,10 @@
             { id: 'standard', name: 'PULSE BLASTER', desc: 'Balanced all-rounder. Good damage, good speed.', color: '#00ffcc', stats: 'DMG: ★★★ | RATE: ★★★ | PROJ: 1', apply: () => {} },
             { id: 'shotgun', name: 'SCATTER SHOT', desc: 'Fires 3 projectiles in a spread. Lower damage per shot.', color: '#ff8800', stats: 'DMG: ★★ | RATE: ★★ | PROJ: 3', apply: () => { state.stats.projCount += 2; state.stats.dmgMulti *= 0.65; } },
             { id: 'railgun', name: 'RAILGUN', desc: 'Devastating single shots. Slow but pierces enemies.', color: '#ff0055', stats: 'DMG: ★★★★★ | RATE: ★ | PROJ: 1', apply: () => { state.stats.dmgMulti *= 2.5; state.stats.fireRateMulti *= 0.4; state.stats.pierce += 2; } },
-            { id: 'minigun', name: 'MINIGUN', desc: 'Extreme fire rate. Spray and pray.', color: '#ffcc00', stats: 'DMG: ★ | RATE: ★★★★★ | PROJ: 1', apply: () => { state.stats.fireRateMulti *= 2.5; state.stats.dmgMulti *= 0.45; } }
+            { id: 'minigun', name: 'MINIGUN', desc: 'Extreme fire rate. Spray and pray.', color: '#ffcc00', stats: 'DMG: ★ | RATE: ★★★★★ | PROJ: 1', apply: () => { state.stats.fireRateMulti *= 2.5; state.stats.dmgMulti *= 0.45; } },
+            { id: 'laser', name: 'VOID LASER', desc: 'Rapid piercing beam. Melts through targets.', color: '#ff00ff', stats: 'DMG: ★★ | RATE: ★★★★★ | PROJ: 1', apply: () => { state.stats.dmgMulti *= 0.35; state.stats.fireRateMulti *= 5; state.stats.pierce += 10; } },
+            { id: 'seeker', name: 'SEEKER SWARM', desc: 'Slow homing missiles. They never miss.', color: '#00ff88', stats: 'DMG: ★★★★ | RATE: ★★ | PROJ: 2', apply: () => { state.stats.homing = true; state.stats.projCount += 1; state.stats.dmgMulti *= 1.3; state.stats.fireRateMulti *= 0.6; } },
+            { id: 'plasma', name: 'PLASMA STORM', desc: 'Explosive plasma. Wide area damage.', color: '#4488ff', stats: 'DMG: ★★★ | RATE: ★★ | PROJ: 3', apply: () => { state.stats.explosive = true; state.stats.projCount += 2; state.stats.dmgMulti *= 0.7; state.stats.fireRateMulti *= 0.7; } }
         ];
         let selectedWeapon = null;
 
@@ -3431,7 +3513,14 @@
             combo_king: { name: 'COMBO KING', desc: 'Reach x5.0 combo', icon: '🔗' },
             marathon: { name: 'MARATHON', desc: 'Play for 30 minutes total', icon: '⏱️' },
             quincy_approved: { name: 'NOTHING GETS PAST', desc: 'Achieve a 20 kill streak', icon: '🏹' },
-            round_100: { name: 'ROUND 100', desc: 'Reach level 100 in a run', icon: '💯' }
+            round_100: { name: 'ROUND 100', desc: 'Reach level 100 in a run', icon: '💯' },
+            boss_rush: { name: 'RUSH MASTER', desc: 'Complete Boss Rush mode', icon: '🏎️' },
+            prestige_1: { name: 'REBORN', desc: 'Prestige for the first time', icon: '🔄' },
+            prestige_5: { name: 'TRANSCENDED', desc: 'Reach Prestige level 5', icon: '✨' },
+            paradox_slayer: { name: 'PARADOX SLAYER', desc: 'Defeat the Chronos Paradox', icon: '⏳' },
+            perfect_run: { name: 'FLAWLESS', desc: 'Beat Sector 15 at full HP', icon: '💎' },
+            max_combo: { name: 'COMBO GOD', desc: 'Reach x10.0 combo', icon: '🔥' },
+            collector: { name: 'COLLECTOR', desc: 'Buy all upgrades from the hangar', icon: '🏪' }
         };
         let unlockedAchievements = [];
         try { let a = JSON.parse(localStorage.getItem('neonVoidAchievements')); if (Array.isArray(a)) unlockedAchievements = a; } catch(e) {}
@@ -3459,7 +3548,14 @@
                 combo_king: () => state.combo >= 5.0,
                 marathon: () => playerStats.playTime >= 1800,
                 quincy_approved: () => killStreak >= 20,
-                round_100: () => playerStats.highestLevel >= 100
+                round_100: () => playerStats.highestLevel >= 100,
+                boss_rush: () => parseInt(localStorage.getItem('neonVoidBossRushBest')) > 0,
+                prestige_1: () => prestigeLevel >= 1,
+                prestige_5: () => prestigeLevel >= 5,
+                paradox_slayer: () => parseInt(localStorage.getItem('neonVoidStage')) >= 16,
+                perfect_run: () => state.currentStage === 15 && player && player.hp >= state.stats.maxHp && !state.active,
+                max_combo: () => state.combo >= 10.0,
+                collector: () => purchasedUpgrades.length >= Object.keys(PERMANENT_UPGRADES).length
             };
             for (let [id, check] of Object.entries(checks)) {
                 if (!unlockedAchievements.includes(id) && check()) {
@@ -3918,6 +4014,140 @@
             state.dailyMod = challenge;
             challenge.apply();
             initGameBase();
+        }
+
+        // ==================== BOSS RUSH MODE ====================
+        function startBossRush() {
+            showWeaponSelect(() => {
+                state = { active: true, paused: false, mode: 'boss_rush', frame: 0, score: 0, combo: 1, xp: 0, level: 50, xpNeeded: 99999, runCoins: 0, kills: 0, shake: 0, currentStage: 1, bossesDefeated: 0, difficulty: 1, nextBossLevel: 999, spawningBoss: false, warping: true, warpFrames: 0, hardcore: appSettings.hardcore, hyper: appSettings.hyper, stats: getBaseStats() };
+                if (selectedWeapon) selectedWeapon.apply();
+                state.stats.maxHp += 500; state.stats.dmgMulti *= 1.5;
+                let sysName = 'BOSS RUSH: ALL 15'; if (appSettings.hardcore) sysName += ' [NIGHTMARE]'; if (appSettings.hyper) sysName += ' [HYPER-DRIVE]';
+                ui.status.innerText = sysName; initGameBase();
+            });
+        }
+
+        function bossRushComplete() {
+            state.active = false; saveRunCoins();
+            let elapsed = Math.floor(state.frame / 60); let mins = Math.floor(elapsed / 60); let secs = elapsed % 60;
+            let bestRush = parseInt(localStorage.getItem('neonVoidBossRushBest')) || 99999;
+            let isNewBest = elapsed < bestRush;
+            if (isNewBest) localStorage.setItem('neonVoidBossRushBest', elapsed);
+            ui.mainOverlay.classList.remove('hidden'); ui.mainOverlay.classList.add('win-theme'); ui.boss.style.display = 'none'; document.getElementById('mobile-controls').style.display = 'none'; document.getElementById('menu-coin-display').style.display = 'none';
+            ui.mainTitle.innerText = "BOSS RUSH COMPLETE"; ui.mainTitle.style.webkitTextStroke = "3px #ffcc00"; ui.mainTitle.style.textShadow = "0 0 50px #ffcc00";
+            ui.mainDesc.innerHTML = `ALL 15 BOSSES DESTROYED<br><br>TIME: <span style="color:#ffcc00; font-size:36px;">${mins}m ${secs.toString().padStart(2,'0')}s</span>${isNewBest ? '<br><span style="color:#00ff00; font-size:20px;">NEW PERSONAL BEST!</span>' : `<br><span style="color:#888;">Best: ${Math.floor(bestRush/60)}m ${(bestRush%60).toString().padStart(2,'0')}s</span>`}<br><br>COINS EARNED: <span style="color:#ffcc00; font-size:24px;">+${state.runCoins.toLocaleString()}</span>`;
+            ui.menuBtns.innerHTML = `<button onclick="startBossRush()">Retry Boss Rush</button><button onclick="returnToMenu()">Main Menu</button>`;
+        }
+
+        // ==================== PILOT CODEX ====================
+        const PILOT_LOGS = {
+            1: { title: "FIRST CONTACT", text: "Day 1. They woke me from cryo early. Something tore through Colony 9's defenses like paper. Vale says it's 'dimensional.' I say it's personal." },
+            2: { title: "THE RIFT", text: "The Vortex was alive. A breathing tear in spacetime. When I destroyed it, I heard voices in the static. Familiar voices." },
+            3: { title: "HUNTER'S INSTINCT", text: "The Reaver adapted to my tactics mid-fight. These aren't mindless creatures. Something is commanding them." },
+            4: { title: "STOLEN MINDS", text: "The Nebula Weaver's web was made of neural patterns. Human neural patterns. I recognized a fragment of a lullaby in the interference." },
+            5: { title: "FUEL OF THE VOID", text: "Titan Core's power source... memories. Thousands of minds burning as fuel. Including people from Colony 9. Including my family's." },
+            6: { title: "ECHOES", text: "The Wraith had her laugh. My daughter's laugh, twisted into a weapon. I destroyed it. I had to. But I can still hear it." },
+            7: { title: "THE ORACLE SPEAKS", text: "It knew things it shouldn't. About Vale. About the Gate. It said 'the one who leads you opened the door.' I want to believe it's lying." },
+            8: { title: "GRAVITY WELL", text: "The Singularity compressed a thousand minds into a single point. I could feel them pulling at my thoughts. The pressure was... intimate." },
+            9: { title: "LAST GATE", text: "Omega Core warned me. 'What lies beyond me will break your mind.' It wasn't wrong." },
+            10: { title: "BETRAYAL", text: "Vale opened the Void Gate. She admitted it. Everything that happened to Colony 9, to my family — it started with her." },
+            11: { title: "BLINDING TRUTH", text: "The True Sun God showed me what really happened. Vale wasn't just careless. She was trying to weaponize the Void. My family was collateral." },
+            12: { title: "VENGEANCE", text: "The VTSG fought with the fury of something that knows it's dying. Good. So do I." },
+            13: { title: "LEVIATHAN", text: "A creature the size of a small moon. It consumed civilizations. I reduced it to particles. Vale said she believes in me. I don't care anymore." },
+            14: { title: "OMNIVERSAL", text: "Beyond the Omniverse, there's only the Glitch. The source code of corruption itself. I'm going in." },
+            15: { title: "SYSTEM RESTORED", text: "It's over. The Glitch is purged. The neural patterns are stabilizing. Somewhere in the data, I can feel them. My family. They're coming home." }
+        };
+
+        function openCodex() {
+            ui.mainOverlay.classList.add('hidden');
+            document.getElementById('shop-screen').classList.add('hidden');
+            document.getElementById('codex-screen').classList.remove('hidden');
+            let grid = document.getElementById('codex-grid');
+            grid.innerHTML = '';
+            let unlockedRaw = localStorage.getItem('neonVoidStage'); let unlocked = parseInt(unlockedRaw); if(isNaN(unlocked) || unlocked < 1) unlocked = 1;
+            for (let i = 1; i <= 15; i++) {
+                let log = PILOT_LOGS[i];
+                let isUnlocked = i <= unlocked;
+                let card = document.createElement('div');
+                card.style.cssText = `border: 2px solid ${isUnlocked ? '#ff8800' : '#333'}; padding: 15px 20px; background: rgba(0,0,0,0.8);`;
+                if (isUnlocked) {
+                    card.innerHTML = `<div style="color:#ff8800; font-weight:bold; font-size:16px; margin-bottom:5px;">SECTOR ${i}: ${log.title}</div><div style="color:#ccc; font-size:13px; line-height:1.5;">${log.text}</div>`;
+                } else {
+                    card.innerHTML = `<div style="color:#333; font-weight:bold; font-size:16px;">SECTOR ${i}: [CLASSIFIED]</div><div style="color:#333; font-size:13px;">Complete sector ${i} to decrypt this log.</div>`;
+                }
+                grid.appendChild(card);
+            }
+        }
+
+        function closeCodex() {
+            document.getElementById('codex-screen').classList.add('hidden');
+            document.getElementById('shop-screen').classList.remove('hidden');
+        }
+
+        // ==================== PRESTIGE SYSTEM ====================
+        function prestigeReset() {
+            if (totalCoins < 1000000 * (prestigeLevel + 1)) return;
+            prestigeLevel++;
+            localStorage.setItem('neonVoidPrestige', prestigeLevel);
+            totalCoins = 0; purchasedUpgrades = [];
+            localStorage.setItem('neonVoidCoins', '0');
+            localStorage.setItem('neonVoidUpgrades', '[]');
+            playSound('powerup');
+            renderShop();
+        }
+
+        function renderPrestige() {
+            let section = document.getElementById('prestige-section');
+            let cost = 1000000 * (prestigeLevel + 1);
+            let costText = cost >= 1000000 ? (cost/1000000) + 'M' : (cost/1000) + 'K';
+            let canPrestige = totalCoins >= cost;
+            section.innerHTML = `<div style="color:#aa00ff; font-size:18px; margin-bottom:10px;">PRESTIGE LEVEL: <span style="color:#fff; font-size:28px;">${prestigeLevel}</span></div>` +
+                (prestigeLevel > 0 ? `<div style="color:#888; font-size:14px; margin-bottom:10px;">BONUSES: +${prestigeLevel * 10}% DMG | +${prestigeLevel * 50} HP | +${prestigeLevel * 5}% Coins</div>` : '') +
+                `<div style="color:#888; font-size:13px; margin-bottom:15px;">Reset coins & upgrades for permanent stat bonuses.</div>` +
+                `<button onclick="prestigeReset()" style="border-color:${canPrestige ? '#aa00ff' : '#555'}; color:${canPrestige ? '#aa00ff' : '#555'}; box-shadow: 0 0 20px ${canPrestige ? '#aa00ff' : 'transparent'}; ${canPrestige ? '' : 'cursor:not-allowed; opacity:0.5;'}">PRESTIGE (${costText} coins)</button>`;
+        }
+
+        // ==================== SAVE EXPORT/IMPORT ====================
+        function exportSave() {
+            let data = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                let key = localStorage.key(i);
+                if (key.startsWith('neonVoid')) data[key] = localStorage.getItem(key);
+            }
+            let blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            let a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'neon-void-save.json'; a.click();
+            URL.revokeObjectURL(a.href);
+        }
+
+        function importSave() {
+            let input = document.createElement('input'); input.type = 'file'; input.accept = '.json';
+            input.onchange = (e) => {
+                let file = e.target.files[0]; if (!file) return;
+                let reader = new FileReader();
+                reader.onload = (ev) => {
+                    try {
+                        let data = JSON.parse(ev.target.result);
+                        let count = 0;
+                        for (let [key, val] of Object.entries(data)) {
+                            if (key.startsWith('neonVoid')) { localStorage.setItem(key, val); count++; }
+                        }
+                        if (count > 0) location.reload();
+                        else alert('No valid save data found in file.');
+                    } catch(err) { alert('Invalid save file.'); }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        // ==================== SECRET BOSS (SECTOR ???) ====================
+        function startSecretBoss() {
+            let bootMission = () => {
+                state = { active: true, paused: false, mode: 'mission', frame: 0, score: 0, combo: 1, xp: 0, level: 1, xpNeeded: 100, runCoins: 0, kills: 0, shake: 0, currentStage: 16, bossesDefeated: 15, difficulty: 8, nextBossLevel: 5, spawningBoss: false, warping: true, warpFrames: 0, hardcore: appSettings.hardcore, hyper: appSettings.hyper, stats: getBaseStats() };
+                state.stats.dmgMulti += 2.5; state.stats.fireRateMulti += 1.5; state.stats.maxHp += 600; state.stats.projCount += 3;
+                ui.status.innerText = 'SYSTEM: [TEMPORAL ANOMALY] ???'; initGameBase();
+            };
+            playCutscene('boss16', bootMission);
         }
 
         // ==================== MULTIPLAYER SYSTEM ====================
