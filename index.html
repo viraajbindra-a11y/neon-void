@@ -1091,7 +1091,7 @@
             }
             
             draw(ctx) {
-                ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle); if (this.type === 'ghost') ctx.globalAlpha = this.alpha; let drawColor = this.frozen > 0 && this.type !== 'bad' ? '#00ffff' : this.color; ctx.strokeStyle = drawColor; ctx.lineWidth = 2; if (appSettings.graphics === 'high') { ctx.shadowBlur = 10; ctx.shadowColor = drawColor; } ctx.beginPath();
+                ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle); if (this.type === 'ghost') ctx.globalAlpha = this.alpha; let drawColor = this.frozen > 0 && this.type !== 'bad' ? '#00ffff' : this.color; if (this.isGold) drawColor = `hsl(${(state.frame * 3) % 60 + 30}, 100%, 60%)`; ctx.strokeStyle = drawColor; ctx.lineWidth = this.isGold ? 3 : 2; if (appSettings.graphics === 'high') { ctx.shadowBlur = this.isGold ? 25 : 10; ctx.shadowColor = drawColor; } ctx.beginPath();
                 if (this.type === 'dummy') { ctx.arc(0,0,this.radius,0,Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-this.radius,0); ctx.lineTo(this.radius,0); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0,-this.radius); ctx.lineTo(0,this.radius); ctx.stroke(); ctx.fillStyle='rgba(0,255,0,0.2)'; ctx.fill(); }
                 else if (this.type === 'chaser') { ctx.moveTo(14, 0); ctx.lineTo(-8, 10); ctx.lineTo(-4, 3); ctx.lineTo(-10, 0); ctx.lineTo(-4, -3); ctx.lineTo(-8, -10); ctx.closePath(); ctx.stroke(); ctx.fillStyle = drawColor; ctx.globalAlpha = 0.15; ctx.fill(); ctx.globalAlpha = 1; }
                 else if (this.type === 'rammer') { ctx.moveTo(15, 0); ctx.lineTo(-15, 10); ctx.lineTo(-15, -10); ctx.closePath(); ctx.stroke(); ctx.fillStyle = 'rgba(0,255,255,0.4)'; ctx.fill(); }
@@ -1261,7 +1261,9 @@
                     spawnParticles(e.x, e.y, '#00ffff', 10);
                 }
 
-                if (Math.random() < 0.15) entities.powerups.push(new Powerup(e.x, e.y)); 
+                tryKillFlavor(e.x, e.y);
+                if (e.isGold) { spawnText(e.x, e.y - 20, 'GOLDEN!', '#ffcc00', 22); spawnParticles(e.x, e.y, '#ffcc00', 20); }
+                if (Math.random() < 0.15) entities.powerups.push(new Powerup(e.x, e.y));
                 
                 if (e.type === 'bad') {
                     entities.enemies.push(new Enemy(e.x - 30, e.y - 30, 'tank'));
@@ -1345,9 +1347,11 @@
                 let y = (x < 0 || x > canvas.width) ? r4 * canvas.height : (r4 < 0.5 ? -100 : canvas.height+100);
                 let roll = r5; let type = 'chaser';
                 if (state.level > 2 && roll > 0.5) type = 'shooter'; if (state.level > 3 && roll > 0.6) type = 'splitter'; if (state.level > 4 && roll > 0.65) type = 'rammer'; if (state.level > 5 && roll > 0.72) type = 'sniper'; if (state.level > 6 && roll > 0.78) type = 'orbiter'; if (state.level > 6 && roll > 0.82) type = 'ghost'; if (state.level > 7 && roll > 0.86) type = 'shielder'; if (state.level > 7 && roll > 0.9) type = 'heavy_shooter'; if (state.level > 8 && roll > 0.92) type = 'pulsar'; if (state.level > 9 && roll > 0.95) type = 'tank'; if (state.level > 10 && roll > 0.97) type = 'mine'; if (state.level > 12 && roll > 0.98) type = 'teleporter'; if (state.level > 15 && roll > 0.99) type = 'bad';
-                entities.enemies.push(new Enemy(x, y, type));
+                let newEnemy = new Enemy(x, y, type);
+                tryGoldEnemy(newEnemy);
+                entities.enemies.push(newEnemy);
             }
-            if (state.level >= state.nextBossLevel) { state.spawningBoss = true; ui.bossAlert.style.display = 'block'; playSound('hit'); setTimeout(() => { ui.bossAlert.style.display = 'none'; entities.enemies = []; activeBoss = new Boss(state.bossesDefeated); state.spawningBoss = false; }, 3000); }
+            if (state.level >= state.nextBossLevel) { state.spawningBoss = true; ui.bossAlert.style.display = 'block'; playSound('hit'); let bossLine = BOSS_LINES[Math.floor(Math.random() * BOSS_LINES.length)]; spawnText(canvas.width/2, canvas.height/2 + 60, bossLine, '#ff0055', 16); setTimeout(() => { ui.bossAlert.style.display = 'none'; entities.enemies = []; activeBoss = new Boss(state.bossesDefeated); state.spawningBoss = false; }, 3000); }
         }
 
 
@@ -1417,7 +1421,7 @@
                         }
                         
                         let grabRadius = state.stats.magnet ? player.radius + 250 : player.radius + 15;
-                        updateArr(entities.powerups, (p, i) => { if (state.stats.magnet) { let pd = Math.hypot(player.x-p.x, player.y-p.y); if(pd < grabRadius && pd > 0){ p.x += (player.x-p.x)/pd * 8; p.y += (player.y-p.y)/pd * 8; } } if (Math.hypot(player.x-p.x, player.y-p.y) < player.radius+p.r) { playSound('powerup'); flashPowerup(p.color); if (p.type === 'nuke') triggerNuke(); else if (p.type === 'emp') triggerEMP(); else if (p.type === 'blackhole') triggerBlackHole(); else if (p.type === 'invincibility') player.timers.invuln = 600; else if (p.type === 'orbital_strike') triggerOrbitalStrike(); else if (p.type === 'heal') player.hp = Math.min(state.stats.maxHp, player.hp + 50); else if (p.type === 'shield') player.shield = 100; else if (p.type === 'nuke_shield') { player.shield = 150; player.nukeShield = true; } else player.timers[p.type] = 400; spawnParticles(p.x, p.y, p.color, 30); spawnText(p.x, p.y, p.type.toUpperCase(), p.color, 20); entities.powerups.splice(i,1); return true; } return false; });
+                        updateArr(entities.powerups, (p, i) => { if (state.stats.magnet) { let pd = Math.hypot(player.x-p.x, player.y-p.y); if(pd < grabRadius && pd > 0){ p.x += (player.x-p.x)/pd * 8; p.y += (player.y-p.y)/pd * 8; } } if (Math.hypot(player.x-p.x, player.y-p.y) < player.radius+p.r) { playSound('powerup'); flashPowerup(p.color); if (p.type === 'nuke') triggerNuke(); else if (p.type === 'emp') triggerEMP(); else if (p.type === 'blackhole') triggerBlackHole(); else if (p.type === 'invincibility') player.timers.invuln = 600; else if (p.type === 'orbital_strike') triggerOrbitalStrike(); else if (p.type === 'heal') player.hp = Math.min(state.stats.maxHp, player.hp + 50); else if (p.type === 'shield') player.shield = 100; else if (p.type === 'nuke_shield') { player.shield = 150; player.nukeShield = true; } else player.timers[p.type] = 400; spawnParticles(p.x, p.y, p.color, 30); spawnText(p.x, p.y, p.type.toUpperCase(), p.color, 20); tryPowerupLine(p.x, p.y); entities.powerups.splice(i,1); return true; } return false; });
                         
                         updateArr(entities.bullets, (b, i) => { 
                             let dead = false; 
@@ -1517,6 +1521,8 @@
             updateAsteroids(ctx, true);
             updateExhaust(ctx);
             if (state.frame % 120 === 0) checkAchievements();
+            if (state.frame % 30 === 0) checkScoreEggs();
+            checkIdle();
             if (appSettings.autoFire && state.active && !state.paused) mouse.down = true;
             ui.score.innerText = `SCORE: ${Math.floor(state.score)}`; ui.combo.innerText = `COMBO x${state.combo.toFixed(1)}`; ui.lvl.innerText = state.mode === 'training' ? 'TRAINING MODE' : `LVL: ${state.level}`; ui.coins.innerText = `COINS: ${totalCoins + state.runCoins}`; ui.hp.style.width = `${Math.max(0, (player.hp/state.stats.maxHp)*100)}%`; ui.shield.style.width = `${Math.min(100, player.shield)}%`; ui.xp.style.width = `${(state.xp / state.xpNeeded)*100}%`;
             requestAnimationFrame(update);
@@ -1612,7 +1618,7 @@
             }
         }
         
-        function initGameBase() { player = new Player(); activeBoss = null; asteroids = []; exhaustParticles = []; entities = { bullets: [], enemies: [], eBullets: [], particles: [], powerups: [], texts: [], stars: [], trails: [] }; for(let i=0; i<150; i++) entities.stars.push(new Star()); ui.mainOverlay.classList.add('hidden'); document.getElementById('mission-select').classList.add('hidden'); document.getElementById('shop-screen').classList.add('hidden'); document.getElementById('settings-screen').classList.add('hidden'); ui.boss.style.display = 'none'; ui.bossAlert.style.display = 'none'; ui.kills.innerText = "KILLS: 0"; mobileAutoShoot = false; document.getElementById('mob-shoot').style.background = 'rgba(0,255,204,0.2)'; document.getElementById('mob-shoot').style.color = '#00ffcc'; document.getElementById('mobile-controls').style.display = appSettings.mobile ? 'flex' : 'none'; if(audioCtx.state === 'suspended') audioCtx.resume(); killStreak = 0; stopMenuMusic(); stopMenuBg(); showCountdown(); if (appSettings.music) startMusic(); update(); }
+        function initGameBase() { player = new Player(); activeBoss = null; asteroids = []; exhaustParticles = []; entities = { bullets: [], enemies: [], eBullets: [], particles: [], powerups: [], texts: [], stars: [], trails: [] }; for(let i=0; i<150; i++) entities.stars.push(new Star()); ui.mainOverlay.classList.add('hidden'); document.getElementById('mission-select').classList.add('hidden'); document.getElementById('shop-screen').classList.add('hidden'); document.getElementById('settings-screen').classList.add('hidden'); ui.boss.style.display = 'none'; ui.bossAlert.style.display = 'none'; ui.kills.innerText = "KILLS: 0"; mobileAutoShoot = false; document.getElementById('mob-shoot').style.background = 'rgba(0,255,204,0.2)'; document.getElementById('mob-shoot').style.color = '#00ffcc'; document.getElementById('mobile-controls').style.display = appSettings.mobile ? 'flex' : 'none'; if(audioCtx.state === 'suspended') audioCtx.resume(); killStreak = 0; lastScoreEggCheck = 0; idleFrames = 0; idleMessageShown = false; killFlavorCooldown = 0; stopMenuMusic(); stopMenuBg(); showCountdown(); if (appSettings.music) startMusic(); update(); }
         
         function startMission(stageNum) { 
             let bootMission = () => {
@@ -1788,7 +1794,8 @@
                 let el = document.getElementById('wave-announce');
                 el.querySelector('.wave-text').textContent = `WAVE ${state.level}`;
                 let subs = ['THEY ARE COMING', 'BRACE YOURSELF', 'HOLD THE LINE', 'NO RETREAT', 'ENGAGE', 'VOID BREACH', 'INCOMING', 'NOTHING GETS PAST MY BOW', 'ROUND 63 VIBES', 'WHERE IS THE TRUE SUN GOD', 'QUINCY APPROVES', 'POP THEM ALL', 'LIKE ROUND 98 ALL OVER AGAIN', 'FORTIFIED AND CAMO', 'MONKEY KNOWLEDGE ACTIVATED'];
-                el.querySelector('.wave-sub').textContent = subs[Math.floor(Math.random() * subs.length)];
+                let specialSub = SPECIAL_WAVES[state.level];
+                el.querySelector('.wave-sub').textContent = specialSub || subs[Math.floor(Math.random() * subs.length)];
                 el.style.opacity = '1';
                 setTimeout(() => el.style.opacity = '0', 2000);
             }
@@ -2404,6 +2411,224 @@
             document.body.appendChild(ring);
             setTimeout(() => ring.remove(), 500);
         }
+
+        // ==================== EASTER EGGS & REFERENCES ====================
+
+        // --- Konami Code ---
+        const KONAMI = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
+        let konamiIdx = 0;
+        let konamiActivated = false;
+        document.addEventListener('keydown', (e) => {
+            if (state.active) return;
+            if (e.key === KONAMI[konamiIdx]) {
+                konamiIdx++;
+                if (konamiIdx === KONAMI.length) {
+                    konamiIdx = 0;
+                    if (!konamiActivated) {
+                        konamiActivated = true;
+                        totalCoins += 1000;
+                        localStorage.setItem('neonVoidCoins', totalCoins);
+                        spawnMenuEasterEgg('CHEAT ACTIVATED +1000 COINS', '#00ff00');
+                        playSound('powerup');
+                    } else {
+                        spawnMenuEasterEgg('NICE TRY PILOT', '#ffcc00');
+                    }
+                }
+            } else { konamiIdx = e.key === KONAMI[0] ? 1 : 0; }
+        });
+
+        function spawnMenuEasterEgg(text, color) {
+            let div = document.createElement('div');
+            div.style.cssText = `position:fixed;top:40%;left:50%;transform:translate(-50%,-50%);font-size:36px;font-weight:900;color:${color};text-shadow:0 0 30px ${color};z-index:100;pointer-events:none;font-family:'Courier New',monospace;letter-spacing:4px;animation:streakPop 1.5s ease-out forwards;`;
+            div.textContent = text;
+            document.body.appendChild(div);
+            setTimeout(() => div.remove(), 2000);
+        }
+
+        // --- Random Kill Flavor Text ---
+        const KILL_FLAVOR = [
+            { text: 'FINISH HIM', color: '#ff4400', weight: 2 },
+            { text: 'FATALITY', color: '#ff0000', weight: 1 },
+            { text: 'K.O.', color: '#ffcc00', weight: 2 },
+            { text: 'WASTED', color: '#ff0055', weight: 1 },
+            { text: 'CRITICAL HIT!', color: '#ff8800', weight: 2 },
+            { text: 'HEADSHOT', color: '#ff0000', weight: 2 },
+            { text: 'ELIMINATED', color: '#00ffcc', weight: 3 },
+            { text: 'OBLITERATED', color: '#ff00ff', weight: 1 },
+            { text: 'GET REKT', color: '#ff8800', weight: 1 },
+            { text: 'GG EZ', color: '#888888', weight: 1 },
+            { text: 'BOOM', color: '#ff4400', weight: 3 },
+            { text: 'YEET', color: '#00ff88', weight: 1 },
+            { text: 'BONK', color: '#ffcc00', weight: 1 },
+            { text: '+RESPECT', color: '#00ffcc', weight: 1 },
+            { text: 'NO SCOPE', color: '#ffffff', weight: 1 }
+        ];
+        let killFlavorCooldown = 0;
+        function tryKillFlavor(x, y) {
+            if (killFlavorCooldown > 0) { killFlavorCooldown--; return; }
+            if (Math.random() < 0.03) {
+                let totalWeight = KILL_FLAVOR.reduce((s, f) => s + f.weight, 0);
+                let roll = Math.random() * totalWeight;
+                let pick = KILL_FLAVOR[0];
+                for (let f of KILL_FLAVOR) { roll -= f.weight; if (roll <= 0) { pick = f; break; } }
+                spawnText(x, y - 30, pick.text, pick.color, 18);
+                killFlavorCooldown = 60;
+            }
+        }
+
+        // --- Score Easter Eggs ---
+        const SCORE_EGGS = {
+            1337: { text: 'L33T H4X0R', color: '#00ff00' },
+            9001: { text: "IT'S OVER 9000!", color: '#ffcc00' },
+            42069: { text: 'NICE', color: '#ff69b4' },
+            69420: { text: 'EXTRA NICE', color: '#ff69b4' },
+            100000: { text: 'SIX FIGURES BABY', color: '#ffcc00' },
+            314159: { text: 'MMMMM PIE', color: '#ff8800' },
+            666666: { text: 'DEAL WITH THE DEVIL', color: '#ff0000' },
+            1000000: { text: 'MILLIONAIRE STATUS', color: '#ffffff' }
+        };
+        let lastScoreEggCheck = 0;
+        function checkScoreEggs() {
+            let score = Math.floor(state.score);
+            for (let [threshold, egg] of Object.entries(SCORE_EGGS)) {
+                let t = parseInt(threshold);
+                if (score >= t && lastScoreEggCheck < t) {
+                    spawnText(canvas.width / 2, canvas.height / 2 - 60, egg.text, egg.color, 28);
+                    playSound('powerup');
+                }
+            }
+            lastScoreEggCheck = score;
+        }
+
+        // --- Rare Powerup Pickup Lines ---
+        const POWERUP_LINES = [
+            "IT'S DANGEROUS TO GO ALONE",
+            "POWER OVERWHELMING",
+            "I NEED A WEAPON",
+            "LOCKED AND LOADED",
+            "IMPRESSIVE",
+            "NOW I AM BECOME DEATH",
+            "UNLIMITED POWER",
+            "THIS ISN'T EVEN MY FINAL FORM",
+            "MAXIMUM OVERDRIVE",
+            "SUPER EFFECTIVE",
+            "YOU HAVE MY SWORD",
+            "LEEEROY JENKINS"
+        ];
+        function tryPowerupLine(x, y) {
+            if (Math.random() < 0.12) {
+                let line = POWERUP_LINES[Math.floor(Math.random() * POWERUP_LINES.length)];
+                spawnText(x, y - 25, line, '#ffffff', 14);
+            }
+        }
+
+        // --- Special Wave Subtitles ---
+        const SPECIAL_WAVES = {
+            7: "LUCKY NUMBER SEVEN",
+            13: "UNLUCKY FOR SOME",
+            42: "THE ANSWER TO EVERYTHING",
+            50: "HALFWAY TO MADNESS",
+            63: "ROUND 63 PTSD",
+            69: "NICE",
+            99: "THE FINAL COUNTDOWN",
+            100: "WELCOME TO THE ENDGAME",
+            117: "MASTER CHIEF REPORTING",
+            256: "INTEGER OVERFLOW IMMINENT"
+        };
+
+        // --- Idle Detection ---
+        let idleFrames = 0;
+        let idleMessageShown = false;
+        function checkIdle() {
+            if (!state.active || state.paused) return;
+            if (keys.w || keys.a || keys.s || keys.d || keys.up || keys.down || keys.left || keys.right || mouse.down) {
+                idleFrames = 0;
+                idleMessageShown = false;
+                return;
+            }
+            idleFrames++;
+            if (idleFrames === 600 && !idleMessageShown) {
+                spawnText(player.x, player.y - 40, 'AFK DETECTED', '#888888', 16);
+            }
+            if (idleFrames === 900 && !idleMessageShown) {
+                spawnText(player.x, player.y - 40, 'HELLO? ANYONE THERE?', '#888888', 14);
+                idleMessageShown = true;
+            }
+            if (idleFrames === 1800) {
+                spawnText(player.x, player.y - 40, 'I USED TO BE A PILOT LIKE YOU...', '#888888', 12);
+            }
+        }
+
+        // --- Title Click Easter Egg ---
+        let titleClicks = 0;
+        let titleEggDone = false;
+        document.addEventListener('click', (e) => {
+            if (state.active || titleEggDone) return;
+            let title = document.querySelector('.title-text');
+            if (title && e.target === title) {
+                titleClicks++;
+                if (titleClicks === 10) {
+                    spawnMenuEasterEgg('HELLO WORLD', '#00ffcc');
+                    document.body.style.animation = 'none';
+                    document.body.offsetHeight;
+                    let glitch = document.createElement('style');
+                    glitch.textContent = `@keyframes eggGlitch { 0%{filter:none} 20%{filter:hue-rotate(90deg)} 40%{filter:invert(1)} 60%{filter:hue-rotate(180deg)} 80%{filter:saturate(3)} 100%{filter:none} } body{animation:eggGlitch 0.5s ease-out!important;}`;
+                    document.head.appendChild(glitch);
+                    setTimeout(() => glitch.remove(), 600);
+                    titleEggDone = true;
+                    playSound('hit');
+                } else if (titleClicks === 5) {
+                    spawnMenuEasterEgg('...', '#555555');
+                }
+            }
+        });
+
+        // --- Gold Enemy Variant ---
+        function tryGoldEnemy(enemy) {
+            if (Math.random() < 0.005 && enemy.type !== 'dummy') {
+                enemy.isGold = true;
+                enemy.color = '#ffcc00';
+                enemy.xp *= 5;
+                enemy.hp *= 0.5;
+            }
+        }
+
+        // --- Boss Entrance Lines ---
+        const BOSS_LINES = [
+            "YOU DARE CHALLENGE ME?",
+            "PREPARE TO BE DELETED",
+            "YOUR PIXELS END HERE",
+            "I AM INEVITABLE",
+            "RESISTANCE IS FUTILE",
+            "YOU SHOULD HAVE AIMED FOR THE HEAD",
+            "ROUND 1... FIGHT!",
+            "A WORTHY OPPONENT",
+            "YOUR JOURNEY ENDS HERE",
+            "DID YOU REALLY THINK IT WOULD BE THAT EASY?"
+        ];
+
+        // --- Secret typing on menu ---
+        let menuTypeBuffer = '';
+        document.addEventListener('keypress', (e) => {
+            if (state.active) return;
+            menuTypeBuffer += e.key.toLowerCase();
+            if (menuTypeBuffer.length > 20) menuTypeBuffer = menuTypeBuffer.slice(-20);
+            if (menuTypeBuffer.endsWith('iddqd')) {
+                spawnMenuEasterEgg('GOD MODE... JUST KIDDING', '#ff0000');
+                playSound('hit');
+                menuTypeBuffer = '';
+            }
+            if (menuTypeBuffer.endsWith('noclip')) {
+                spawnMenuEasterEgg('GHOST MODE ACTIVATED', '#cccccc');
+                playSound('hit');
+                menuTypeBuffer = '';
+            }
+            if (menuTypeBuffer.endsWith('hesoyam')) {
+                spawnMenuEasterEgg('WRONG GAME BUDDY', '#00ff00');
+                playSound('hit');
+                menuTypeBuffer = '';
+            }
+        });
 
         // ==================== MULTIPLAYER SYSTEM ====================
 
