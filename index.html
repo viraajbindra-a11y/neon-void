@@ -376,7 +376,8 @@
 
 
     <div id="cutscene-screen" class="overlay-screen hidden" style="z-index: 40; justify-content: flex-end; padding-bottom: 80px;">
-        <div style="width: 80%; max-width: 800px; background: rgba(0,10,25,0.95); border: 2px solid #00ffcc; border-radius: 10px; padding: 20px; display: flex; gap: 20px; box-shadow: 0 0 40px rgba(0, 255, 204, 0.4);">
+        <canvas id="cutscene-bg" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:-1;"></canvas>
+        <div style="width: 80%; max-width: 800px; background: rgba(0,10,25,0.92); border: 2px solid #00ffcc; border-radius: 10px; padding: 20px; display: flex; gap: 20px; box-shadow: 0 0 40px rgba(0, 255, 204, 0.4); z-index:1;">
             <canvas id="cutscene-portrait-canvas" width="100" height="100" style="width: 100px; height: 100px; background: #111; border: 2px solid #fff;"></canvas>
             <div style="flex-grow: 1; display: flex; flex-direction: column;">
                 <div id="cutscene-name" style="color: #ffcc00; font-size: 28px; font-weight: 900; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 2px;">NAME</div>
@@ -1031,9 +1032,17 @@
             }
             
             draw(ctx) {
-                if (this.isEnemy && this.isHoming && appSettings.graphics === 'high') { ctx.shadowBlur = 10; ctx.shadowColor = this.color; }
-                ctx.fillStyle = this.isCrit ? '#ff0000' : this.color;
-                if (this.radius > 6) { ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); ctx.fill(); }
+                if (this.isHoming && appSettings.graphics === 'high') {
+                    ctx.globalAlpha = 0.3; ctx.fillStyle = this.color;
+                    for (let t = 1; t <= 3; t++) {
+                        ctx.beginPath(); ctx.arc(this.x - this.vx * t * 0.5, this.y - this.vy * t * 0.5, this.radius * (1 - t * 0.2), 0, Math.PI*2); ctx.fill();
+                    }
+                    ctx.globalAlpha = 1;
+                    ctx.shadowBlur = 10; ctx.shadowColor = this.color;
+                }
+                if (this.isMine && appSettings.graphics === 'high') { ctx.shadowBlur = 15; ctx.shadowColor = '#ff6600'; }
+                ctx.fillStyle = this.isCrit ? '#ff0000' : (this.isMine ? `rgba(255,102,0,${0.5 + Math.sin(state.frame * 0.2) * 0.3})` : this.color);
+                if (this.radius > 6 || this.isMine) { ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); ctx.fill(); if (this.isMine) { ctx.strokeStyle = '#ff6600'; ctx.lineWidth = 1; ctx.stroke(); } }
                 else { ctx.fillRect(this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2); }
                 ctx.shadowBlur = 0;
             }
@@ -1059,7 +1068,7 @@
         }
 
 
-        const ENEMY_TYPES = { dummy: { hp: 9999999, spd: 0, color: '#00ff00', r: 30, xp: 0 }, chaser: { hp: 120, spd: 4.0, color: '#ff0055', r: 12, xp: 20 }, shooter: { hp: 100, spd: 2.2, color: '#ff8800', r: 14, xp: 30 }, sniper: { hp: 80, spd: 1.2, color: '#ffff00', r: 10, xp: 40 }, tank: { hp: 400, spd: 1.0, color: '#ff0000', r: 20, xp: 60 }, rammer: { hp: 80, spd: 6.5, color: '#00ffff', r: 10, xp: 25 }, heavy_shooter: { hp: 250, spd: 1.0, color: '#ff8800', r: 18, xp: 45 }, pulsar: { hp: 150, spd: 1.5, color: '#ff00ff', r: 16, xp: 40 }, ghost: { hp: 100, spd: 2.0, color: '#cccccc', r: 14, xp: 35 }, mine: { hp: 50, spd: 0.5, color: '#ff0000', r: 15, xp: 50 }, teleporter: { hp: 120, spd: 0, color: '#00ffff', r: 14, xp: 40 }, avatar: { hp: 2500, spd: 0.8, color: '#ffff00', r: 25, xp: 200 }, dark_avatar: { hp: 6000, spd: 1.0, color: '#ff0000', r: 30, xp: 500 }, bad: { hp: 12000, spd: 0.3, color: '#800080', r: 40, xp: 1000 }, orbiter: { hp: 150, spd: 3.0, color: '#ff88ff', r: 12, xp: 35 }, splitter: { hp: 200, spd: 2.5, color: '#88ff00', r: 16, xp: 45 }, shielder: { hp: 300, spd: 1.5, color: '#4488ff', r: 18, xp: 55 } };
+        const ENEMY_TYPES = { dummy: { hp: 9999999, spd: 0, color: '#00ff00', r: 30, xp: 0 }, chaser: { hp: 120, spd: 4.0, color: '#ff0055', r: 12, xp: 20 }, shooter: { hp: 100, spd: 2.2, color: '#ff8800', r: 14, xp: 30 }, sniper: { hp: 80, spd: 1.2, color: '#ffff00', r: 10, xp: 40 }, tank: { hp: 400, spd: 1.0, color: '#ff0000', r: 20, xp: 60 }, rammer: { hp: 80, spd: 6.5, color: '#00ffff', r: 10, xp: 25 }, heavy_shooter: { hp: 250, spd: 1.0, color: '#ff8800', r: 18, xp: 45 }, pulsar: { hp: 150, spd: 1.5, color: '#ff00ff', r: 16, xp: 40 }, ghost: { hp: 100, spd: 2.0, color: '#cccccc', r: 14, xp: 35 }, mine: { hp: 50, spd: 0.5, color: '#ff0000', r: 15, xp: 50 }, teleporter: { hp: 120, spd: 0, color: '#00ffff', r: 14, xp: 40 }, avatar: { hp: 2500, spd: 0.8, color: '#ffff00', r: 25, xp: 200 }, dark_avatar: { hp: 6000, spd: 1.0, color: '#ff0000', r: 30, xp: 500 }, bad: { hp: 12000, spd: 0.3, color: '#800080', r: 40, xp: 1000 }, orbiter: { hp: 150, spd: 3.0, color: '#ff88ff', r: 12, xp: 35 }, splitter: { hp: 200, spd: 2.5, color: '#88ff00', r: 16, xp: 45 }, shielder: { hp: 300, spd: 1.5, color: '#4488ff', r: 18, xp: 55 }, bomber: { hp: 180, spd: 2.0, color: '#ff6600', r: 16, xp: 55 }, healer: { hp: 150, spd: 1.8, color: '#00ff88', r: 14, xp: 60 } };
 
 
         class Enemy {
@@ -1088,6 +1097,8 @@
                 if (this.type === 'bad' && timerInt % 120 === 0) { for(let i=0; i<8; i++) { let spread = this.angle + (i * Math.PI/4); entities.eBullets.push(new Projectile(this.x, this.y, Math.cos(spread)*6, Math.sin(spread)*6, '#800080', state.hardcore?100:50, true)); } }
                 if (this.type === 'orbiter') { let orbitDist = 180; let orbitSpd = 0.03 * hyperMult; if (!this.orbitAngle) this.orbitAngle = Math.random() * Math.PI * 2; this.orbitAngle += orbitSpd; this.x = player.x + Math.cos(this.orbitAngle) * orbitDist; this.y = player.y + Math.sin(this.orbitAngle) * orbitDist; if (timerInt % 60 === 0) { entities.eBullets.push(new Projectile(this.x, this.y, Math.cos(this.angle)*10, Math.sin(this.angle)*10, '#ff88ff', state.hardcore?40:20, true)); } }
                 if (this.type === 'shielder') { if (!this.shieldHp) { this.shieldHp = this.maxHp * 0.5; this.shieldMax = this.shieldHp; } if (this.shieldHp > 0 && timerInt % 60 === 0) { entities.eBullets.push(new Projectile(this.x, this.y, Math.cos(this.angle)*8, Math.sin(this.angle)*8, '#4488ff', state.hardcore?40:20, true)); } }
+                if (this.type === 'bomber' && timerInt % 90 === 0) { let p = new Projectile(this.x, this.y, 0, 0, '#ff6600', 0, true); p.life = 180; p.radius = 8; p.isMine = true; entities.eBullets.push(p); }
+                if (this.type === 'healer' && timerInt % 60 === 0) { for (let ne of entities.enemies) { if (ne && ne !== this && ne.type !== 'dummy' && Math.hypot(ne.x - this.x, ne.y - this.y) < 200) { ne.hp = Math.min(ne.maxHp, ne.hp + ne.maxHp * 0.05); } } }
             }
             
             draw(ctx) {
@@ -1107,6 +1118,8 @@
                 else if (this.type === 'orbiter') { ctx.arc(0, 0, 10, 0, Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI*2); ctx.fillStyle = '#ff88ff'; ctx.fill(); }
                 else if (this.type === 'splitter') { ctx.moveTo(16, 0); ctx.lineTo(0, 16); ctx.lineTo(-16, 0); ctx.lineTo(0, -16); ctx.closePath(); ctx.stroke(); ctx.fillStyle = 'rgba(136,255,0,0.3)'; ctx.fill(); }
                 else if (this.type === 'shielder') { for(let i=0; i<6; i++) ctx.lineTo(18*Math.cos(i*Math.PI/3), 18*Math.sin(i*Math.PI/3)); ctx.closePath(); ctx.stroke(); if (this.shieldHp > 0) { ctx.beginPath(); ctx.arc(0, 0, this.radius + 12, 0, Math.PI*2); ctx.strokeStyle = '#88bbff'; ctx.lineWidth = 3; ctx.stroke(); } }
+                else if (this.type === 'bomber') { ctx.arc(0, 0, 14, 0, Math.PI*2); ctx.stroke(); ctx.fillStyle = '#ff6600'; ctx.globalAlpha = 0.3; ctx.fill(); ctx.globalAlpha = 1; ctx.fillStyle = '#fff'; ctx.font = 'bold 10px Courier'; ctx.textAlign = 'center'; ctx.fillText('!', 0, 4); }
+                else if (this.type === 'healer') { ctx.moveTo(0, -14); ctx.lineTo(5, -5); ctx.lineTo(14, 0); ctx.lineTo(5, 5); ctx.lineTo(0, 14); ctx.lineTo(-5, 5); ctx.lineTo(-14, 0); ctx.lineTo(-5, -5); ctx.closePath(); ctx.stroke(); ctx.fillStyle = '#00ff88'; ctx.globalAlpha = 0.3; ctx.fill(); ctx.globalAlpha = 1; ctx.fillStyle = '#fff'; ctx.font = 'bold 10px Courier'; ctx.textAlign = 'center'; ctx.fillText('+', 0, 4); if (Math.floor(this.timer) % 60 < 30) { ctx.beginPath(); ctx.arc(0, 0, 200 * ((Math.floor(this.timer) % 60) / 60), 0, Math.PI*2); ctx.strokeStyle = 'rgba(0,255,136,0.15)'; ctx.lineWidth = 2; ctx.stroke(); } }
                 else { ctx.rect(-10, -10, 20, 20); ctx.stroke(); }
                 if (this.hp < this.maxHp && this.type !== 'mine' && this.type !== 'ghost' && this.type !== 'dummy') { ctx.rotate(-this.angle); ctx.fillStyle = 'red'; ctx.fillRect(-15, -this.radius - 10, 30 * (this.hp/this.maxHp), 4); } ctx.restore();
             }
@@ -1276,6 +1289,14 @@
                     entities.enemies.push(new Enemy(e.x - 20, e.y, 'chaser'));
                     entities.enemies.push(new Enemy(e.x + 20, e.y, 'chaser'));
                 }
+                if (e.type === 'bomber') {
+                    for (let i = 0; i < 3; i++) {
+                        let p = new Projectile(e.x + (Math.random()-0.5)*40, e.y + (Math.random()-0.5)*40, 0, 0, '#ff6600', state.hardcore?60:30, true);
+                        p.life = 300; p.radius = 10; p.isMine = true;
+                        entities.eBullets.push(p);
+                    }
+                    spawnText(e.x, e.y - 15, 'MINES!', '#ff6600', 14);
+                }
             } catch(err) { console.error("KillEnemy Error", err); }
         }
 
@@ -1346,7 +1367,7 @@
                 let x = r1 < 0.5 ? (r2 < 0.5 ? -100 : canvas.width+100) : r3 * canvas.width;
                 let y = (x < 0 || x > canvas.width) ? r4 * canvas.height : (r4 < 0.5 ? -100 : canvas.height+100);
                 let roll = r5; let type = 'chaser';
-                if (state.level > 2 && roll > 0.5) type = 'shooter'; if (state.level > 3 && roll > 0.6) type = 'splitter'; if (state.level > 4 && roll > 0.65) type = 'rammer'; if (state.level > 5 && roll > 0.72) type = 'sniper'; if (state.level > 6 && roll > 0.78) type = 'orbiter'; if (state.level > 6 && roll > 0.82) type = 'ghost'; if (state.level > 7 && roll > 0.86) type = 'shielder'; if (state.level > 7 && roll > 0.9) type = 'heavy_shooter'; if (state.level > 8 && roll > 0.92) type = 'pulsar'; if (state.level > 9 && roll > 0.95) type = 'tank'; if (state.level > 10 && roll > 0.97) type = 'mine'; if (state.level > 12 && roll > 0.98) type = 'teleporter'; if (state.level > 15 && roll > 0.99) type = 'bad';
+                if (state.level > 2 && roll > 0.5) type = 'shooter'; if (state.level > 3 && roll > 0.6) type = 'splitter'; if (state.level > 4 && roll > 0.65) type = 'rammer'; if (state.level > 5 && roll > 0.72) type = 'sniper'; if (state.level > 5 && roll > 0.75) type = 'bomber'; if (state.level > 6 && roll > 0.78) type = 'orbiter'; if (state.level > 6 && roll > 0.82) type = 'ghost'; if (state.level > 7 && roll > 0.84) type = 'healer'; if (state.level > 7 && roll > 0.86) type = 'shielder'; if (state.level > 7 && roll > 0.9) type = 'heavy_shooter'; if (state.level > 8 && roll > 0.92) type = 'pulsar'; if (state.level > 9 && roll > 0.95) type = 'tank'; if (state.level > 10 && roll > 0.97) type = 'mine'; if (state.level > 12 && roll > 0.98) type = 'teleporter'; if (state.level > 15 && roll > 0.99) type = 'bad';
                 let newEnemy = new Enemy(x, y, type);
                 tryGoldEnemy(newEnemy);
                 entities.enemies.push(newEnemy);
@@ -1530,36 +1551,224 @@
 
 
         const STORY = {
-            intro: [ { speaker: "COMMANDER", color: "#00ffcc", text: "Pilot, do you read me? The Void Lords have breached our outer defenses." }, { speaker: "COMMANDER", color: "#00ffcc", text: "It's worse than we thought. They targeted the civilian sector... They took your family." }, { speaker: "YOU", color: "#ffffff", text: "..." }, { speaker: "COMMANDER", color: "#00ffcc", text: "They are harvesting human neural patterns to power their Glitch Engine. You have to stop them before the assimilation is complete." }, { speaker: "YOU", color: "#ffffff", text: "I'm firing up the Neon Drive. I'll tear the Void apart to get them back." }, { speaker: "COMMANDER", color: "#00ffcc", text: "Good luck, Pilot. Show them no mercy." } ],
-            boss5: [ { speaker: "TITAN CORE", color: "#ffcc00", text: "INTRUDER DETECTED. YOUR BLOODLINE YIELDS EXCELLENT POWER." }, { speaker: "YOU", color: "#ffffff", text: "Shut your mouth, scrap metal. Where are they?!" }, { speaker: "TITAN CORE", color: "#ffcc00", text: "THEY BELONG TO THE VOID NOW. SUBMIT AND JOIN THEM." } ],
-            boss10: [ { speaker: "VOID GOD", color: "#ffffff", text: "FOOLISH MORTAL. YOU FIGHT FOR GHOSTS. THEIR MINDS ARE ALREADY MINE." }, { speaker: "YOU", color: "#ffffff", text: "If I kill you, the neural link breaks. That's all I need to know." }, { speaker: "VOID GOD", color: "#ffffff", text: "THEN PERISH IN THE DARKNESS." } ],
-            boss14: [ { speaker: "THE OMNIVERSE", color: "#00ffff", text: "W E  A R E  E V E R Y W H E R E.  Y O U R  F A M I L Y  I S  O U R S." }, { speaker: "YOU", color: "#ffffff", text: "I've ripped through 13 dimensions to find you. You're the last one left." } ],
-            boss15: [ { speaker: "THE GLITCH", color: "#00ff00", text: "E R R O R.  F A M I L Y _ N O T _ F O U N D.  A S S I M I L A T I O N  9 9 %." }, { speaker: "YOU", color: "#ffffff", text: "Hang on... I'm pulling the plug on this whole damn universe!" } ],
-            ending: [ { speaker: "SYSTEM", color: "#00ffcc", text: "GLITCH ENGINE DESTROYED. NEURAL PATTERNS RELEASED. VITALS STABILIZING." }, { speaker: "FAMILY", color: "#ffcc00", text: "You... you saved us. The nightmares are gone." }, { speaker: "YOU", color: "#ffffff", text: "I told you I'd come for you. It's over. We're going home." } ]
+            intro: [
+                { speaker: "???", color: "#ff0055", text: "You shouldn't have come back online." },
+                { speaker: "SYSTEM", color: "#00ffcc", text: "NEURAL LINK RE-ESTABLISHED. PILOT STATUS: UNKNOWN. MEMORY BANKS: CORRUPTED." },
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "Pilot. Can you hear me? You've been in cryosleep for 347 days." },
+                { speaker: "YOU", color: "#ffffff", text: "...Where am I? The last thing I remember is—" },
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "The Void Lords hit Colony 9. Your family was in the impact zone. We couldn't— we thought everyone was dead." },
+                { speaker: "YOU", color: "#ffffff", text: "Thought?" },
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "We intercepted a signal. Neural signatures matching your family. They're alive, but their minds are being harvested to power something called the Glitch Engine." },
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "Every second we waste, more of who they are gets overwritten. You need to move. Now." },
+                { speaker: "YOU", color: "#ffffff", text: "Then get out of my way." }
+            ],
+            boss3: [
+                { speaker: "REAVER", color: "#ffffff", text: "ANOTHER MOTH TO THE FLAME. YOUR KIND NEVER LEARNS." },
+                { speaker: "YOU", color: "#ffffff", text: "My kind? I'm the one you should be running from." },
+                { speaker: "REAVER", color: "#ffffff", text: "BRAVE WORDS FOR A DEAD PILOT." }
+            ],
+            boss5: [
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "Pilot, I need to tell you something. We've been tracking the neural drain patterns." },
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "Your family's memories... they're being used as fuel. The Titan Core runs on human consciousness." },
+                { speaker: "TITAN CORE", color: "#ffcc00", text: "AH. THE ONE WHOSE BLOODLINE BURNS SO BRIGHT. YOUR FAMILY'S NEURAL PATTERNS ARE EXQUISITE." },
+                { speaker: "YOU", color: "#ffffff", text: "You're burning their minds for power?" },
+                { speaker: "TITAN CORE", color: "#ffcc00", text: "EVERY MEMORY. EVERY DREAM. EVERY MOMENT THEY LOVED YOU. DELICIOUS FUEL." },
+                { speaker: "YOU", color: "#ffffff", text: "I'll make you choke on those words." }
+            ],
+            boss7: [
+                { speaker: "ORACLE", color: "#00ffcc", text: "I SEE ALL TIMELINES, PILOT. IN EVERY ONE... YOU FAIL." },
+                { speaker: "YOU", color: "#ffffff", text: "Then you're looking at the wrong timeline." },
+                { speaker: "ORACLE", color: "#00ffcc", text: "NO. I SEE THE TRUTH YOU DON'T. YOUR COMMANDER IS HIDING SOMETHING." },
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "Don't listen to it! It's trying to manipulate you." }
+            ],
+            boss10: [
+                { speaker: "???", color: "#ff0055", text: "Do you remember us yet?" },
+                { speaker: "VOID GOD", color: "#ffffff", text: "YOU HAVE FOUGHT WELL, LITTLE PILOT. BUT YOU DON'T UNDERSTAND WHAT YOU'RE FIGHTING FOR." },
+                { speaker: "VOID GOD", color: "#ffffff", text: "YOUR COMMANDER DIDN'T TELL YOU THE TRUTH. COLONY 9 WASN'T ATTACKED. IT WAS SACRIFICED." },
+                { speaker: "YOU", color: "#ffffff", text: "What are you talking about?" },
+                { speaker: "VOID GOD", color: "#ffffff", text: "ASK VALE WHO AUTHORIZED THE VOID GATE EXPERIMENT. ASK WHO SIGNED YOUR FAMILY'S DEATH WARRANT." },
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "Pilot, focus! That's a lie. Kill the Void God. That's an order!" },
+                { speaker: "YOU", color: "#ffffff", text: "...We'll talk after this thing is dead." }
+            ],
+            boss12: [
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "I know what the Void God told you. I need to explain—" },
+                { speaker: "YOU", color: "#ffffff", text: "Did you know? About Colony 9?" },
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "The Void Gate project was supposed to be a shortcut through dimensions. I approved it. I didn't know it would tear a hole into their domain." },
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "When the breach happened... I tried to warn them. I tried to evacuate. But it was too late." },
+                { speaker: "YOU", color: "#ffffff", text: "You could have told me." },
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "Would you still have fought if you knew I was the reason they were taken?" },
+                { speaker: "YOU", color: "#ffffff", text: "...Doesn't matter. I'm not fighting for you. I'm fighting for them." }
+            ],
+            boss14: [
+                { speaker: "???", color: "#ff0055", text: "You're so close now. Can you feel us?" },
+                { speaker: "THE OMNIVERSE", color: "#00ffff", text: "W E  A R E  T H E  S P A C E  B E T W E E N  S T A R S.  W E  A R E  E T E R N A L." },
+                { speaker: "THE OMNIVERSE", color: "#00ffff", text: "Y O U R  F A M I L Y  H A S  B E C O M E  P A R T  O F  U S.  T H E Y  D O  N O T  W I S H  T O  L E A V E." },
+                { speaker: "YOU", color: "#ffffff", text: "I've burned through 13 sectors of your domain. You think I care what you wish?" },
+                { speaker: "THE OMNIVERSE", color: "#00ffff", text: "W H E N  Y O U  D E S T R O Y  U S... Y O U  D E S T R O Y  T H E M  T O O." },
+                { speaker: "YOU", color: "#ffffff", text: "...You're bluffing." }
+            ],
+            boss15: [
+                { speaker: "THE GLITCH", color: "#00ff00", text: "E R R O R.  E R R O R.  E R R O R." },
+                { speaker: "THE GLITCH", color: "#00ff00", text: "I  A M  W H A T  R E M A I N S  W H E N  C O N S C I O U S N E S S  I S  D R A I N E D." },
+                { speaker: "THE GLITCH", color: "#00ff00", text: "Y O U R  F A M I L Y  I S  I N  H E R E.  I  A M  T H E I R  P R I S O N." },
+                { speaker: "???", color: "#ff0055", text: "Please... it hurts... but we're still here. We remember your face." },
+                { speaker: "YOU", color: "#ffffff", text: "I hear you. I'm coming. Just hold on a little longer." },
+                { speaker: "THE GLITCH", color: "#00ff00", text: "T O  F R E E  T H E M  Y O U  M U S T  D E S T R O Y  M E.  B U T  I  A M  T H E  O N L Y  T H I N G  K E E P I N G  T H E M  A L I V E." },
+                { speaker: "YOU", color: "#ffffff", text: "Then I'll find another way. I always do." }
+            ],
+            ending: [
+                { speaker: "SYSTEM", color: "#00ffcc", text: "GLITCH ENGINE: CRITICAL FAILURE. NEURAL PATTERN EXTRACTION: REVERSED." },
+                { speaker: "SYSTEM", color: "#00ffcc", text: "WARNING: DIMENSIONAL COLLAPSE IN PROGRESS. VOID DOMAIN DESTABILIZING." },
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "Pilot! The whole dimension is collapsing! You need to get out NOW!" },
+                { speaker: "???", color: "#ffcc00", text: "...We can feel the light again. We remember. We remember everything." },
+                { speaker: "YOU", color: "#ffffff", text: "I told you I'd come for you. No matter what." },
+                { speaker: "COMMANDER VALE", color: "#00ffcc", text: "Pilot... I'm sorry. For everything. The rescue shuttle is locked on your signal." },
+                { speaker: "YOU", color: "#ffffff", text: "Save the apology, Vale. Just get us home." },
+                { speaker: "SYSTEM", color: "#00ff00", text: "EXTRACTION COMPLETE. ALL NEURAL SIGNATURES RECOVERED. WELCOME HOME, PILOT." }
+            ]
         };
 
 
         let currentCutscene = null; let cutsceneStep = 0; let typeInterval = null; let isTyping = false;
+        let cutsceneAnimId = null;
+        let cutsceneParticles = [];
+
+        const CUTSCENE_THEMES = {
+            intro: { bg: '#000810', stars: true, shipFly: true, color: '#00ffcc' },
+            boss3: { bg: '#0a0005', stars: true, color: '#ffffff', pulse: true },
+            boss5: { bg: '#0a0800', stars: true, color: '#ffcc00', voidRift: true },
+            boss7: { bg: '#050010', stars: true, color: '#00ffcc', eyeEffect: true },
+            boss10: { bg: '#0a0000', stars: true, color: '#ffffff', voidRift: true, shakeEffect: true },
+            boss12: { bg: '#000508', stars: true, color: '#00ffcc', rain: true },
+            boss14: { bg: '#000000', stars: true, color: '#00ffff', voidRift: true, warpEffect: true },
+            boss15: { bg: '#000500', stars: true, color: '#00ff00', glitchEffect: true },
+            ending: { bg: '#000810', stars: true, color: '#00ff00', shipFly: true, lightBeams: true }
+        };
+
+        function startCutsceneAnim(sceneId) {
+            let bgCanvas = document.getElementById('cutscene-bg');
+            bgCanvas.width = window.innerWidth;
+            bgCanvas.height = window.innerHeight;
+            let bgCtx = bgCanvas.getContext('2d');
+            let theme = CUTSCENE_THEMES[sceneId] || CUTSCENE_THEMES.intro;
+            cutsceneParticles = [];
+            for (let i = 0; i < 100; i++) cutsceneParticles.push({ x: Math.random() * bgCanvas.width, y: Math.random() * bgCanvas.height, s: Math.random() * 2 + 0.5, b: Math.random() });
+            let frame = 0;
+            function animateCutscene() {
+                frame++;
+                bgCtx.fillStyle = theme.bg;
+                bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+                // Stars
+                if (theme.stars) {
+                    for (let p of cutsceneParticles) {
+                        p.y += p.s * 0.5;
+                        if (p.y > bgCanvas.height) { p.y = 0; p.x = Math.random() * bgCanvas.width; }
+                        bgCtx.fillStyle = `rgba(255,255,255,${0.3 + p.b * 0.7})`;
+                        bgCtx.fillRect(p.x, p.y, p.s > 1.5 ? 2 : 1, p.s > 1.5 ? 2 : 1);
+                    }
+                }
+                // Ship flying across
+                if (theme.shipFly) {
+                    let sx = (frame * 2) % (bgCanvas.width + 200) - 100;
+                    let sy = bgCanvas.height * 0.3 + Math.sin(frame * 0.02) * 30;
+                    bgCtx.save(); bgCtx.translate(sx, sy);
+                    bgCtx.fillStyle = theme.color; bgCtx.globalAlpha = 0.6;
+                    bgCtx.beginPath(); bgCtx.moveTo(20, 0); bgCtx.lineTo(-10, 8); bgCtx.lineTo(-10, -8); bgCtx.closePath(); bgCtx.fill();
+                    // Engine trail
+                    bgCtx.globalAlpha = 0.3;
+                    for (let t = 1; t <= 8; t++) {
+                        bgCtx.fillStyle = t % 2 === 0 ? '#ff8800' : '#ffcc00';
+                        bgCtx.beginPath(); bgCtx.arc(-10 - t * 6, (Math.random()-0.5) * 4, 3 - t * 0.3, 0, Math.PI*2); bgCtx.fill();
+                    }
+                    bgCtx.restore();
+                }
+                // Void rift
+                if (theme.voidRift) {
+                    let cx = bgCanvas.width / 2, cy = bgCanvas.height * 0.35;
+                    let size = 50 + Math.sin(frame * 0.03) * 20;
+                    let grad = bgCtx.createRadialGradient(cx, cy, 0, cx, cy, size);
+                    grad.addColorStop(0, 'rgba(128,0,128,0.4)');
+                    grad.addColorStop(0.5, 'rgba(255,0,85,0.15)');
+                    grad.addColorStop(1, 'rgba(0,0,0,0)');
+                    bgCtx.fillStyle = grad; bgCtx.beginPath(); bgCtx.arc(cx, cy, size, 0, Math.PI*2); bgCtx.fill();
+                    // Tendrils
+                    bgCtx.strokeStyle = `rgba(128,0,128,${0.2 + Math.sin(frame*0.05)*0.1})`;
+                    bgCtx.lineWidth = 1;
+                    for (let i = 0; i < 6; i++) {
+                        let a = frame * 0.01 + i * Math.PI / 3;
+                        bgCtx.beginPath(); bgCtx.moveTo(cx, cy);
+                        bgCtx.quadraticCurveTo(cx + Math.cos(a) * 100, cy + Math.sin(a) * 80, cx + Math.cos(a + 0.5) * 200, cy + Math.sin(a + 0.5) * 150);
+                        bgCtx.stroke();
+                    }
+                }
+                // Glitch effect
+                if (theme.glitchEffect && frame % 15 < 3) {
+                    bgCtx.fillStyle = `rgba(0,255,0,${Math.random() * 0.15})`;
+                    bgCtx.fillRect(0, Math.random() * bgCanvas.height, bgCanvas.width, Math.random() * 20);
+                    bgCtx.fillStyle = `rgba(255,0,0,${Math.random() * 0.1})`;
+                    bgCtx.fillRect(Math.random() * bgCanvas.width, 0, Math.random() * 30, bgCanvas.height);
+                }
+                // Light beams (ending)
+                if (theme.lightBeams) {
+                    bgCtx.globalAlpha = 0.05 + Math.sin(frame * 0.02) * 0.03;
+                    for (let i = 0; i < 5; i++) {
+                        let a = frame * 0.005 + i * Math.PI * 2 / 5;
+                        bgCtx.fillStyle = i % 2 === 0 ? '#00ffcc' : '#ffcc00';
+                        bgCtx.beginPath();
+                        bgCtx.moveTo(bgCanvas.width / 2, bgCanvas.height * 0.3);
+                        bgCtx.lineTo(bgCanvas.width / 2 + Math.cos(a) * bgCanvas.width, bgCanvas.height);
+                        bgCtx.lineTo(bgCanvas.width / 2 + Math.cos(a + 0.1) * bgCanvas.width, bgCanvas.height);
+                        bgCtx.fill();
+                    }
+                    bgCtx.globalAlpha = 1;
+                }
+                // Pulsing border
+                if (theme.pulse) {
+                    bgCtx.strokeStyle = `rgba(255,255,255,${0.05 + Math.sin(frame * 0.05) * 0.05})`;
+                    bgCtx.lineWidth = 2;
+                    bgCtx.strokeRect(10, 10, bgCanvas.width - 20, bgCanvas.height - 20);
+                }
+                // Rain
+                if (theme.rain) {
+                    bgCtx.strokeStyle = 'rgba(0,255,204,0.1)'; bgCtx.lineWidth = 1;
+                    for (let i = 0; i < 30; i++) {
+                        let rx = (i * 47 + frame * 3) % bgCanvas.width;
+                        let ry = (frame * 4 + i * 31) % bgCanvas.height;
+                        bgCtx.beginPath(); bgCtx.moveTo(rx, ry); bgCtx.lineTo(rx - 2, ry + 15); bgCtx.stroke();
+                    }
+                }
+                cutsceneAnimId = requestAnimationFrame(animateCutscene);
+            }
+            animateCutscene();
+        }
+
+        function stopCutsceneAnim() {
+            if (cutsceneAnimId) { cancelAnimationFrame(cutsceneAnimId); cutsceneAnimId = null; }
+        }
 
 
         function playCutscene(sceneId, onComplete) {
             if (!STORY[sceneId]) return onComplete();
-            currentCutscene = { scene: STORY[sceneId], onComplete: onComplete }; cutsceneStep = 0;
-            document.getElementById('cutscene-screen').classList.remove('hidden'); 
+            currentCutscene = { scene: STORY[sceneId], onComplete: onComplete, sceneId: sceneId }; cutsceneStep = 0;
+            document.getElementById('cutscene-screen').classList.remove('hidden');
             ui.mainOverlay.classList.add('hidden'); document.getElementById('mission-select').classList.add('hidden');
+            startCutsceneAnim(sceneId);
             advanceCutscene();
         }
 
 
         function advanceCutscene() {
             if (isTyping) { clearInterval(typeInterval); document.getElementById('cutscene-text').textContent = currentCutscene.scene[cutsceneStep].text; isTyping = false; cutsceneStep++; return; }
-            if (cutsceneStep >= currentCutscene.scene.length) { document.getElementById('cutscene-screen').classList.add('hidden'); let cb = currentCutscene.onComplete; currentCutscene = null; if(cb) cb(); return; }
+            if (cutsceneStep >= currentCutscene.scene.length) { stopCutsceneAnim(); document.getElementById('cutscene-screen').classList.add('hidden'); let cb = currentCutscene.onComplete; currentCutscene = null; if(cb) cb(); return; }
             
             let line = currentCutscene.scene[cutsceneStep];
             document.getElementById('cutscene-name').innerText = line.speaker; document.getElementById('cutscene-name').style.color = line.color; document.getElementById('cutscene-portrait-canvas').style.borderColor = line.color; document.getElementById('cutscene-text').textContent = "";
             
             let pCtx = document.getElementById('cutscene-portrait-canvas').getContext('2d'); pCtx.clearRect(0,0,100,100); pCtx.fillStyle = line.color;
-            if(line.speaker === "YOU") { pCtx.beginPath(); pCtx.arc(50, 50, 30, 0, Math.PI*2); pCtx.fill(); } else if (line.speaker === "COMMANDER" || line.speaker === "SYSTEM" || line.speaker === "FAMILY") { pCtx.fillRect(20,20,60,60); } else { pCtx.beginPath(); pCtx.moveTo(50,20); pCtx.lineTo(80,80); pCtx.lineTo(20,80); pCtx.fill(); }
+            if(line.speaker === "YOU") { pCtx.beginPath(); pCtx.arc(50, 50, 30, 0, Math.PI*2); pCtx.fill(); pCtx.fillStyle = '#000'; pCtx.beginPath(); pCtx.moveTo(60, 40); pCtx.lineTo(35, 50); pCtx.lineTo(60, 60); pCtx.closePath(); pCtx.fill(); }
+            else if (line.speaker === "COMMANDER VALE" || line.speaker === "SYSTEM") { pCtx.fillRect(20,20,60,60); pCtx.fillStyle = '#000'; pCtx.font = 'bold 14px Courier'; pCtx.textAlign = 'center'; pCtx.fillText('SYS', 50, 55); }
+            else if (line.speaker === "???") { pCtx.globalAlpha = 0.5 + Math.random() * 0.5; pCtx.fillRect(15,15,70,70); pCtx.fillStyle = '#fff'; pCtx.font = 'bold 30px Courier'; pCtx.textAlign = 'center'; pCtx.fillText('?', 50, 60); pCtx.globalAlpha = 1; }
+            else { pCtx.beginPath(); pCtx.moveTo(50,15); pCtx.lineTo(85,75); pCtx.lineTo(15,75); pCtx.fill(); pCtx.fillStyle = '#000'; pCtx.font = 'bold 10px Courier'; pCtx.textAlign = 'center'; pCtx.fillText(line.speaker.charAt(0), 50, 60); }
             
             isTyping = true; let charIdx = 0;
             typeInterval = setInterval(() => { document.getElementById('cutscene-text').textContent += line.text.charAt(charIdx); charIdx++; if (charIdx % 3 === 0) playSound('shoot'); if (charIdx >= line.text.length) { clearInterval(typeInterval); isTyping = false; cutsceneStep++; } }, 30);
@@ -1580,7 +1789,9 @@
             let unlockedRaw = localStorage.getItem('neonVoidStage'); let unlocked = parseInt(unlockedRaw); if(isNaN(unlocked) || unlocked < 1) unlocked = 1;
             let secretBtn = unlocked > 14 ? `<button onclick="startMission(15)" style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;">T H E  G L I T C H<br><span style="font-size:12px">THE END</span></button>` : `<button style="border-color:#555; color:#555; cursor:not-allowed;">LOCKED<br><span style="font-size:12px">Beat Sector 14</span></button>`;
 
-            ui.menuBtns.innerHTML = `<button onclick="openMissionSelect()">Mission Mode<br><span style="font-size:12px">15 Sectors</span></button><button class="btn-infinite" onclick="startInfinite()">Infinite Mode<br><span style="font-size:12px">Endless Scaling</span></button>${secretBtn}<button style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;" onclick="startTraining()">Training Camp<br><span style="font-size:12px">Test Weapons</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00;" onclick="openShop()">The Hangar<br><span style="font-size:12px">Black Market</span></button><button style="border-color:#fff; color:#fff;" onclick="openSettings()">Settings<br><span style="font-size:12px">Sys Config</span></button>`;
+            let dailyChallenge = getDailyChallenge();
+            let dailyBest = getDailyBestScore();
+            ui.menuBtns.innerHTML = `<button onclick="openMissionSelect()">Mission Mode<br><span style="font-size:12px">15 Sectors</span></button><button class="btn-infinite" onclick="startInfinite()">Infinite Mode<br><span style="font-size:12px">Endless Scaling</span></button>${secretBtn}<button style="border-color:#ff8800; color:#ff8800; box-shadow: 0 0 20px #ff8800;" onclick="startDailyChallenge()">Daily Challenge<br><span style="font-size:12px">${dailyChallenge.name}${dailyBest > 0 ? ' | Best: ' + dailyBest : ''}</span></button><button style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;" onclick="startTraining()">Training Camp<br><span style="font-size:12px">Test Weapons</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00;" onclick="openShop()">The Hangar<br><span style="font-size:12px">Black Market</span></button><button style="border-color:#fff; color:#fff;" onclick="openSettings()">Settings<br><span style="font-size:12px">Sys Config</span></button>`;
             document.getElementById('menu-coin-display').style.display = 'block'; document.getElementById('mobile-controls').style.display = 'none';
         }
 
@@ -1627,7 +1838,7 @@
                 let sysName = `SYSTEM: SECTOR ${stageNum}`; if (stageNum === 14) sysName = 'SYSTEM: OMNIVERSAL ANOMALY DETECTED'; if (stageNum === 15) sysName = 'SYSTEM: [FATAL ERROR] GLITCH FOUND'; if (appSettings.hardcore) sysName += ' [NIGHTMARE]'; if (appSettings.hyper) sysName += ' [HYPER-DRIVE]'; 
                 ui.status.innerText = sysName; initGameBase(); 
             };
-            if (stageNum === 1) playCutscene('intro', bootMission); else if (stageNum === 5) playCutscene('boss5', bootMission); else if (stageNum === 10) playCutscene('boss10', bootMission); else if (stageNum === 14) playCutscene('boss14', bootMission); else if (stageNum === 15) playCutscene('boss15', bootMission); else bootMission();
+            if (stageNum === 1) playCutscene('intro', bootMission); else if (stageNum === 3) playCutscene('boss3', bootMission); else if (stageNum === 5) playCutscene('boss5', bootMission); else if (stageNum === 7) playCutscene('boss7', bootMission); else if (stageNum === 10) playCutscene('boss10', bootMission); else if (stageNum === 12) playCutscene('boss12', bootMission); else if (stageNum === 14) playCutscene('boss14', bootMission); else if (stageNum === 15) playCutscene('boss15', bootMission); else bootMission();
         }
 
 
@@ -1644,7 +1855,10 @@
         
         function saveRunCoins() { totalCoins += state.runCoins; localStorage.setItem('neonVoidCoins', totalCoins); }
         
-        function gameOver() { state.active = false; saveRunCoins(); ui.mainOverlay.classList.remove('hidden'); ui.mainOverlay.classList.remove('win-theme'); ui.boss.style.display = 'none'; document.getElementById('mobile-controls').style.display = 'none'; document.getElementById('menu-coin-display').style.display = 'none'; ui.mainTitle.innerText = "YOU DIED"; ui.mainTitle.style.color = "transparent"; ui.mainTitle.style.webkitTextStroke = "3px #ff0055"; ui.mainTitle.style.textShadow = "0 0 50px #ff0055"; ui.mainDesc.innerHTML = `THE VOID CLAIMED YOU. YOUR FAMILY IS LOST FOREVER.<br><br>FINAL SCORE: <span style="color:#00ffcc; font-size:24px;">${Math.floor(state.score)}</span><br>KILLS: <span style="color:#ff8800; font-size:24px;">${state.kills}</span><br>COINS EARNED: <span style="color:#ffcc00; font-size:24px;">+${state.runCoins}</span>`; if (state.mode === 'mission') ui.menuBtns.innerHTML = `<button onclick="startMission(${state.currentStage})">Retry Sector</button><button onclick="returnToMenu()">Main Menu</button>`; else ui.menuBtns.innerHTML = `<button onclick="startInfinite()">Retry Infinite</button><button onclick="returnToMenu()">Main Menu</button>`; }
+        function gameOver() { state.active = false; saveRunCoins();
+            let dailyStr = '';
+            if (state.isDaily) { let isNew = saveDailyScore(Math.floor(state.score)); dailyStr = `<br><span style="color:#ff8800; font-size:16px;">DAILY: ${state.dailyMod.name}</span>${isNew ? '<br><span style="color:#00ff00;">NEW DAILY BEST!</span>' : ''}`; }
+            ui.mainOverlay.classList.remove('hidden'); ui.mainOverlay.classList.remove('win-theme'); ui.boss.style.display = 'none'; document.getElementById('mobile-controls').style.display = 'none'; document.getElementById('menu-coin-display').style.display = 'none'; ui.mainTitle.innerText = "YOU DIED"; ui.mainTitle.style.color = "transparent"; ui.mainTitle.style.webkitTextStroke = "3px #ff0055"; ui.mainTitle.style.textShadow = "0 0 50px #ff0055"; ui.mainDesc.innerHTML = `THE VOID CLAIMED YOU. YOUR FAMILY IS LOST FOREVER.<br><br>FINAL SCORE: <span style="color:#00ffcc; font-size:24px;">${Math.floor(state.score)}</span><br>KILLS: <span style="color:#ff8800; font-size:24px;">${state.kills}</span><br>COINS EARNED: <span style="color:#ffcc00; font-size:24px;">+${state.runCoins}</span>${dailyStr}`; if (state.mode === 'mission') ui.menuBtns.innerHTML = `<button onclick="startMission(${state.currentStage})">Retry Sector</button><button onclick="returnToMenu()">Main Menu</button>`; else if (state.isDaily) ui.menuBtns.innerHTML = `<button onclick="startDailyChallenge()">Retry Daily</button><button onclick="returnToMenu()">Main Menu</button>`; else ui.menuBtns.innerHTML = `<button onclick="startInfinite()">Retry Infinite</button><button onclick="returnToMenu()">Main Menu</button>`; }
         
         function stageCleared() { state.active = false; saveRunCoins(); ui.mainOverlay.classList.remove('hidden'); ui.mainOverlay.classList.add('win-theme'); ui.boss.style.display = 'none'; document.getElementById('mobile-controls').style.display = 'none'; document.getElementById('menu-coin-display').style.display = 'none'; ui.mainTitle.innerText = `SECTOR ${state.currentStage} CLEARED`; ui.mainTitle.style.webkitTextStroke = "3px #00ffcc"; ui.mainTitle.style.textShadow = "0 0 50px #00ffcc"; ui.mainDesc.innerHTML = `THREAT NEUTRALIZED. YOU ARE GETTING CLOSER.<br><br>FINAL SCORE: <span style="color:#00ffcc; font-size:24px;">${Math.floor(state.score)}</span><br>KILLS: <span style="color:#ff8800; font-size:24px;">${state.kills}</span><br>COINS EARNED: <span style="color:#ffcc00; font-size:24px;">+${state.runCoins}</span>`; ui.menuBtns.innerHTML = `<button onclick="startMission(${state.currentStage + 1})">Next Sector</button><button onclick="returnToMenu()">Main Menu</button>`; }
         
@@ -2630,6 +2844,58 @@
             }
         });
 
+        // ==================== DAILY CHALLENGE ====================
+        function getDailySeed() {
+            let d = new Date();
+            return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+        }
+
+        const DAILY_MODIFIERS = [
+            { name: "GLASS CANNON", desc: "3x damage, 50% HP", apply: () => { state.stats.dmgMulti *= 3; state.stats.maxHp = Math.floor(state.stats.maxHp * 0.5); player.hp = state.stats.maxHp; } },
+            { name: "BULLET HELL", desc: "Enemies fire 2x faster", apply: () => { state.difficulty *= 1.5; } },
+            { name: "SPEED DEMON", desc: "Everything moves 1.5x faster", apply: () => { state.stats.speedMulti *= 1.5; state.hyper = true; } },
+            { name: "SHIELD ONLY", desc: "No HP regen, start with 200 shield", apply: () => { player.shield = 200; state.stats.vampirism = 0; } },
+            { name: "RICOCHET", desc: "+3 pierce on all shots", apply: () => { state.stats.pierce += 3; } },
+            { name: "MINIGUN MADNESS", desc: "4x fire rate, 0.3x damage", apply: () => { state.stats.fireRateMulti *= 4; state.stats.dmgMulti *= 0.3; } },
+            { name: "TITAN MODE", desc: "2x HP, 0.5x speed, 2x damage", apply: () => { state.stats.maxHp *= 2; player.hp = state.stats.maxHp; state.stats.speedMulti *= 0.5; state.stats.dmgMulti *= 2; } },
+            { name: "NO CHILL", desc: "Combo decays 3x faster, 2x score", apply: () => { } },
+            { name: "VOID WALKER", desc: "Permanent magnet, enemies are faster", apply: () => { state.stats.magnet = true; } },
+            { name: "EXPLOSIVE ROUNDS", desc: "All shots explode, lower fire rate", apply: () => { state.stats.explosive = true; state.stats.fireRateMulti *= 0.6; } }
+        ];
+
+        function getDailyChallenge() {
+            let seed = getDailySeed();
+            let idx = seed % DAILY_MODIFIERS.length;
+            return DAILY_MODIFIERS[idx];
+        }
+
+        function getDailyBestScore() {
+            try {
+                let data = JSON.parse(localStorage.getItem('neonVoidDaily'));
+                if (data && data.seed === getDailySeed()) return data.score;
+            } catch(e) {}
+            return 0;
+        }
+
+        function saveDailyScore(score) {
+            let seed = getDailySeed();
+            let best = getDailyBestScore();
+            if (score > best) {
+                localStorage.setItem('neonVoidDaily', JSON.stringify({ seed, score }));
+                return true;
+            }
+            return false;
+        }
+
+        function startDailyChallenge() {
+            let challenge = getDailyChallenge();
+            state.mode = 'infinite'; state.active = true; state.paused = false; state.hardcore = false; state.hyper = false; state.difficulty = 1; state.stats = getBaseStats();
+            state.isDaily = true;
+            state.dailyMod = challenge;
+            challenge.apply();
+            initGameBase();
+        }
+
         // ==================== MULTIPLAYER SYSTEM ====================
 
         // --- Username / Login ---
@@ -3244,7 +3510,9 @@
             if(isNaN(unlocked) || unlocked < 1) unlocked = 1;
             let secretBtn = unlocked > 14 ? `<button onclick="startMission(15)" style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;">T H E  G L I T C H<br><span style="font-size:12px">THE END</span></button>` : `<button style="border-color:#555; color:#555; cursor:not-allowed;">LOCKED<br><span style="font-size:12px">Beat Sector 14</span></button>`;
 
-            ui.menuBtns.innerHTML = `<button onclick="openMissionSelect()">Mission Mode<br><span style="font-size:12px">15 Sectors</span></button><button class="btn-infinite" onclick="startInfinite()">Infinite Mode<br><span style="font-size:12px">Endless Scaling</span></button>${secretBtn}<button style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;" onclick="startTraining()">Training Camp<br><span style="font-size:12px">Test Weapons</span></button><button style="border-color:#00ffcc; color:#00ffcc; box-shadow: 0 0 20px #00ffcc;" onclick="openMultiplayer()">Multiplayer<br><span style="font-size:12px">Co-Op & Race</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00;" onclick="openShop()">The Hangar<br><span style="font-size:12px">Black Market</span></button><button style="border-color:#aa00ff; color:#aa00ff; box-shadow: 0 0 20px #aa00ff;" onclick="openLeaderboard()">Leaderboards<br><span style="font-size:12px">Top Pilots</span></button><button style="border-color:#00ffcc; color:#00ffcc; box-shadow: 0 0 20px #00ffcc;" onclick="openStats()">Pilot Stats<br><span style="font-size:12px">Career Record</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00;" onclick="openAchievements()">Achievements<br><span style="font-size:12px">${unlockedAchievements.length}/${Object.keys(ACHIEVEMENTS).length} Unlocked</span></button><button style="border-color:#fff; color:#fff;" onclick="openSettings()">Settings<br><span style="font-size:12px">Sys Config</span></button>`;
+            let dailyChallenge = getDailyChallenge();
+            let dailyBest = getDailyBestScore();
+            ui.menuBtns.innerHTML = `<button onclick="openMissionSelect()">Mission Mode<br><span style="font-size:12px">15 Sectors</span></button><button class="btn-infinite" onclick="startInfinite()">Infinite Mode<br><span style="font-size:12px">Endless Scaling</span></button>${secretBtn}<button style="border-color:#ff8800; color:#ff8800; box-shadow: 0 0 20px #ff8800;" onclick="startDailyChallenge()">Daily Challenge<br><span style="font-size:12px">${dailyChallenge.name}${dailyBest > 0 ? ' | Best: ' + dailyBest : ''}</span></button><button style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;" onclick="startTraining()">Training Camp<br><span style="font-size:12px">Test Weapons</span></button><button style="border-color:#00ffcc; color:#00ffcc; box-shadow: 0 0 20px #00ffcc;" onclick="openMultiplayer()">Multiplayer<br><span style="font-size:12px">Co-Op & Race</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00;" onclick="openShop()">The Hangar<br><span style="font-size:12px">Black Market</span></button><button style="border-color:#aa00ff; color:#aa00ff; box-shadow: 0 0 20px #aa00ff;" onclick="openLeaderboard()">Leaderboards<br><span style="font-size:12px">Top Pilots</span></button><button style="border-color:#00ffcc; color:#00ffcc; box-shadow: 0 0 20px #00ffcc;" onclick="openStats()">Pilot Stats<br><span style="font-size:12px">Career Record</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00;" onclick="openAchievements()">Achievements<br><span style="font-size:12px">${unlockedAchievements.length}/${Object.keys(ACHIEVEMENTS).length} Unlocked</span></button><button style="border-color:#fff; color:#fff;" onclick="openSettings()">Settings<br><span style="font-size:12px">Sys Config</span></button>`;
             document.getElementById('menu-coin-display').style.display = 'block';
             document.getElementById('mobile-controls').style.display = 'none';
         };
