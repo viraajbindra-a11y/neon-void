@@ -2013,6 +2013,9 @@
                 frame++;
                 let w = bgCanvas.width, h = bgCanvas.height;
                 let cfg = getSceneConfig();
+                let skinHex = (SKINS[equippedSkin]||SKINS['default']).color;
+                let _m = skinHex.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
+                let skinR = _m?parseInt(_m[1],16):0, skinG = _m?parseInt(_m[2],16):255, skinB = _m?parseInt(_m[3],16):204;
 
                 // Background
                 bgCtx.fillStyle = cfg.bg || '#000810';
@@ -2175,7 +2178,7 @@
                     let shipX = w*0.35 + Math.min(frame*0.8, w*0.2);
                     let shipY = h*0.3 + Math.sin(frame*0.025)*8;
                     let shipAngle = Math.sin(frame*0.02)*0.05;
-                    drawShip(bgCtx, shipX, shipY, 35, '#00ffcc', shipAngle, true);
+                    drawShip(bgCtx, shipX, shipY, 35, (SKINS[equippedSkin]||SKINS['default']).color, shipAngle, true);
                     // Speed lines (dense, varied)
                     let speedIntensity = Math.min(1, frame / 60);
                     bgCtx.lineWidth = 1;
@@ -2183,7 +2186,7 @@
                         let lx = (i*53 + frame*6) % (w+200) - 100;
                         let ly = (i*37 + i*i*3) % h;
                         let len = 30 + frame*0.3 + Math.random()*20;
-                        bgCtx.strokeStyle = `rgba(0,255,204,${0.15 + Math.random()*0.2})`;
+                        bgCtx.strokeStyle = `rgba(${skinR},${skinG},${skinB},${0.15 + Math.random()*0.2})`;
                         bgCtx.beginPath(); bgCtx.moveTo(lx, ly); bgCtx.lineTo(lx - len, ly); bgCtx.stroke();
                     }
                     // Engine flare intensifying
@@ -2201,20 +2204,20 @@
                     // Ship powering up
                     let shipX = w*0.22 + Math.sin(frame*0.04)*12;
                     let shipY = h*0.32 + Math.sin(frame*0.06)*6;
-                    drawShip(bgCtx, shipX, shipY, 28, '#00ffcc', 0.05, true);
+                    drawShip(bgCtx, shipX, shipY, 28, (SKINS[equippedSkin]||SKINS['default']).color, 0.05, true);
                     // Weapon charge buildup
                     let chargeProgress = Math.min(1, frame * 0.008);
                     let chargeX = shipX + 35;
                     // Charge rings
                     for (let r = 0; r < 3; r++) {
-                        bgCtx.strokeStyle = `rgba(0,255,204,${chargeProgress * 0.3})`;
+                        bgCtx.strokeStyle = `rgba(${skinR},${skinG},${skinB},${chargeProgress * 0.3})`;
                         bgCtx.lineWidth = 1;
                         bgCtx.beginPath(); bgCtx.arc(chargeX, shipY, 10 + r*8 + Math.sin(frame*0.1+r)*3, frame*0.05+r, frame*0.05+r+Math.PI*1.2); bgCtx.stroke();
                     }
                     // Charge core
                     bgCtx.globalAlpha = chargeProgress * (0.4 + Math.sin(frame*0.12)*0.2);
                     let cGrad = bgCtx.createRadialGradient(chargeX, shipY, 0, chargeX, shipY, 15 + chargeProgress*15);
-                    cGrad.addColorStop(0, '#ffffff'); cGrad.addColorStop(0.4, '#00ffcc'); cGrad.addColorStop(1, 'transparent');
+                    cGrad.addColorStop(0, '#ffffff'); cGrad.addColorStop(0.4, skinHex); cGrad.addColorStop(1, 'transparent');
                     bgCtx.fillStyle = cGrad;
                     bgCtx.beginPath(); bgCtx.arc(chargeX, shipY, 15 + chargeProgress*15, 0, Math.PI*2); bgCtx.fill();
                     bgCtx.globalAlpha = 1;
@@ -2223,9 +2226,9 @@
                         let pa = frame*0.05 + i*Math.PI/3;
                         let pr = (80 - chargeProgress*40) + Math.sin(frame*0.04+i)*10;
                         let ppx = chargeX + Math.cos(pa)*pr, ppy = shipY + Math.sin(pa)*pr*0.5;
-                        bgCtx.fillStyle = '#00ffcc'; bgCtx.globalAlpha = 0.3 + chargeProgress*0.3;
+                        bgCtx.fillStyle = skinHex; bgCtx.globalAlpha = 0.3 + chargeProgress*0.3;
                         bgCtx.beginPath(); bgCtx.arc(ppx, ppy, 2, 0, Math.PI*2); bgCtx.fill();
-                        bgCtx.strokeStyle = 'rgba(0,255,204,0.1)'; bgCtx.lineWidth = 1;
+                        bgCtx.strokeStyle = `rgba(${skinR},${skinG},${skinB},0.1)`; bgCtx.lineWidth = 1;
                         bgCtx.beginPath(); bgCtx.moveTo(ppx, ppy); bgCtx.lineTo(chargeX, shipY); bgCtx.stroke();
                     }
                     bgCtx.globalAlpha = 1;
@@ -2248,7 +2251,7 @@
                     }
                     // Your ship (bottom, small, vulnerable-looking)
                     let playerShipY = h*0.52 + Math.sin(frame*0.03)*4;
-                    drawShip(bgCtx, w*0.35, playerShipY, 20, '#00ffcc', -0.1, false);
+                    drawShip(bgCtx, w*0.35, playerShipY, 20, (SKINS[equippedSkin]||SKINS['default']).color, -0.1, false);
                     // Tension line / threat indicator
                     bgCtx.setLineDash([8, 8]);
                     bgCtx.strokeStyle = `rgba(255,0,85,${0.2 + Math.sin(frame*0.05)*0.1})`; bgCtx.lineWidth = 1;
@@ -2367,7 +2370,7 @@
                     let sx = w*0.5 - shipProgress*w*0.4;
                     let sy = h*0.4 - shipProgress*h*0.2 + Math.sin(frame*0.08)*5;
                     let sa = -0.3 - shipProgress*0.2;
-                    drawShip(bgCtx, sx, sy, 22, '#00ffcc', sa, true);
+                    drawShip(bgCtx, sx, sy, 22, (SKINS[equippedSkin]||SKINS['default']).color, sa, true);
                     // Debris flying past
                     for (let i = 0; i < 15; i++) {
                         let dx = (w + 50 - (frame*3 + i*97) % (w+100));
