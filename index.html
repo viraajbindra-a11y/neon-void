@@ -463,7 +463,9 @@
             'tesla': { name: "TESLA COIL", desc: "Zaps nearby enemies", price: 400000 },
             'nuke_dash': { name: "NUCLEAR DASH", desc: "Dash leaves a plasma trap", price: 500000 },
             'bloodthirst': { name: "BLOODTHIRST CORE", desc: "Kills grant massive speed/fire rate", price: 1000000 },
-            'wisp': { name: "ASTRAL WISP", desc: "A loyal pet that shoots and grabs items", price: 2000000 }
+            'wisp': { name: "ASTRAL WISP", desc: "A loyal pet that shoots and grabs items", price: 2000000 },
+            'dart_protocol': { name: "PRECISION PROTOCOL", desc: "Extra projectile on every shot", price: 75000 },
+            'alchemist': { name: "ALCHEMIST BREW", desc: "+25% damage and +15% speed permanently", price: 150000 }
         };
 
 
@@ -637,6 +639,7 @@
         function getBaseStats() {
             let base = { dmgMulti: 1.5, fireRateMulti: 1.0, maxHp: 500, speedMulti: 1.2, projCount: 1, homing: false, explosive: false, vampirism: 0, dashCdMulti: 1.0, pierce: 0, guardian: 0, bombDrones: 0, laserDrones: 0, miniDrones: 0, scatterDrones: 0, empDrones: 0, sawDrones: 0, sniperDrones: 0, critChance: 0.05, critMult: 2.0, tesla: 0, timeDilator: false, nukeDash: false, magnet: false, antimatter: false, bloodthirst: false, bloodthirstTimer: 0, wisp: false, wispAngle: 0 };
             if (purchasedUpgrades.includes('homing')) base.homing = true; if (purchasedUpgrades.includes('explosive')) base.explosive = true; if (purchasedUpgrades.includes('pierce')) base.pierce += 1; if (purchasedUpgrades.includes('drone_bomb')) base.bombDrones += 1; if (purchasedUpgrades.includes('drone_laser')) base.laserDrones += 1; if (purchasedUpgrades.includes('drone_mini')) base.miniDrones += 1; if (purchasedUpgrades.includes('drone_scatter')) base.scatterDrones += 1; if (purchasedUpgrades.includes('drone_emp')) base.empDrones += 1; if (purchasedUpgrades.includes('drone_saw')) base.sawDrones += 1; if (purchasedUpgrades.includes('drone_sniper')) base.sniperDrones += 1; if (purchasedUpgrades.includes('guardian')) base.guardian += 1; if (purchasedUpgrades.includes('tesla')) base.tesla += 1; if (purchasedUpgrades.includes('time_dilator')) base.timeDilator = true; if (purchasedUpgrades.includes('nuke_dash')) base.nukeDash = true; if (purchasedUpgrades.includes('magnet')) base.magnet = true; if (purchasedUpgrades.includes('antimatter')) base.antimatter = true; if (purchasedUpgrades.includes('bloodthirst')) base.bloodthirst = true; if (purchasedUpgrades.includes('wisp')) base.wisp = true;
+            if (purchasedUpgrades.includes('dart_protocol')) base.projCount += 1; if (purchasedUpgrades.includes('alchemist')) { base.dmgMulti *= 1.25; base.speedMulti *= 1.15; }
             return base;
         }
 
@@ -1198,7 +1201,11 @@
             { id: 'heavy', name: "HEAVY ORDNANCE", desc: "Damage +50%, Speed -10%", apply: () => { state.stats.dmgMulti += 0.5; state.stats.speedMulti *= 0.9; } }, 
             { id: 'vamp', name: "VAMPIRIC PLATING", desc: "Heal slightly per kill", apply: () => { state.stats.vampirism += 3; } }, 
             { id: 'dash_cd', name: "PHASE SHIFTER", desc: "Dash cooldown reduced by 25%", apply: () => { state.stats.dashCdMulti *= 0.75; } }, 
-            { id: 'crit', name: "WEAKPOINT SCANNER", desc: "+15% Critical Hit Chance", apply: () => { state.stats.critChance += 0.15; } } 
+            { id: 'crit', name: "WEAKPOINT SCANNER", desc: "+15% Critical Hit Chance", apply: () => { state.stats.critChance += 0.15; } },
+            { id: 'simian_matrix', name: "SIMIAN MATRIX", desc: "+10% Damage, +10% Speed, +10% Fire Rate", apply: () => { state.stats.dmgMulti += 0.10; state.stats.speedMulti += 0.10; state.stats.fireRateMulti += 0.10; } },
+            { id: 'fan_club', name: "FAN CLUB", desc: "Extreme fire rate, lower damage", apply: () => { state.stats.fireRateMulti *= 2.0; state.stats.dmgMulti *= 0.8; } },
+            { id: 'golden_yield', name: "GOLDEN YIELD", desc: "Enemies drop 50% more coins", apply: () => { state.stats.coinMulti = (state.stats.coinMulti || 1) + 0.5; } },
+            { id: 'cryo_snare', name: "CRYO SNARE", desc: "Kills have 25% chance to freeze nearby enemies", apply: () => { state.stats.bloonTrap = true; } }
         ];
 
 
@@ -1245,9 +1252,15 @@
                 if (state.stats.antimatter) triggerExplosion(e.x, e.y, 40 * state.stats.dmgMulti);
                 if (state.stats.bloodthirst) state.stats.bloodthirstTimer = 90;
                 
-                let coinMult = state.hardcore ? 5 : 1; 
-                state.runCoins += Math.max(5, e.xp * 2) * coinMult; 
-                
+                let coinMult = (state.hardcore ? 5 : 1) * (state.stats.coinMulti || 1);
+                state.runCoins += Math.floor(Math.max(5, e.xp * 2) * coinMult);
+
+                // Cryo Snare - freeze nearby enemies on kill
+                if (state.stats.bloonTrap && Math.random() < 0.25) {
+                    for (let ne of entities.enemies) { if (ne && Math.hypot(ne.x - e.x, ne.y - e.y) < 150) ne.frozen = 90; }
+                    spawnParticles(e.x, e.y, '#00ffff', 10);
+                }
+
                 if (Math.random() < 0.15) entities.powerups.push(new Powerup(e.x, e.y)); 
                 
                 if (e.type === 'bad') {
@@ -1323,7 +1336,7 @@
 
         function spawnWave() {
             if (state.mode === 'training') { if (entities.enemies.length < 5 && state.frame % 120 === 0) { entities.enemies.push(new Enemy((gameRng() * (canvas.width - 200)) + 100, (gameRng() * (canvas.height - 200)) + 100, 'dummy')); } return; }
-            if (state.warping || activeBoss || state.spawningBoss) return;
+            if (state.warping || activeBoss || state.spawningBoss || countdownActive) return;
             let spawnRate = Math.max(10, 50 - state.level * 2); let maxEnemies = 25 + state.level * 3;
             if (state.frame % spawnRate === 0 && entities.enemies.length < maxEnemies) {
                 // Always consume exactly 5 RNG values per spawn for determinism across clients
@@ -1648,7 +1661,10 @@
             4: { text: 'MULTI KILL', color: '#ff4400' },
             5: { text: 'MEGA KILL', color: '#ff0055' },
             7: { text: 'UNSTOPPABLE', color: '#ff00ff' },
-            10: { text: 'GODLIKE', color: '#ffffff' }
+            10: { text: 'GODLIKE', color: '#ffffff' },
+            15: { text: 'TRUE SUN GOD', color: '#ffff00' },
+            20: { text: 'NOTHING GETS PAST MY BOW!', color: '#00ff88' },
+            30: { text: 'VENGEFUL AVATAR', color: '#ff0000' }
         };
 
         function registerKill() {
@@ -1658,7 +1674,7 @@
             lastKillTime = now;
 
             let streakInfo = null;
-            for (let threshold of [10, 7, 5, 4, 3, 2]) {
+            for (let threshold of [30, 20, 15, 10, 7, 5, 4, 3, 2]) {
                 if (killStreak >= threshold) { streakInfo = STREAK_NAMES[threshold]; break; }
             }
             if (streakInfo) {
@@ -1677,7 +1693,9 @@
         }
 
         // ==================== COUNTDOWN SYSTEM ====================
+        let countdownActive = false;
         function showCountdown() {
+            countdownActive = true;
             let el = document.getElementById('countdown-display');
             let count = 3;
             el.style.display = 'block';
@@ -1697,6 +1715,7 @@
                     el.style.animation = 'none';
                     void el.offsetWidth;
                     el.style.animation = 'countPop 0.8s ease-out forwards';
+                    countdownActive = false;
                     setTimeout(() => { el.style.display = 'none'; el.style.color = '#00ffcc'; el.style.textShadow = '0 0 60px #00ffcc'; }, 800);
                     clearInterval(interval);
                 }
@@ -1768,7 +1787,7 @@
                 lastWaveLevel = state.level;
                 let el = document.getElementById('wave-announce');
                 el.querySelector('.wave-text').textContent = `WAVE ${state.level}`;
-                let subs = ['THEY ARE COMING', 'BRACE YOURSELF', 'HOLD THE LINE', 'NO RETREAT', 'ENGAGE', 'VOID BREACH', 'INCOMING'];
+                let subs = ['THEY ARE COMING', 'BRACE YOURSELF', 'HOLD THE LINE', 'NO RETREAT', 'ENGAGE', 'VOID BREACH', 'INCOMING', 'NOTHING GETS PAST MY BOW', 'ROUND 63 VIBES', 'WHERE IS THE TRUE SUN GOD', 'QUINCY APPROVES', 'POP THEM ALL', 'LIKE ROUND 98 ALL OVER AGAIN', 'FORTIFIED AND CAMO', 'MONKEY KNOWLEDGE ACTIVATED'];
                 el.querySelector('.wave-sub').textContent = subs[Math.floor(Math.random() * subs.length)];
                 el.style.opacity = '1';
                 setTimeout(() => el.style.opacity = '0', 2000);
@@ -2166,7 +2185,9 @@
             untouchable: { name: 'UNTOUCHABLE', desc: 'Reach level 10 without taking damage', icon: '🛡️' },
             shopaholic: { name: 'SHOPAHOLIC', desc: 'Buy 5 upgrades from the hangar', icon: '🛒' },
             combo_king: { name: 'COMBO KING', desc: 'Reach x5.0 combo', icon: '🔗' },
-            marathon: { name: 'MARATHON', desc: 'Play for 30 minutes total', icon: '⏱️' }
+            marathon: { name: 'MARATHON', desc: 'Play for 30 minutes total', icon: '⏱️' },
+            quincy_approved: { name: 'NOTHING GETS PAST', desc: 'Achieve a 20 kill streak', icon: '🏹' },
+            round_100: { name: 'ROUND 100', desc: 'Reach level 100 in a run', icon: '💯' }
         };
         let unlockedAchievements = [];
         try { let a = JSON.parse(localStorage.getItem('neonVoidAchievements')); if (Array.isArray(a)) unlockedAchievements = a; } catch(e) {}
@@ -2192,7 +2213,9 @@
                 speed_demon: () => killStreak >= 10,
                 shopaholic: () => purchasedUpgrades.length >= 5,
                 combo_king: () => state.combo >= 5.0,
-                marathon: () => playerStats.playTime >= 1800
+                marathon: () => playerStats.playTime >= 1800,
+                quincy_approved: () => killStreak >= 20,
+                round_100: () => playerStats.highestLevel >= 100
             };
             for (let [id, check] of Object.entries(checks)) {
                 if (!unlockedAchievements.includes(id) && check()) {
