@@ -2844,7 +2844,13 @@
         }
 
 
+        function cleanupMenuAnims() {
+            if (window._menuShipCleanup) { window._menuShipCleanup(); window._menuShipCleanup = null; }
+            if (window._menuTipCleanup) { window._menuTipCleanup(); window._menuTipCleanup = null; }
+        }
+
         function openMissionSelect() {
+            cleanupMenuAnims();
             ui.mainOverlay.classList.add('hidden'); document.getElementById('mission-select').classList.remove('hidden'); const grid = document.getElementById('stage-grid'); grid.innerHTML = '';
             let unlockedRaw = localStorage.getItem('neonVoidStage'); let unlocked = parseInt(unlockedRaw); if(isNaN(unlocked) || unlocked < 1) unlocked = 1;
             for(let i=1; i<=15; i++) {
@@ -2856,8 +2862,8 @@
         }
 
 
-        function openShop() { ui.mainOverlay.classList.add('hidden'); document.getElementById('shop-screen').classList.remove('hidden'); renderShop(); }
-        function openSettings() { ui.mainOverlay.classList.add('hidden'); document.getElementById('settings-screen').classList.remove('hidden'); }
+        function openShop() { cleanupMenuAnims(); ui.mainOverlay.classList.add('hidden'); document.getElementById('shop-screen').classList.remove('hidden'); renderShop(); }
+        function openSettings() { cleanupMenuAnims(); ui.mainOverlay.classList.add('hidden'); document.getElementById('settings-screen').classList.remove('hidden'); }
         
         function renderShop() {
             document.getElementById('shop-coin-display').innerText = `COINS: ${totalCoins}`; const grid = document.getElementById('shop-grid'); grid.innerHTML = '';
@@ -5171,12 +5177,14 @@
         }
 
         function openLeaderboard() {
+            cleanupMenuAnims();
             ui.mainOverlay.classList.add('hidden');
             document.getElementById('leaderboard-screen').classList.remove('hidden');
             showLeaderboard('infinite');
         }
 
         function openMultiplayer() {
+            cleanupMenuAnims();
             ui.mainOverlay.classList.add('hidden');
             document.getElementById('lobby-browser').classList.remove('hidden');
             document.getElementById('join-error').textContent = '';
@@ -5567,7 +5575,51 @@
                         </div>
                     </div>
 
-                    <!-- spacer -->
+                    <!-- ANIMATED INFO PANEL -->
+                    <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px;">
+
+                        <!-- Animated ship showcase -->
+                        <div style="position:relative;border:1.5px solid rgba(0,255,204,0.2);border-radius:14px;background:linear-gradient(180deg,rgba(0,255,204,0.03) 0%,rgba(0,0,0,0.6) 100%);padding:20px;overflow:hidden;">
+                            <canvas id="menu-ship-anim" width="680" height="120" style="width:100%;height:120px;display:block;border-radius:10px;"></canvas>
+                            <div style="position:absolute;bottom:12px;left:16px;right:16px;display:flex;justify-content:space-between;align-items:flex-end;pointer-events:none;">
+                                <div>
+                                    <div style="font-size:10px;color:#00ffcc88;letter-spacing:3px;">PILOT STATUS</div>
+                                    <div style="font-size:16px;color:#00ffcc;font-weight:bold;text-shadow:0 0 15px #00ffcc;">${currentUsername}</div>
+                                </div>
+                                <div style="text-align:right;">
+                                    <div style="font-size:10px;color:#ff005588;letter-spacing:3px;">THREAT LEVEL</div>
+                                    <div style="font-size:16px;color:#ff0055;font-weight:bold;text-shadow:0 0 15px #ff0055;">${sectorProgress >= 15 ? 'VOID WALKER' : sectorProgress >= 10 ? 'ELITE' : sectorProgress >= 5 ? 'VETERAN' : 'ROOKIE'}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tip carousel with typing effect -->
+                        <div id="menu-tip-box" style="border:1px solid rgba(255,136,0,0.2);border-radius:10px;background:rgba(255,136,0,0.04);padding:12px 16px;display:flex;align-items:center;gap:10px;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff8800" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                            <div style="flex:1;">
+                                <div style="font-size:9px;color:#ff880088;letter-spacing:2px;margin-bottom:2px;">INTEL BRIEF</div>
+                                <div id="menu-tip-text" style="font-size:12px;color:#ff8800cc;min-height:16px;font-family:monospace;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Quick stats row -->
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+                            <div style="border:1px solid rgba(255,204,0,0.15);border-radius:10px;background:rgba(255,204,0,0.04);padding:10px;text-align:center;">
+                                <div style="font-size:9px;color:#ffcc0088;letter-spacing:1px;">SECTORS</div>
+                                <div style="font-size:20px;color:#ffcc00;font-weight:bold;text-shadow:0 0 10px #ffcc0044;">${sectorProgress}/15</div>
+                            </div>
+                            <div style="border:1px solid rgba(0,255,204,0.15);border-radius:10px;background:rgba(0,255,204,0.04);padding:10px;text-align:center;">
+                                <div style="font-size:9px;color:#00ffcc88;letter-spacing:1px;">CREDITS</div>
+                                <div style="font-size:20px;color:#00ffcc;font-weight:bold;text-shadow:0 0 10px #00ffcc44;">${totalCoins >= 1000000 ? (totalCoins/1000000).toFixed(1)+'M' : totalCoins >= 1000 ? (totalCoins/1000).toFixed(0)+'K' : totalCoins}</div>
+                            </div>
+                            <div style="border:1px solid rgba(170,0,255,0.15);border-radius:10px;background:rgba(170,0,255,0.04);padding:10px;text-align:center;">
+                                <div style="font-size:9px;color:#aa00ff88;letter-spacing:1px;">UPGRADES</div>
+                                <div style="font-size:20px;color:#aa00ff;font-weight:bold;text-shadow:0 0 10px #aa00ff44;">${purchasedUpgrades.length}</div>
+                            </div>
+                        </div>
+
+                    </div>
+
                 </div>
 
                 <!-- BOTTOM NAVIGATION BAR -->
@@ -5640,6 +5692,236 @@
                     sctx.restore();
                 }
             } catch(e) {}
+
+            // ---- Animated ship showcase on #menu-ship-anim ----
+            try {
+                let shipAnimCanvas = document.getElementById('menu-ship-anim');
+                if (shipAnimCanvas) {
+                    let sac = shipAnimCanvas.getContext('2d');
+                    let saW = shipAnimCanvas.width, saH = shipAnimCanvas.height;
+                    // Star field
+                    let saStars = [];
+                    for (let i = 0; i < 80; i++) saStars.push({ x: Math.random()*saW, y: Math.random()*saH, s: 0.5+Math.random()*1.5, sp: 0.3+Math.random()*1.2, b: Math.random() });
+                    // Floating debris
+                    let saDebris = [];
+                    for (let i = 0; i < 6; i++) saDebris.push({ x: Math.random()*saW, y: Math.random()*saH, s: 2+Math.random()*4, sp: 0.2+Math.random()*0.6, r: Math.random()*Math.PI*2, rv: (Math.random()-0.5)*0.02, c: ['#ff005522','#00ffcc22','#ffcc0022','#aa00ff22'][Math.floor(Math.random()*4)] });
+                    // Ship position
+                    let shipX = saW * 0.5, shipY = saH * 0.45;
+                    let shipBob = 0, shipFrame = 0;
+                    // Trail particles
+                    let saTrail = [];
+
+                    // Get current skin color
+                    let skinColor = '#ff0055';
+                    try { skinColor = (SKINS[equippedSkin] || SKINS['default']).color; } catch(e2) {}
+
+                    let menuShipRAF = null;
+                    function drawMenuShip() {
+                        shipFrame++;
+                        shipBob = Math.sin(shipFrame * 0.03) * 4;
+                        let curX = shipX + Math.sin(shipFrame * 0.015) * 20;
+                        let curY = shipY + shipBob;
+
+                        sac.clearRect(0, 0, saW, saH);
+
+                        // BG gradient
+                        let bgG = sac.createLinearGradient(0, 0, saW, saH);
+                        bgG.addColorStop(0, '#0a0014');
+                        bgG.addColorStop(0.5, '#060018');
+                        bgG.addColorStop(1, '#0a0014');
+                        sac.fillStyle = bgG;
+                        sac.fillRect(0, 0, saW, saH);
+
+                        // Stars
+                        for (let st of saStars) {
+                            st.x -= st.sp;
+                            if (st.x < 0) { st.x = saW; st.y = Math.random()*saH; }
+                            st.b += (Math.random()-0.5)*0.1;
+                            st.b = Math.max(0.2, Math.min(1, st.b));
+                            sac.globalAlpha = st.b * 0.7;
+                            sac.fillStyle = '#ffffff';
+                            sac.beginPath();
+                            sac.arc(st.x, st.y, st.s, 0, Math.PI*2);
+                            sac.fill();
+                        }
+                        sac.globalAlpha = 1;
+
+                        // Floating debris
+                        for (let d of saDebris) {
+                            d.x -= d.sp;
+                            d.r += d.rv;
+                            if (d.x < -10) { d.x = saW + 10; d.y = Math.random()*saH; }
+                            sac.save();
+                            sac.translate(d.x, d.y);
+                            sac.rotate(d.r);
+                            sac.fillStyle = d.c;
+                            sac.fillRect(-d.s/2, -d.s/2, d.s, d.s);
+                            sac.restore();
+                        }
+
+                        // Engine trail particles
+                        saTrail.push({
+                            x: curX + (Math.random()-0.5)*5,
+                            y: curY + 12 + Math.random()*2,
+                            vx: -1 - Math.random()*2,
+                            vy: (Math.random()-0.5)*0.8,
+                            life: 1,
+                            size: 1.5 + Math.random()*2.5
+                        });
+                        if (shipFrame % 2 === 0) saTrail.push({
+                            x: curX + (Math.random()-0.5)*3,
+                            y: curY + 12,
+                            vx: -2 - Math.random()*3,
+                            vy: (Math.random()-0.5)*0.4,
+                            life: 1,
+                            size: 1 + Math.random()*2
+                        });
+
+                        for (let i = saTrail.length - 1; i >= 0; i--) {
+                            let t = saTrail[i];
+                            t.x += t.vx; t.y += t.vy; t.life -= 0.035; t.size *= 0.97;
+                            if (t.life <= 0) { saTrail.splice(i, 1); continue; }
+                            sac.globalAlpha = t.life * 0.6;
+                            sac.fillStyle = t.life > 0.5 ? '#00ffcc' : '#00ffcc66';
+                            sac.beginPath();
+                            sac.arc(t.x, t.y, t.size, 0, Math.PI*2);
+                            sac.fill();
+                        }
+                        if (saTrail.length > 120) saTrail.splice(0, saTrail.length - 120);
+                        sac.globalAlpha = 1;
+
+                        // Engine glow
+                        let eGlow = sac.createRadialGradient(curX, curY + 14, 2, curX, curY + 14, 25);
+                        eGlow.addColorStop(0, '#00ffcc88');
+                        eGlow.addColorStop(0.4, '#00ffcc33');
+                        eGlow.addColorStop(1, 'transparent');
+                        sac.fillStyle = eGlow;
+                        sac.fillRect(curX - 30, curY, 60, 40);
+
+                        // Ship body
+                        sac.save();
+                        sac.translate(curX, curY);
+                        sac.rotate(Math.sin(shipFrame * 0.02) * 0.05);
+                        // Wings
+                        sac.beginPath();
+                        sac.moveTo(0, -16);
+                        sac.lineTo(10, 5);
+                        sac.lineTo(18, 12);
+                        sac.lineTo(6, 8);
+                        sac.lineTo(0, 14);
+                        sac.lineTo(-6, 8);
+                        sac.lineTo(-18, 12);
+                        sac.lineTo(-10, 5);
+                        sac.closePath();
+                        let sGrad = sac.createLinearGradient(0, -16, 0, 14);
+                        sGrad.addColorStop(0, skinColor);
+                        sGrad.addColorStop(1, skinColor + '66');
+                        sac.fillStyle = sGrad;
+                        sac.fill();
+                        sac.strokeStyle = skinColor + '88';
+                        sac.lineWidth = 1;
+                        sac.stroke();
+                        // Cockpit glow
+                        sac.beginPath();
+                        sac.moveTo(0, -10);
+                        sac.lineTo(3.5, 1);
+                        sac.lineTo(0, 5);
+                        sac.lineTo(-3.5, 1);
+                        sac.closePath();
+                        sac.fillStyle = '#00ffcc88';
+                        sac.fill();
+                        // Cockpit shine
+                        sac.beginPath();
+                        sac.moveTo(0, -8);
+                        sac.lineTo(1.5, -2);
+                        sac.lineTo(0, 0);
+                        sac.lineTo(-1.5, -2);
+                        sac.closePath();
+                        sac.fillStyle = '#00ffcccc';
+                        sac.fill();
+                        sac.restore();
+
+                        // Ship glow halo
+                        let shipGlow = sac.createRadialGradient(curX, curY, 5, curX, curY, 35);
+                        shipGlow.addColorStop(0, skinColor + '22');
+                        shipGlow.addColorStop(1, 'transparent');
+                        sac.fillStyle = shipGlow;
+                        sac.beginPath();
+                        sac.arc(curX, curY, 35, 0, Math.PI*2);
+                        sac.fill();
+
+                        // Scanline overlay
+                        sac.fillStyle = 'rgba(0,0,0,0.03)';
+                        for (let sy = 0; sy < saH; sy += 3) {
+                            sac.fillRect(0, sy, saW, 1);
+                        }
+
+                        menuShipRAF = requestAnimationFrame(drawMenuShip);
+                    }
+                    drawMenuShip();
+
+                    // Store cleanup function
+                    window._menuShipCleanup = function() {
+                        if (menuShipRAF) cancelAnimationFrame(menuShipRAF);
+                        menuShipRAF = null;
+                    };
+                }
+            } catch(e) { console.log('Ship anim error:', e); }
+
+            // ---- Tip carousel with typing effect ----
+            try {
+                let tipEl = document.getElementById('menu-tip-text');
+                if (tipEl) {
+                    const TIPS = [
+                        'Dash through enemy bullets for a close-call XP bonus',
+                        'Bosses appear every 5 sectors — save your dash',
+                        'Upgrade FIRE RATE early for faster wave clears',
+                        'The VOID difficulty gives 4x coins but enemies hit twice as hard',
+                        'Co-op mode shares enemy damage — coordinate with your partner',
+                        'HYPER MODE doubles game speed for extra challenge',
+                        'SIMIAN MATRIX perk triggers all other perks at once',
+                        'Engine trails only render on HIGH graphics mode',
+                        'Your progress auto-saves to the cloud every 10 seconds',
+                        'Each skin changes your ship color and trail effects',
+                        'FAN CLUB perk fires a ring of bullets in every direction',
+                        'The GHOST enemy type phases through your bullets briefly',
+                        'Powerups despawn after 8 seconds — grab them quick',
+                        'Hold dash to travel further — release to stop early',
+                        'SHIELD upgrade reduces damage but doesn\'t block status effects'
+                    ];
+                    let tipIndex = 0, tipChar = 0, tipDirection = 1, tipPause = 0;
+                    let tipInterval = null;
+
+                    function tickTip() {
+                        if (tipPause > 0) { tipPause--; return; }
+                        let currentTip = TIPS[tipIndex];
+                        if (tipDirection === 1) {
+                            tipChar++;
+                            tipEl.textContent = currentTip.substring(0, tipChar) + (tipChar < currentTip.length ? '█' : '');
+                            if (tipChar >= currentTip.length) {
+                                tipDirection = -1;
+                                tipPause = 80; // pause before erasing
+                            }
+                        } else {
+                            tipChar -= 2;
+                            if (tipChar <= 0) {
+                                tipChar = 0;
+                                tipDirection = 1;
+                                tipIndex = (tipIndex + 1) % TIPS.length;
+                                tipPause = 15; // pause before next tip
+                            }
+                            tipEl.textContent = TIPS[tipIndex].substring(0, Math.max(0, tipChar)) + '█';
+                        }
+                    }
+                    tipInterval = setInterval(tickTip, 35);
+
+                    // Store cleanup
+                    window._menuTipCleanup = function() {
+                        if (tipInterval) clearInterval(tipInterval);
+                        tipInterval = null;
+                    };
+                }
+            } catch(e) { console.log('Tip anim error:', e); }
 
             document.getElementById('mobile-controls').style.display = 'none';
         };
