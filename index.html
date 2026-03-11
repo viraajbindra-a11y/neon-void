@@ -43,7 +43,8 @@
         #boss-name { position: absolute; top: 35px; width: 100%; color: #ff0055; text-shadow: 0 0 15px #ff0055; font-size: 24px; font-weight: bold; letter-spacing: 5px; text-transform: uppercase;}
         #boss-alert { position: absolute; top: 20%; width: 100%; text-align: center; font-size: 60px; color: red; font-weight: bold; text-shadow: 0 0 40px red; display: none; animation: flash 0.2s infinite; z-index: 8; letter-spacing: 12px; }
         
-        .overlay-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 20; backdrop-filter: blur(8px); }
+        .overlay-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.95); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 20; backdrop-filter: blur(12px); }
+        .win-theme { background: radial-gradient(ellipse at center, rgba(0,30,20,0.98) 0%, rgba(0,0,0,0.99) 70%) !important; }
         .hidden { display: none !important; }
         .title-text { font-size: 90px; font-weight: 900; color: transparent; -webkit-text-stroke: 3px #ff0055; text-shadow: 0 0 50px #ff0055; margin-bottom: 10px; animation: pulse 2s infinite; text-transform: uppercase; letter-spacing: 8px; text-align: center; }
         .subtitle-text { color: #fff; font-size: 20px; margin-bottom: 40px; opacity: 0.9; max-width: 700px; text-align: center; line-height: 1.6; }
@@ -221,9 +222,12 @@
     <div id="leaderboard-screen" class="overlay-screen hidden" style="z-index: 22;">
         <div style="width:100%; height:100%; overflow-y:auto; display:flex; flex-direction:column; align-items:center; padding:50px 0; box-sizing:border-box;">
             <div class="title-text" style="-webkit-text-stroke: 3px #ffcc00; text-shadow: 0 0 50px #ffcc00; font-size: 60px;">LEADERBOARDS</div>
-            <div class="btn-container" style="margin-bottom:20px;">
-                <button onclick="showLeaderboard('infinite')" style="border-color:#00ffcc; color:#00ffcc; padding:10px 20px; min-width:120px;">INFINITE</button>
-                <button onclick="showLeaderboard('race')" style="border-color:#ff8800; color:#ff8800; padding:10px 20px; min-width:120px;">RACE</button>
+            <div style="font-size:11px;color:#00ffcc88;letter-spacing:3px;margin-bottom:15px;">&#x1F310; GLOBAL RANKINGS</div>
+            <div class="btn-container" style="margin-bottom:20px;flex-wrap:wrap;gap:8px;">
+                <button onclick="showLeaderboard('infinite')" style="border-color:#00ffcc; color:#00ffcc; padding:10px 20px; min-width:100px;">INFINITE</button>
+                <button onclick="showLeaderboard('boss_rush')" style="border-color:#ff0055; color:#ff0055; padding:10px 20px; min-width:100px;">BOSS RUSH</button>
+                <button onclick="showLeaderboard('daily')" style="border-color:#ff8800; color:#ff8800; padding:10px 20px; min-width:100px;">DAILY</button>
+                <button onclick="showLeaderboard('race')" style="border-color:#aa00ff; color:#aa00ff; padding:10px 20px; min-width:100px;">RACE</button>
             </div>
             <div id="lb-content" style="display:flex; flex-direction:column; align-items:center; gap:5px;"></div>
             <button onclick="returnToMenu()" style="border-color:#fff; color:#fff; margin-top:30px;">BACK TO MENU</button>
@@ -2794,7 +2798,7 @@
             let kpm = elapsed > 0 ? ((state.kills / elapsed) * 60).toFixed(1) : '0';
             ui.mainOverlay.classList.remove('hidden'); ui.mainOverlay.classList.remove('win-theme'); ui.boss.style.display = 'none'; document.getElementById('mobile-controls').style.display = 'none'; document.getElementById('menu-coin-display').style.display = 'none'; ui.mainTitle.innerText = "YOU DIED"; ui.mainTitle.style.color = "transparent"; ui.mainTitle.style.webkitTextStroke = "3px #ff0055"; ui.mainTitle.style.textShadow = "0 0 50px #ff0055"; ui.mainDesc.innerHTML = `THE VOID CLAIMED YOU. YOUR FAMILY IS LOST FOREVER.<br><br><table style="margin:10px auto; border:1px solid rgba(255,0,85,0.3); border-collapse:collapse; font-size:16px;"><tr><td style="padding:6px 20px; color:#666; text-align:left;">SCORE</td><td style="padding:6px 20px; color:#00ffcc; font-size:22px; text-align:right;">${Math.floor(state.score).toLocaleString()}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">KILLS</td><td style="padding:6px 20px; color:#ff8800; font-size:22px; text-align:right;">${state.kills}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">LEVEL</td><td style="padding:6px 20px; color:#aa00ff; font-size:22px; text-align:right;">${state.level}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">BOSSES</td><td style="padding:6px 20px; color:#ff0055; font-size:22px; text-align:right;">${state.bossesDefeated}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">TIME</td><td style="padding:6px 20px; color:#fff; font-size:20px; text-align:right;">${mins}m ${secs.toString().padStart(2,'0')}s</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">KILLS/MIN</td><td style="padding:6px 20px; color:#ff8800; font-size:18px; text-align:right;">${kpm}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">COINS</td><td style="padding:6px 20px; color:#ffcc00; font-size:22px; text-align:right;">+${state.runCoins.toLocaleString()}</td></tr></table>${dailyStr}`; if (state.mode === 'mission') ui.menuBtns.innerHTML = `<button onclick="startMission(${state.currentStage})">Retry Sector</button><button onclick="returnToMenu()">Main Menu</button>`; else if (state.mode === 'boss_rush') ui.menuBtns.innerHTML = `<button onclick="startBossRush()">Retry Boss Rush</button><button onclick="returnToMenu()">Main Menu</button>`; else if (state.mode === 'coop') ui.menuBtns.innerHTML = `<button onclick="leaveLobby()">Leave Game</button><button onclick="returnToMenu()">Main Menu</button>`; else if (state.isDaily) ui.menuBtns.innerHTML = `<button onclick="startDailyChallenge()">Retry Daily</button><button onclick="returnToMenu()">Main Menu</button>`; else ui.menuBtns.innerHTML = `<button onclick="startInfinite()">Retry Infinite</button><button onclick="returnToMenu()">Main Menu</button>`; }
         
-        function stageCleared() { state.active = false; saveRunCoins(); ui.mainOverlay.classList.remove('hidden'); ui.mainOverlay.classList.add('win-theme'); ui.boss.style.display = 'none'; document.getElementById('mobile-controls').style.display = 'none'; document.getElementById('menu-coin-display').style.display = 'none'; ui.mainTitle.innerText = `SECTOR ${state.currentStage} CLEARED`; ui.mainTitle.style.webkitTextStroke = "3px #00ffcc"; ui.mainTitle.style.textShadow = "0 0 50px #00ffcc"; ui.mainDesc.innerHTML = `THREAT NEUTRALIZED. YOU ARE GETTING CLOSER.<br><br>FINAL SCORE: <span style="color:#00ffcc; font-size:24px;">${Math.floor(state.score)}</span><br>KILLS: <span style="color:#ff8800; font-size:24px;">${state.kills}</span><br>COINS EARNED: <span style="color:#ffcc00; font-size:24px;">+${state.runCoins}</span>`; ui.menuBtns.innerHTML = `<button onclick="startMission(${state.currentStage + 1})">Next Sector</button><button onclick="returnToMenu()">Main Menu</button>`; }
+        function stageCleared() { state.active = false; saveRunCoins(); let elapsed = Math.floor(state.frame / 60); let mins = Math.floor(elapsed / 60); let secs = elapsed % 60; ui.mainOverlay.classList.remove('hidden'); ui.mainOverlay.classList.add('win-theme'); ui.boss.style.display = 'none'; document.getElementById('mobile-controls').style.display = 'none'; document.getElementById('menu-coin-display').style.display = 'none'; canvas.style.display = 'none'; ui.mainTitle.innerText = `SECTOR ${state.currentStage} CLEARED`; ui.mainTitle.style.color = 'transparent'; ui.mainTitle.style.webkitTextStroke = "3px #00ffcc"; ui.mainTitle.style.textShadow = "0 0 50px #00ffcc"; ui.mainDesc.innerHTML = `THREAT NEUTRALIZED. YOU ARE GETTING CLOSER.<br><br><table style="margin:10px auto;border:1px solid rgba(0,255,204,0.2);border-collapse:collapse;font-size:16px;"><tr><td style="padding:8px 20px;color:#666;text-align:left;">SCORE</td><td style="padding:8px 20px;color:#00ffcc;font-size:22px;text-align:right;">${Math.floor(state.score).toLocaleString()}</td></tr><tr><td style="padding:8px 20px;color:#666;text-align:left;">KILLS</td><td style="padding:8px 20px;color:#ff8800;font-size:22px;text-align:right;">${state.kills}</td></tr><tr><td style="padding:8px 20px;color:#666;text-align:left;">TIME</td><td style="padding:8px 20px;color:#fff;font-size:20px;text-align:right;">${mins}m ${secs.toString().padStart(2,'0')}s</td></tr><tr><td style="padding:8px 20px;color:#666;text-align:left;">COINS</td><td style="padding:8px 20px;color:#ffcc00;font-size:22px;text-align:right;">+${state.runCoins.toLocaleString()}</td></tr></table>`; ui.menuBtns.innerHTML = `<button onclick="canvas.style.display='';startMission(${state.currentStage + 1})">Next Sector</button><button onclick="canvas.style.display='';returnToMenu()">Main Menu</button>`; }
         
         function winGame() {
             let showWinScreen = () => {
@@ -5074,28 +5078,42 @@
         }
 
         // --- Leaderboards (localStorage-based) ---
-        let leaderboards = { infinite: [], race: [] };
-        try { let lb = JSON.parse(localStorage.getItem('neonVoidLeaderboards')); if (lb) leaderboards = lb; } catch(e) {}
+        const LB_BLOB_ID = '019cdb2e-5c71-7f36-b3a6-8ab182d9fe76';
+        const LB_API = `https://jsonblob.com/api/jsonBlob/${LB_BLOB_ID}`;
+        let leaderboards = { infinite: [], race: [], daily: [], boss_rush: [] };
 
-        function addLeaderboardEntry(mode, name, score) {
-            if (!leaderboards[mode]) leaderboards[mode] = [];
-            leaderboards[mode].push({ name: name, score: score, date: Date.now() });
-            leaderboards[mode].sort((a, b) => b.score - a.score);
-            leaderboards[mode] = leaderboards[mode].slice(0, 50); // Keep top 50
-            localStorage.setItem('neonVoidLeaderboards', JSON.stringify(leaderboards));
+        async function fetchGlobalLeaderboard() {
+            try {
+                let res = await fetch(LB_API);
+                if (res.ok) { let data = await res.json(); leaderboards = data; }
+            } catch(e) { console.warn('Leaderboard fetch failed, using cache'); }
         }
 
-        function showLeaderboard(mode) {
+        async function addLeaderboardEntry(mode, name, score) {
+            if (!leaderboards[mode]) leaderboards[mode] = [];
+            leaderboards[mode].push({ name: name, score: Math.floor(score), date: Date.now() });
+            leaderboards[mode].sort((a, b) => b.score - a.score);
+            leaderboards[mode] = leaderboards[mode].slice(0, 50);
+            try {
+                await fetch(LB_API, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(leaderboards) });
+            } catch(e) { console.warn('Leaderboard save failed'); }
+        }
+
+        async function showLeaderboard(mode) {
             const content = document.getElementById('lb-content');
+            content.innerHTML = '<div style="color:#00ffcc;margin-top:40px;animation:pulse 1s infinite;">LOADING GLOBAL SCORES...</div>';
+            await fetchGlobalLeaderboard();
             let entries = leaderboards[mode] || [];
             let html = `<div class="lb-row header"><span class="lb-rank">#</span><span class="lb-name">PILOT</span><span class="lb-score">${mode === 'race' ? 'TIME' : 'SCORE'}</span></div>`;
             if (entries.length === 0) {
-                html += '<div style="color:#555; margin-top:20px;">NO ENTRIES YET. PLAY TO SET RECORDS!</div>';
+                html += '<div style="color:#555; margin-top:20px;">NO ENTRIES YET. PLAY TO SET A RECORD!</div>';
             }
             entries.forEach((e, i) => {
+                let isYou = e.name === currentUsername;
                 let scoreText = mode === 'race' ? Math.floor(e.score/60) + 'm ' + (e.score%60) + 's' : Math.floor(e.score).toLocaleString();
                 let color = i === 0 ? '#ffcc00' : i === 1 ? '#cccccc' : i === 2 ? '#cc8833' : '#888';
-                html += `<div class="lb-row"><span class="lb-rank" style="color:${color}">${i+1}</span><span class="lb-name">${e.name}</span><span class="lb-score">${scoreText}</span></div>`;
+                let rowBg = isYou ? 'background:rgba(0,255,204,0.08);border:1px solid #00ffcc33;' : '';
+                html += `<div class="lb-row" style="${rowBg}"><span class="lb-rank" style="color:${color}">${i+1}</span><span class="lb-name" style="${isYou ? 'color:#00ffcc;' : ''}">${e.name}${isYou ? ' (YOU)' : ''}</span><span class="lb-score">${scoreText}</span></div>`;
             });
             content.innerHTML = html;
         }
@@ -5163,8 +5181,15 @@
         const _origGameOver = gameOver;
         gameOver = function() {
             // Save leaderboard + stats
-            if (state.mode === 'infinite' || state.mode === 'coop') {
-                addLeaderboardEntry('infinite', currentUsername || 'ANON', state.score);
+            let lbName = currentUsername || 'ANON';
+            if (state.isDaily) {
+                addLeaderboardEntry('daily', lbName, state.score);
+            } else if (state.mode === 'boss_rush') {
+                addLeaderboardEntry('boss_rush', lbName, state.bossesDefeated);
+            } else if (state.mode === 'infinite' || state.mode === 'coop') {
+                addLeaderboardEntry('infinite', lbName, state.score);
+            } else if (state.mode === 'mission') {
+                addLeaderboardEntry('infinite', lbName, state.score);
             }
             updatePlayerStatsOnGameOver();
             checkAchievements();
