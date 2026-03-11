@@ -4357,11 +4357,15 @@
 
         function startDailyChallenge() {
             let challenge = getDailyChallenge();
-            state.mode = 'infinite'; state.active = true; state.paused = false; state.hardcore = false; state.hyper = false; state.difficulty = 1; state.stats = getBaseStats();
-            state.isDaily = true;
-            state.dailyMod = challenge;
-            challenge.apply();
-            initGameBase();
+            ui.mainOverlay.classList.add('hidden');
+            showWeaponSelect(() => {
+                state = { active: true, paused: false, mode: 'infinite', frame: 0, score: 0, combo: 1, xp: 0, level: 1, xpNeeded: 100, runCoins: 0, kills: 0, shake: 0, currentStage: 1, bossesDefeated: 0, difficulty: 1, nextBossLevel: 5, spawningBoss: false, warping: true, warpFrames: 0, hardcore: false, hyper: false, stats: getBaseStats(), isDaily: true, dailyMod: challenge };
+                if (selectedWeapon) selectedWeapon.apply();
+                lastWaveLevel = 0; nextMilestoneIdx = 0; dashGhosts = [];
+                let sysName = `DAILY: ${challenge.name}`; ui.status.innerText = sysName; initGameBase();
+                challenge.apply();
+                if (player) player.hp = state.stats.maxHp;
+            });
         }
 
         // ==================== BOSS RUSH MODE ====================
