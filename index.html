@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Neon Void: Multiplayer Update</title>
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         body { 
             margin: 0; overflow: hidden; background: #000; 
@@ -62,11 +63,14 @@
         .skin-card button { min-width: 100px; padding: 10px; font-size: 16px; }
         .skin-preview { width: 40px; height: 40px; border-radius: 50%; box-shadow: 0 0 20px currentColor; background: currentColor; margin-bottom: 10px; }
         
-        #mobile-controls { position: absolute; bottom: 30px; left: 0; width: 100%; height: 150px; display: none; justify-content: space-between; align-items: flex-end; padding: 0 40px; box-sizing: border-box; z-index: 15; pointer-events: none; }
-        #joystick-area { width: 120px; height: 120px; background: rgba(255,255,255,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); position: relative; pointer-events: auto; }
-        #joystick-knob { width: 50px; height: 50px; background: rgba(0,255,204,0.7); border-radius: 50%; position: absolute; top: 35px; left: 35px; pointer-events: none; transition: transform 0.05s; }
-        .action-btns { display: flex; gap: 20px; pointer-events: auto; }
-        .mob-btn { width: 70px; height: 70px; border-radius: 50%; background: rgba(0,255,204,0.2); border: 2px solid #00ffcc; color: #00ffcc; font-weight: bold; font-family: inherit; font-size: 14px; text-align: center; }
+        #mobile-controls { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; z-index: 15; pointer-events: none; }
+        #touch-left-zone { position: absolute; top: 0; left: 0; width: 50%; height: 100%; pointer-events: auto; }
+        #joystick-area { width: 100px; height: 100px; background: rgba(0,255,204,0.12); border-radius: 50%; border: 2px solid rgba(0,255,204,0.2); position: absolute; bottom: 80px; left: 40px; pointer-events: none; display: none; }
+        #joystick-knob { width: 30px; height: 30px; background: rgba(0,255,204,0.55); border-radius: 50%; border: 2px solid rgba(0,255,204,0.8); position: absolute; top: 35px; left: 35px; pointer-events: none; transition: transform 0.05s; box-shadow: 0 0 12px rgba(0,255,204,0.4); }
+        .action-btns { position: absolute; bottom: 60px; right: 30px; display: flex; flex-direction: column; gap: 16px; pointer-events: auto; }
+        .mob-btn { border-radius: 50%; background: rgba(0,0,0,0.4); font-weight: bold; font-family: inherit; text-align: center; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+        .mob-fire { width: 70px; height: 70px; border: 2px solid #00ffcc; color: #00ffcc; font-size: 14px; box-shadow: 0 0 15px rgba(0,255,204,0.25); }
+        .mob-dash-btn { width: 60px; height: 60px; border: 2px solid #ffcc00; color: #ffcc00; font-size: 12px; box-shadow: 0 0 15px rgba(255,204,0,0.25); }
         
         #levelup-screen button { border-color: #ffcc00; color: #ffcc00; width: 280px; height: 160px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 15px; box-shadow: 0 0 20px #ffcc00; }
         #levelup-screen button:hover { background: #ffcc00; color: black; box-shadow: 0 0 50px #ffcc00; }
@@ -129,9 +133,6 @@
         #pause-stats { color: #888; font-size: 16px; margin: 15px 0; line-height: 2; text-align: center; }
         #pause-stats span { color: #00ffcc; font-weight: bold; }
 
-        .stat-row { display: flex; justify-content: space-between; width: 350px; max-width: 90vw; padding: 8px 15px; border-bottom: 1px solid #222; }
-        .stat-row .stat-label { color: #888; }
-        .stat-row .stat-value { color: #00ffcc; font-weight: bold; }
 
         #low-hp-vignette { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 13; pointer-events: none; opacity: 0; transition: opacity 0.3s; box-shadow: inset 0 0 80px 30px rgba(255,0,0,0.6); }
         #wave-announce { position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%); z-index: 15; pointer-events: none; opacity: 0; transition: opacity 0.4s; text-align: center; }
@@ -149,25 +150,12 @@
         @keyframes milestonePop { 0% { opacity: 0; transform: translate(-50%,-50%) scale(0.5); } 15% { opacity: 1; transform: translate(-50%,-50%) scale(1.2); } 30% { transform: translate(-50%,-50%) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%,-50%) translateY(-30px); } }
 
         #menu-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 19; pointer-events: none; }
-        #achievement-popup { position: absolute; top: 80px; right: 20px; z-index: 35; pointer-events: none; background: rgba(0,0,0,0.92); border: 2px solid #ffcc00; padding: 15px 22px; opacity: 0; transition: opacity 0.4s, transform 0.4s; transform: translateX(120px); box-shadow: 0 0 30px rgba(255,204,0,0.3); max-width: 280px; }
-        #achievement-popup.show { opacity: 1; transform: translateX(0); }
-        .ach-title { color: #ffcc00; font-size: 11px; font-weight: bold; letter-spacing: 3px; text-transform: uppercase; }
-        .ach-name { color: #fff; font-size: 20px; font-weight: 900; margin-top: 4px; letter-spacing: 2px; }
-        .ach-desc { color: #888; font-size: 12px; margin-top: 4px; }
-        #achievement-screen .ach-grid { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; max-width: 700px; }
-        .ach-card { background: rgba(0,0,0,0.8); border: 2px solid #333; padding: 12px 16px; min-width: 200px; max-width: 220px; text-align: left; }
-        .ach-card.unlocked { border-color: #ffcc00; box-shadow: 0 0 15px rgba(255,204,0,0.2); }
-        .ach-card .ach-card-name { font-size: 14px; font-weight: 900; color: #fff; letter-spacing: 1px; }
-        .ach-card.unlocked .ach-card-name { color: #ffcc00; }
-        .ach-card .ach-card-desc { font-size: 11px; color: #666; margin-top: 3px; }
-        .ach-card.unlocked .ach-card-desc { color: #888; }
         @keyframes deathRing { 0% { transform: scale(0); opacity: 1; } 100% { transform: scale(3); opacity: 0; } }
         .death-ring { position: absolute; width: 40px; height: 40px; border-radius: 50%; border: 3px solid; pointer-events: none; z-index: 14; animation: deathRing 0.5s ease-out forwards; }
     </style>
 </head>
 <body class="crt">
     <canvas id="menu-canvas"></canvas>
-    <div id="achievement-popup"><div class="ach-title">ACHIEVEMENT UNLOCKED</div><div class="ach-name" id="ach-popup-name"></div><div class="ach-desc" id="ach-popup-desc"></div></div>
     <div id="damage-flash"></div>
     <div id="powerup-flash"></div>
     <div id="low-hp-vignette"></div>
@@ -222,11 +210,10 @@
     <div id="leaderboard-screen" class="overlay-screen hidden" style="z-index: 22;">
         <div style="width:100%; height:100%; overflow-y:auto; display:flex; flex-direction:column; align-items:center; padding:50px 0; box-sizing:border-box;">
             <div class="title-text" style="-webkit-text-stroke: 3px #ffcc00; text-shadow: 0 0 50px #ffcc00; font-size: 60px;">LEADERBOARDS</div>
-            <div style="font-size:11px;color:#00ffcc88;letter-spacing:3px;margin-bottom:15px;">&#x1F310; GLOBAL RANKINGS</div>
+            <div style="font-size:11px;color:#00ffcc88;letter-spacing:3px;margin-bottom:15px;display:flex;align-items:center;gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00ffcc88" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> GLOBAL RANKINGS</div>
             <div class="btn-container" style="margin-bottom:20px;flex-wrap:wrap;gap:8px;">
                 <button onclick="showLeaderboard('infinite')" style="border-color:#00ffcc; color:#00ffcc; padding:10px 20px; min-width:100px;">INFINITE</button>
                 <button onclick="showLeaderboard('boss_rush')" style="border-color:#ff0055; color:#ff0055; padding:10px 20px; min-width:100px;">BOSS RUSH</button>
-                <button onclick="showLeaderboard('daily')" style="border-color:#ff8800; color:#ff8800; padding:10px 20px; min-width:100px;">DAILY</button>
                 <button onclick="showLeaderboard('race')" style="border-color:#aa00ff; color:#aa00ff; padding:10px 20px; min-width:100px;">RACE</button>
             </div>
             <div id="lb-content" style="display:flex; flex-direction:column; align-items:center; gap:5px;"></div>
@@ -258,39 +245,14 @@
     <div id="xp-bar-container"><div id="xp-bar"></div></div>
     
     <div id="mobile-controls">
+        <div id="touch-left-zone"></div>
         <div id="joystick-area"><div id="joystick-knob"></div></div>
         <div class="action-btns">
-            <button id="mob-shoot" class="mob-btn">SHOOT<br>(AUTO)</button>
-            <button id="mob-dash" class="mob-btn" style="border-color:#ffcc00; color:#ffcc00;">DASH</button>
+            <button id="mob-shoot" class="mob-btn mob-fire">FIRE</button>
+            <button id="mob-dash" class="mob-btn mob-dash-btn">DASH</button>
         </div>
     </div>
 
-
-    <div id="stats-screen" class="overlay-screen hidden" style="z-index: 22;">
-        <div style="width:100%; height:100%; overflow-y:auto; display:flex; flex-direction:column; align-items:center; padding:50px 0; box-sizing:border-box;">
-            <div class="title-text" style="-webkit-text-stroke: 3px #00ffcc; text-shadow: 0 0 50px #00ffcc; font-size: 60px;">PILOT STATS</div>
-            <div id="stats-content" style="display:flex; flex-direction:column; align-items:center; gap:5px; margin-top:20px;"></div>
-            <button onclick="returnToMenu()" style="border-color:#fff; color:#fff; margin-top:30px;">BACK TO MENU</button>
-        </div>
-    </div>
-
-    <div id="achievement-screen" class="overlay-screen hidden" style="z-index: 22;">
-        <div style="width:100%; height:100%; overflow-y:auto; display:flex; flex-direction:column; align-items:center; padding:50px 0; box-sizing:border-box;">
-            <div class="title-text" style="-webkit-text-stroke: 3px #ffcc00; text-shadow: 0 0 50px #ffcc00; font-size: 60px;">ACHIEVEMENTS</div>
-            <div id="ach-progress" style="color: #888; font-size: 16px; margin-bottom: 20px;"></div>
-            <div class="ach-grid" id="ach-grid"></div>
-            <button onclick="returnToMenu()" style="border-color:#fff; color:#fff; margin-top:30px;">BACK TO MENU</button>
-        </div>
-    </div>
-
-    <div id="codex-screen" class="overlay-screen hidden" style="z-index: 22;">
-        <div style="width:100%; height:100%; overflow-y:auto; display:flex; flex-direction:column; align-items:center; padding:50px 0; box-sizing:border-box;">
-            <div class="title-text" style="-webkit-text-stroke: 3px #ff8800; text-shadow: 0 0 50px #ff8800; font-size: 60px;">PILOT CODEX</div>
-            <div style="color: #888; font-size: 14px; margin-bottom: 20px;">Mission logs recovered from neural blackbox</div>
-            <div id="codex-grid" style="display:flex; flex-direction:column; gap:10px; max-width:700px; width:90%;"></div>
-            <button onclick="closeCodex()" style="border-color:#fff; color:#fff; margin-top:30px;">BACK</button>
-        </div>
-    </div>
 
     <div id="main-overlay" class="overlay-screen" style="overflow-y:auto;">
         <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100%;padding:30px 0 50px;">
@@ -324,6 +286,7 @@
             <button id="btn-toggle-music" onclick="toggleMusic()" style="width:100%; border-color:#ff8800; color:#ff8800; box-shadow: 0 0 20px #ff8800;">MUSIC: OFF</button>
             <button id="btn-toggle-hyper" onclick="toggleHyperSpeed()" style="width:100%; border-color:#ff00ff; color:#ff00ff; box-shadow: 0 0 20px #ff00ff;">HYPER-DRIVE MODE: OFF</button>
             <button id="btn-toggle-hardcore" onclick="toggleHardcore()" style="width:100%; border-color:#ff0000; color:#ff0000; box-shadow: 0 0 20px #ff0000;">NIGHTMARE MODE: OFF</button>
+            <button id="btn-toggle-3d" onclick="toggle3D(!appSettings.render3D)" style="width:100%; border-color:#00ccff; color:#00ccff; box-shadow: 0 0 20px #00ccff;">3D MODE: OFF</button>
             <button onclick="logoutUser()" style="width:100%; border-color:#ffcc00; color:#ffcc00; margin-top: 30px;">CHANGE CALLSIGN</button>
             <button onclick="generateSyncCode()" style="width:100%; border-color:#00ffcc; color:#00ffcc; margin-top: 30px; box-shadow: 0 0 15px #00ffcc;">📋 GENERATE SYNC CODE</button>
             <button onclick="importSyncCode()" style="width:100%; border-color:#00ffcc; color:#00ffcc; box-shadow: 0 0 15px #00ffcc;">📥 IMPORT SYNC CODE</button>
@@ -355,9 +318,6 @@
             <h2 style="color: #ff0000; text-decoration: underline; margin-top: 20px; letter-spacing: 5px; text-shadow: 0 0 10px #ff0000;">ILLEGAL UPGRADES</h2>
             <div class="subtitle-text">Purchase these forbidden technologies to permanently buff your ship.</div>
             <div class="btn-container" id="upgrade-grid" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; max-width: 1000px; margin-bottom: 30px;"></div>
-            <h2 style="color: #aa00ff; text-decoration: underline; margin-top: 20px; letter-spacing: 5px; text-shadow: 0 0 10px #aa00ff;">PRESTIGE</h2>
-            <div id="prestige-section" style="text-align:center; margin-bottom: 30px;"></div>
-            <button onclick="openCodex()" style="border-color: #ff8800; color: #ff8800; box-shadow: 0 0 20px #ff8800; margin-bottom: 10px;">PILOT CODEX<br><span style="font-size:12px;">Mission Logs</span></button>
             <button onclick="returnToMenu()" style="border-color: #fff; color: #fff; box-shadow: 0 0 20px #fff; margin-bottom: 50px;">BACK TO MENU</button>
         </div>
     </div>
@@ -469,8 +429,6 @@
 
         let purchasedUpgrades = [];
         try { let p = JSON.parse(localStorage.getItem('neonVoidUpgrades')); if(Array.isArray(p)) purchasedUpgrades = p; } catch(e){}
-
-        let prestigeLevel = parseInt(localStorage.getItem('neonVoidPrestige')) || 0;
 
         const PERMANENT_UPGRADES = {
             'homing': { name: "SMART MUNITIONS", desc: "Projectiles passively track targets", price: 5000 },
@@ -585,7 +543,7 @@
         window.addEventListener('resize', resize); resize();
 
 
-        let appSettings = { graphics: 'high', sound: true, mobile: false, hardcore: false, hyper: false };
+        let appSettings = { graphics: 'high', sound: true, mobile: false, hardcore: false, hyper: false, render3D: false };
         try { let savedSettings = JSON.parse(localStorage.getItem('neonVoidSettings')); if (savedSettings && typeof savedSettings === 'object') appSettings = { ...appSettings, ...savedSettings }; } catch(e) {}
 
 
@@ -601,6 +559,7 @@
             if(document.getElementById('btn-toggle-hyper')) document.getElementById('btn-toggle-hyper').innerText = `HYPER-DRIVE MODE: ${appSettings.hyper ? 'ON' : 'OFF'}`;
             if(document.getElementById('btn-toggle-music')) document.getElementById('btn-toggle-music').innerText = `MUSIC: ${appSettings.music ? 'ON' : 'OFF'}`;
             if(document.getElementById('btn-toggle-autofire')) document.getElementById('btn-toggle-autofire').innerText = `AUTO-FIRE: ${appSettings.autoFire ? 'ON' : 'OFF'}`;
+            if(document.getElementById('btn-toggle-3d')) document.getElementById('btn-toggle-3d').innerText = `3D MODE: ${appSettings.render3D ? 'ON' : 'OFF'}`;
             if (appSettings.mobile) { aimMode = 'auto'; ui.aimMode.innerText = '[C] AIM MODE: CLASSIC AUTO-AIM'; ui.aimMode.style.color = '#00ffcc'; }
         }
 
@@ -635,24 +594,83 @@
         const keys = {}; let mouse = { x: canvas.width/2, y: canvas.height/2, down: false, rightDown: false }; let aimMode = 'auto';
         const joyArea = document.getElementById('joystick-area'); const joyKnob = document.getElementById('joystick-knob');
         let joyData = { x: 0, y: 0, active: false, id: null }; let mobileAutoShoot = false; let mobileDash = false;
+        const touchLeftZone = document.getElementById('touch-left-zone');
+        let joyOrigin = { x: 0, y: 0 }; // where the user first touches (joystick center)
 
+        // --- Enhanced Virtual Joystick: appears where you touch on left half ---
+        touchLeftZone.addEventListener('touchstart', e => {
+            e.preventDefault();
+            let touch = e.changedTouches[0];
+            joyData.id = touch.identifier;
+            joyData.active = true;
+            joyOrigin.x = touch.clientX;
+            joyOrigin.y = touch.clientY;
+            // Position joystick visual at touch origin
+            joyArea.style.display = 'block';
+            joyArea.style.left = (touch.clientX - 50) + 'px';
+            joyArea.style.top = (touch.clientY - 50) + 'px';
+            joyArea.style.bottom = 'auto';
+            joyKnob.style.transform = 'translate(0px, 0px)';
+            joyData.x = 0; joyData.y = 0;
+        }, {passive: false});
 
-        joyArea.addEventListener('touchstart', e => { e.preventDefault(); let touch = e.changedTouches[0]; joyData.id = touch.identifier; joyData.active = true; updateJoystick(touch); }, {passive: false});
-        joyArea.addEventListener('touchmove', e => { e.preventDefault(); for(let touch of e.changedTouches) { if(touch.identifier === joyData.id) updateJoystick(touch); } }, {passive: false});
-        joyArea.addEventListener('touchend', e => { e.preventDefault(); for(let touch of e.changedTouches) { if(touch.identifier === joyData.id) { joyData.active = false; joyData.x = 0; joyData.y = 0; joyKnob.style.transform = `translate(0px, 0px)`; } } }, {passive: false});
+        touchLeftZone.addEventListener('touchmove', e => {
+            e.preventDefault();
+            for (let touch of e.changedTouches) {
+                if (touch.identifier === joyData.id) updateJoystick(touch);
+            }
+        }, {passive: false});
 
+        touchLeftZone.addEventListener('touchend', e => {
+            e.preventDefault();
+            for (let touch of e.changedTouches) {
+                if (touch.identifier === joyData.id) {
+                    joyData.active = false; joyData.x = 0; joyData.y = 0;
+                    joyKnob.style.transform = 'translate(0px, 0px)';
+                    joyArea.style.display = 'none';
+                }
+            }
+        }, {passive: false});
+
+        touchLeftZone.addEventListener('touchcancel', e => {
+            joyData.active = false; joyData.x = 0; joyData.y = 0;
+            joyKnob.style.transform = 'translate(0px, 0px)';
+            joyArea.style.display = 'none';
+        }, {passive: false});
 
         function updateJoystick(touch) {
-            let rect = joyArea.getBoundingClientRect();
-            let dx = touch.clientX - (rect.left + rect.width/2); let dy = touch.clientY - (rect.top + rect.height/2);
-            let dist = Math.hypot(dx, dy); let maxDist = 35;
+            let dx = touch.clientX - joyOrigin.x;
+            let dy = touch.clientY - joyOrigin.y;
+            let dist = Math.hypot(dx, dy);
+            let maxDist = 50; // 100px radius / 2 for nub travel
             if (dist > maxDist) { dx = (dx/dist)*maxDist; dy = (dy/dist)*maxDist; }
-            joyKnob.style.transform = `translate(${dx}px, ${dy}px)`; joyData.x = dx / maxDist; joyData.y = dy / maxDist;
+            joyKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+            joyData.x = dx / maxDist; joyData.y = dy / maxDist;
         }
 
+        // --- Fire button: toggle auto-shoot ---
+        document.getElementById('mob-shoot').addEventListener('touchstart', e => {
+            e.preventDefault();
+            mobileAutoShoot = !mobileAutoShoot;
+            let btn = document.getElementById('mob-shoot');
+            btn.style.background = mobileAutoShoot ? 'rgba(0,255,204,0.6)' : 'rgba(0,0,0,0.4)';
+            btn.style.color = mobileAutoShoot ? '#000' : '#00ffcc';
+            btn.textContent = mobileAutoShoot ? 'AUTO' : 'FIRE';
+        }, {passive: false});
 
-        document.getElementById('mob-shoot').addEventListener('touchstart', e => { e.preventDefault(); mobileAutoShoot = !mobileAutoShoot; document.getElementById('mob-shoot').style.background = mobileAutoShoot ? 'rgba(0,255,204,0.7)' : 'rgba(0,255,204,0.2)'; document.getElementById('mob-shoot').style.color = mobileAutoShoot ? '#000' : '#00ffcc'; }, {passive: false});
+        // --- Dash button ---
         document.getElementById('mob-dash').addEventListener('touchstart', e => { e.preventDefault(); mobileDash = true; }, {passive: false});
+
+        // --- Mobile auto-detection ---
+        if ('ontouchstart' in window && !appSettings.hasOwnProperty('_mobileDetected')) {
+            appSettings.mobile = true;
+            appSettings._mobileDetected = true;
+            saveSettings();
+        }
+
+        // Prevent scrolling on canvas for mobile
+        canvas.addEventListener('touchstart', e => { if (appSettings.mobile) e.preventDefault(); }, {passive: false});
+        canvas.addEventListener('touchmove', e => { if (appSettings.mobile) e.preventDefault(); }, {passive: false});
 
 
         window.addEventListener('keydown', e => {
@@ -675,7 +693,6 @@
             if (purchasedUpgrades.includes('homing')) base.homing = true; if (purchasedUpgrades.includes('explosive')) base.explosive = true; if (purchasedUpgrades.includes('pierce')) base.pierce += 1; if (purchasedUpgrades.includes('drone_bomb')) base.bombDrones += 1; if (purchasedUpgrades.includes('drone_laser')) base.laserDrones += 1; if (purchasedUpgrades.includes('drone_mini')) base.miniDrones += 1; if (purchasedUpgrades.includes('drone_scatter')) base.scatterDrones += 1; if (purchasedUpgrades.includes('drone_emp')) base.empDrones += 1; if (purchasedUpgrades.includes('drone_saw')) base.sawDrones += 1; if (purchasedUpgrades.includes('drone_sniper')) base.sniperDrones += 1; if (purchasedUpgrades.includes('guardian')) base.guardian += 1; if (purchasedUpgrades.includes('tesla')) base.tesla += 1; if (purchasedUpgrades.includes('time_dilator')) base.timeDilator = true; if (purchasedUpgrades.includes('nuke_dash')) base.nukeDash = true; if (purchasedUpgrades.includes('magnet')) base.magnet = true; if (purchasedUpgrades.includes('antimatter')) base.antimatter = true; if (purchasedUpgrades.includes('bloodthirst')) base.bloodthirst = true; if (purchasedUpgrades.includes('wisp')) base.wisp = true;
             if (purchasedUpgrades.includes('dart_protocol')) base.projCount += 1; if (purchasedUpgrades.includes('alchemist')) { base.dmgMulti *= 1.25; base.speedMulti *= 1.15; }
             if (purchasedUpgrades.includes('shield_gen')) base.shieldGen = true; if (purchasedUpgrades.includes('nano_repair')) base.nanoRepair = true; if (purchasedUpgrades.includes('coin_boost')) base.coinMulti = 1.5; if (purchasedUpgrades.includes('void_siphon')) base.voidSiphon = true; if (purchasedUpgrades.includes('overcharge')) base.overcharge = true; if (purchasedUpgrades.includes('phase_shift')) base.phaseShift = true; if (purchasedUpgrades.includes('quantum_echo')) base.quantumEcho = true;
-            if (prestigeLevel > 0) { base.dmgMulti *= (1 + prestigeLevel * 0.1); base.maxHp += prestigeLevel * 50; base.coinMulti *= (1 + prestigeLevel * 0.05); }
             return base;
         }
 
@@ -1261,6 +1278,16 @@
                 if (this.type === 'GLITCH') { ui.bossName.style.color = '#00ff00'; ui.bossName.style.textShadow = '0 0 40px #00ff00'; ui.bossHp.style.boxShadow = '0 0 30px #00ff00'; }
             }
             update() {
+                // In co-op, client skips boss AI — position comes from host via boss-sync
+                if (mpState.active && mpState.mode === 'coop' && !mpState.isHost) {
+                    this.timer += (state.hyper ? 1.5 : 1.0);
+                    if (this.y < this.targetY) this.y += 3;
+                    // Update boss HUD
+                    let hpPct = this.hp / this.maxHp;
+                    ui.bossHp.style.width = (hpPct * 100) + '%';
+                    if (this.type !== 'VTSG' && this.type !== 'BAD_BOSS' && this.type !== 'SECRET' && this.type !== 'GLITCH') { ui.bossHp.style.background = hpPct > 0.6 ? '#00ff00' : (hpPct > 0.3 ? '#ffff00' : '#ff0000'); ui.bossHp.style.boxShadow = `0 0 20px ${ui.bossHp.style.background}`; }
+                    return;
+                }
                 if (this.frozen > 0 && this.type !== 'BAD_BOSS' && this.type !== 'SECRET' && this.type !== 'GLITCH') { this.frozen--; return; }
                 let hyperMult = state.hyper ? 1.5 : 1.0; if (this.y < this.targetY) this.y += 3 * hyperMult; this.timer += hyperMult; this.angle += 0.04 * hyperMult; let oldPhase = this.phase; this.phase = this.hp < this.maxHp * 0.3 ? 3 : (this.hp < this.maxHp * 0.6 ? 2 : 1);
                 if (this.phase !== oldPhase && oldPhase > 0) { shakeScreen(25); triggerChroma(5); spawnParticles(this.x, this.y, this.color, 60, 3); spawnText(this.x, this.y - this.radius - 20, this.phase === 2 ? 'PHASE 2' : 'ENRAGED!', this.phase === 2 ? '#ffff00' : '#ff0000', 24); playSound('hit'); }
@@ -1334,11 +1361,11 @@
             { id: 'simian_matrix', name: "SIMIAN MATRIX", desc: "+10% Damage, +10% Speed, +10% Fire Rate", apply: () => { state.stats.dmgMulti += 0.10; state.stats.speedMulti += 0.10; state.stats.fireRateMulti += 0.10; } },
             { id: 'fan_club', name: "FAN CLUB", desc: "Extreme fire rate, lower damage", apply: () => { state.stats.fireRateMulti *= 2.0; state.stats.dmgMulti *= 0.8; } },
             { id: 'golden_yield', name: "GOLDEN YIELD", desc: "Enemies drop 50% more coins", apply: () => { state.stats.coinMulti = (state.stats.coinMulti || 1) + 0.5; } },
-            { id: 'cryo_snare', name: "CRYO SNARE", desc: "Kills have 25% chance to freeze nearby enemies", apply: () => { state.stats.bloonTrap = true; } }
+            { id: 'cryo_snare', name: "CRYO SNARE", desc: "Kills have 25% chance to freeze nearby enemies", apply: () => { state.stats.cryoSnare = true; } }
         ];
 
 
-        function addXp(amt) { state.xp += amt * state.combo; while (state.xp >= state.xpNeeded) { state.xp -= state.xpNeeded; state.level++; state.xpNeeded = Math.floor(state.xpNeeded * 1.5); triggerLevelUp(); } }
+        function addXp(amt) { state.xp += amt * state.combo; let levelsGained = 0; while (state.xp >= state.xpNeeded) { state.xp -= state.xpNeeded; state.level++; state.xpNeeded = Math.floor(state.xpNeeded * 1.5); levelsGained++; } if (levelsGained > 0) { state.pendingLevels = (state.pendingLevels || 0) + levelsGained - 1; triggerLevelUp(); } }
         
         function triggerLevelUp() {
             // Level-up burst effect
@@ -1353,7 +1380,7 @@
             choices.forEach(p => { 
                 let btn = document.createElement('button'); 
                 btn.innerHTML = `<div style="font-size: 22px; font-weight: 900;">${p.name}</div><div class="perk-desc">${p.desc}</div>`; 
-                btn.onclick = () => { p.apply(); playSound('powerup'); state.paused = false; ui.lvlScreen.classList.add('hidden'); requestAnimationFrame(update); }; 
+                btn.onclick = () => { p.apply(); playSound('powerup'); ui.lvlScreen.classList.add('hidden'); if (state.pendingLevels && state.pendingLevels > 0) { state.pendingLevels--; setTimeout(() => triggerLevelUp(), 50); } else { state.paused = false; requestAnimationFrame(update); } }; 
                 ui.perkContainer.appendChild(btn); 
             }); 
         }
@@ -1392,7 +1419,7 @@
                 state.runCoins += Math.floor(Math.max(5, e.xp * 2) * coinMult);
 
                 // Cryo Snare - freeze nearby enemies on kill
-                if (state.stats.bloonTrap && Math.random() < 0.25) {
+                if (state.stats.cryoSnare && Math.random() < 0.25) {
                     for (let ne of entities.enemies) { if (ne && Math.hypot(ne.x - e.x, ne.y - e.y) < 150) ne.frozen = 90; }
                     spawnParticles(e.x, e.y, '#00ffff', 10);
                 }
@@ -1485,7 +1512,7 @@
 
         function spawnWave() {
             if (state.mode === 'training') { if (entities.enemies.length < 5 && state.frame % 120 === 0) { entities.enemies.push(new Enemy((gameRng() * (canvas.width - 200)) + 100, (gameRng() * (canvas.height - 200)) + 100, 'dummy')); } return; }
-            if (state.mode === 'boss_rush') { if (!activeBoss && !state.spawningBoss && state.bossesDefeated < 15) { state.spawningBoss = true; setTimeout(() => { activeBoss = new Boss(state.bossesDefeated); state.spawningBoss = false; }, 1500); } return; }
+            if (state.mode === 'boss_rush') { if (mpState.active && mpState.mode === 'coop' && !mpState.isHost) return; if (!activeBoss && !state.spawningBoss && state.bossesDefeated < 15) { state.spawningBoss = true; setTimeout(() => { activeBoss = new Boss(state.bossesDefeated); activeBoss.bossIdx = state.bossesDefeated; state.spawningBoss = false; }, 1500); } return; }
             // In co-op, only host spawns enemies — clients receive via enemy-sync
             if (mpState.active && mpState.mode === 'coop' && !mpState.isHost) return;
             if (state.warping || activeBoss || state.spawningBoss || countdownActive) return;
@@ -1502,11 +1529,15 @@
                 entities.enemies.push(newEnemy);
                 if (type === 'swarm') { for (let si = 0; si < 4; si++) entities.enemies.push(new Enemy(x + (gameRng()-0.5)*60, y + (gameRng()-0.5)*60, 'swarm')); }
             }
-            if (state.level >= state.nextBossLevel) { state.spawningBoss = true; ui.bossAlert.style.display = 'block'; playSound('hit'); let bossLine = BOSS_LINES[Math.floor(gameRng() * BOSS_LINES.length)]; spawnText(canvas.width/2, canvas.height/2 + 60, bossLine, '#ff0055', 16); setTimeout(() => { ui.bossAlert.style.display = 'none'; entities.enemies = []; activeBoss = new Boss(state.bossesDefeated); state.spawningBoss = false; }, 3000); }
+            if (state.level >= state.nextBossLevel && !(mpState.active && mpState.mode === 'coop' && !mpState.isHost)) { state.spawningBoss = true; ui.bossAlert.style.display = 'block'; playSound('hit'); let bossLine = BOSS_LINES[Math.floor(gameRng() * BOSS_LINES.length)]; spawnText(canvas.width/2, canvas.height/2 + 60, bossLine, '#ff0055', 16); setTimeout(() => { ui.bossAlert.style.display = 'none'; entities.enemies = []; activeBoss = new Boss(state.bossesDefeated); activeBoss.bossIdx = state.bossesDefeated; state.spawningBoss = false; }, 3000); }
         }
 
 
-        function handleBossDeath() { 
+        function handleBossDeath() {
+            // Broadcast boss death to co-op clients
+            if (mpState.active && mpState.mode === 'coop' && mpState.isHost) {
+                broadcast({ type: 'boss-death', bx: activeBoss.x, by: activeBoss.y, color: activeBoss.color });
+            }
             spawnParticles(activeBoss.x, activeBoss.y, activeBoss.color, 150, 5); shakeScreen(60); playSound('hit'); state.kills++; ui.kills.innerText = `KILLS: ${state.kills}`; state.score += 50000 * state.combo * (state.dailyScoreMulti || 1); addXp(2000); state.bossesDefeated++; triggerSlowMo(45); triggerChroma(8);
             let coinMult = (state.hardcore ? 5 : 1) * (state.stats.coinMulti || 1); state.runCoins += Math.floor((25000 + (state.currentStage * 5000)) * coinMult);
             entities.enemies = []; entities.eBullets = []; 
@@ -1543,7 +1574,7 @@
 
 
         function update() {
-            if (!state.active || state.paused) return;
+            if (!state.active || state.paused) { if (!state.active && is3DActive && renderer3d) renderer3d.domElement.style.display = 'none'; return; }
             if (bossCinematic) return;
             checkBossCinematic();
             if (slowMoActive) { slowMoFrames--; if (slowMoFrames <= 0) slowMoActive = false; }
@@ -1711,7 +1742,7 @@
                             }
                             return false;
                         });
-                        if (activeBoss && activeBoss.alpha > 0.5) { let bDist = Math.hypot(activeBoss.x-player.x, activeBoss.y-player.y); if (bDist < player.radius + activeBoss.radius) { /* Knockback: always push player out of boss */ let pushAngle = Math.atan2(player.y - activeBoss.y, player.x - activeBoss.x); let pushForce = (player.radius + activeBoss.radius - bDist + 8); player.x += Math.cos(pushAngle) * pushForce; player.y += Math.sin(pushAngle) * pushForce; player.x = Math.max(10, Math.min(canvas.width-10, player.x)); player.y = Math.max(10, Math.min(canvas.height-10, player.y)); if (player.timers.invuln > 0 || state.mode === 'training') activeBoss.hp -= 10 * state.stats.dmgMulti; else player.takeDamage(10); } }
+                        if (activeBoss && activeBoss.alpha > 0.5) { let bDist = Math.hypot(activeBoss.x-player.x, activeBoss.y-player.y); if (bDist < player.radius + activeBoss.radius) { let pushAngle = Math.atan2(player.y - activeBoss.y, player.x - activeBoss.x); let pushForce = (player.radius + activeBoss.radius - bDist + 8); player.x += Math.cos(pushAngle) * pushForce; player.y += Math.sin(pushAngle) * pushForce; player.x = Math.max(10, Math.min(canvas.width-10, player.x)); player.y = Math.max(10, Math.min(canvas.height-10, player.y)); let _isCoopClient = mpState.active && mpState.mode === 'coop' && !mpState.isHost; if (!_isCoopClient) { if (player.timers.invuln > 0 || state.mode === 'training') activeBoss.hp -= 10 * state.stats.dmgMulti; else player.takeDamage(10); } } }
                     }
                     if (f === framesToRun - 1) {
                         drawRemotePlayers(ctx);
@@ -1738,11 +1769,11 @@
             spawnAsteroid();
             updateAsteroids(ctx, true);
             updateExhaust(ctx);
-            if (state.frame % 120 === 0) checkAchievements();
             if (state.frame % 30 === 0) checkScoreEggs();
             checkIdle();
             if (appSettings.autoFire && state.active && !state.paused) mouse.down = true;
             ui.score.innerText = `SCORE: ${Math.floor(state.score)}`; ui.combo.innerText = `COMBO x${state.combo.toFixed(1)}`; ui.lvl.innerText = state.mode === 'training' ? 'TRAINING MODE' : (state.mode === 'boss_rush' ? `BOSS ${Math.min(state.bossesDefeated + 1, 15)}/15 | ${Math.floor(state.frame/3600)}:${(Math.floor(state.frame/60)%60).toString().padStart(2,'0')}` : `LVL: ${state.level}`); ui.coins.innerText = `COINS: ${totalCoins + state.runCoins}`; ui.hp.style.width = `${Math.max(0, (player.hp/state.stats.maxHp)*100)}%`; ui.shield.style.width = `${Math.min(100, player.shield)}%`; ui.xp.style.width = `${(state.xp / state.xpNeeded)*100}%`;
+            if (appSettings.render3D && is3DActive) update3D();
             requestAnimationFrame(update);
         }
 
@@ -2795,7 +2826,7 @@
 
 
         function returnToMenu() {
-            document.getElementById('mission-select').classList.add('hidden'); document.getElementById('shop-screen').classList.add('hidden'); document.getElementById('settings-screen').classList.add('hidden'); document.getElementById('pause-screen').classList.add('hidden'); document.getElementById('draw-screen').classList.add('hidden'); document.getElementById('achievement-screen').classList.add('hidden'); document.getElementById('codex-screen').classList.add('hidden');
+            document.getElementById('mission-select').classList.add('hidden'); document.getElementById('shop-screen').classList.add('hidden'); document.getElementById('settings-screen').classList.add('hidden'); document.getElementById('pause-screen').classList.add('hidden'); document.getElementById('draw-screen').classList.add('hidden');
             stopMusic(); startMenuBg(); if (appSettings.music) startMenuMusic();
             ui.mainOverlay.classList.remove('hidden'); ui.mainOverlay.classList.remove('win-theme');
             ui.mainTitle.innerText = "NEON VOID"; ui.mainTitle.style.webkitTextStroke = "3px #ff0055"; ui.mainTitle.style.textShadow = "0 0 50px #ff0055";
@@ -2808,9 +2839,7 @@
             let rushBest = parseInt(localStorage.getItem('neonVoidBossRushBest')) || 0;
             let rushLabel = rushBest > 0 ? `Best: ${Math.floor(rushBest/60)}m ${(rushBest%60).toString().padStart(2,'0')}s` : 'All 15 Bosses';
 
-            let dailyChallenge = getDailyChallenge();
-            let dailyBest = getDailyBestScore();
-            ui.menuBtns.innerHTML = `<button onclick="openMissionSelect()">Mission Mode<br><span style="font-size:12px">15 Sectors</span></button><button class="btn-infinite" onclick="startInfinite()">Infinite Mode<br><span style="font-size:12px">Endless Scaling</span></button><button style="border-color:#ff0055; color:#ff0055; box-shadow: 0 0 20px #ff0055;" onclick="startBossRush()">Boss Rush<br><span style="font-size:12px">${rushLabel}</span></button>${secretBtn}${paradoxBtn}<button style="border-color:#ff8800; color:#ff8800; box-shadow: 0 0 20px #ff8800;" onclick="startDailyChallenge()">Daily Challenge<br><span style="font-size:12px">${dailyChallenge.name}${dailyBest > 0 ? ' | Best: ' + dailyBest : ''}</span></button><button style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;" onclick="startTraining()">Training Camp<br><span style="font-size:12px">Test Weapons</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00;" onclick="openShop()">The Hangar<br><span style="font-size:12px">Black Market</span></button><button style="border-color:#fff; color:#fff;" onclick="openSettings()">Settings<br><span style="font-size:12px">Sys Config</span></button>`;
+            ui.menuBtns.innerHTML = `<button onclick="openMissionSelect()">Mission Mode<br><span style="font-size:12px">15 Sectors</span></button><button class="btn-infinite" onclick="startInfinite()">Infinite Mode<br><span style="font-size:12px">Endless Scaling</span></button><button style="border-color:#ff0055; color:#ff0055; box-shadow: 0 0 20px #ff0055;" onclick="startBossRush()">Boss Rush<br><span style="font-size:12px">${rushLabel}</span></button>${secretBtn}${paradoxBtn}<button style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;" onclick="startTraining()">Training Camp<br><span style="font-size:12px">Test Weapons</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00;" onclick="openShop()">The Hangar<br><span style="font-size:12px">Black Market</span></button><button style="border-color:#fff; color:#fff;" onclick="openSettings()">Settings<br><span style="font-size:12px">Sys Config</span></button>`;
             document.getElementById('menu-coin-display').style.display = 'block'; document.getElementById('mobile-controls').style.display = 'none';
         }
 
@@ -2846,7 +2875,6 @@
                 if (isUnlocked) { btn.innerText = "UNLOCKED"; btn.style.background = '#ff8800'; btn.style.color = '#000'; btn.disabled = true; } else { let costText = upg.price >= 1000000 ? (upg.price/1000000) + 'M' : (upg.price >= 1000 ? (upg.price/1000) + 'K' : upg.price); btn.innerText = `BUY: ${costText}`; if (totalCoins >= upg.price) { btn.onclick = () => { totalCoins -= upg.price; purchasedUpgrades.push(id); localStorage.setItem('neonVoidCoins', totalCoins); localStorage.setItem('neonVoidUpgrades', JSON.stringify(purchasedUpgrades)); playSound('buy'); cloudSave(); renderShop(); }; } else { btn.style.opacity = '0.5'; btn.style.cursor = 'not-allowed'; } }
                 card.appendChild(btn); upGrid.appendChild(card);
             }
-            renderPrestige();
         }
         
         function initGameBase() { player = new Player(); activeBoss = null; asteroids = []; exhaustParticles = []; entities = { bullets: [], enemies: [], eBullets: [], particles: [], powerups: [], texts: [], stars: [], trails: [] }; let starCount = appSettings.graphics === 'low' ? 40 : 150; for(let i=0; i<starCount; i++) entities.stars.push(new Star()); ui.mainOverlay.classList.add('hidden'); document.getElementById('mission-select').classList.add('hidden'); document.getElementById('shop-screen').classList.add('hidden'); document.getElementById('settings-screen').classList.add('hidden'); ui.boss.style.display = 'none'; ui.bossAlert.style.display = 'none'; ui.kills.innerText = "KILLS: 0"; mobileAutoShoot = false; document.getElementById('mob-shoot').style.background = 'rgba(0,255,204,0.2)'; document.getElementById('mob-shoot').style.color = '#00ffcc'; document.getElementById('mobile-controls').style.display = appSettings.mobile ? 'flex' : 'none'; if(audioCtx.state === 'suspended') audioCtx.resume(); killStreak = 0; lastScoreEggCheck = 0; idleFrames = 0; idleMessageShown = false; killFlavorCooldown = 0; lastComboMilestone = 0; muzzleFlashes = []; slowMoActive = false; slowMoFrames = 0; stopMenuMusic(); stopMenuBg(); showCountdown(); if (appSettings.music) startMusic(); update(); }
@@ -2877,10 +2905,8 @@
         
         function gameOver() { state.active = false; saveRunCoins(); triggerChroma(6);
             let elapsed = Math.floor(state.frame / 60); let mins = Math.floor(elapsed / 60); let secs = elapsed % 60;
-            let dailyStr = '';
-            if (state.isDaily) { let isNew = saveDailyScore(Math.floor(state.score)); dailyStr = `<br><span style="color:#ff8800; font-size:16px;">DAILY: ${state.dailyMod.name}</span>${isNew ? '<br><span style="color:#00ff00;">NEW DAILY BEST!</span>' : ''}`; }
             let kpm = elapsed > 0 ? ((state.kills / elapsed) * 60).toFixed(1) : '0';
-            ui.mainOverlay.classList.remove('hidden'); ui.mainOverlay.classList.remove('win-theme'); ui.boss.style.display = 'none'; document.getElementById('mobile-controls').style.display = 'none'; document.getElementById('menu-coin-display').style.display = 'none'; ui.mainTitle.innerText = "YOU DIED"; ui.mainTitle.style.color = "transparent"; ui.mainTitle.style.webkitTextStroke = "3px #ff0055"; ui.mainTitle.style.textShadow = "0 0 50px #ff0055"; ui.mainDesc.innerHTML = `THE VOID CLAIMED YOU. YOUR FAMILY IS LOST FOREVER.<br><br><table style="margin:10px auto; border:1px solid rgba(255,0,85,0.3); border-collapse:collapse; font-size:16px;"><tr><td style="padding:6px 20px; color:#666; text-align:left;">SCORE</td><td style="padding:6px 20px; color:#00ffcc; font-size:22px; text-align:right;">${Math.floor(state.score).toLocaleString()}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">KILLS</td><td style="padding:6px 20px; color:#ff8800; font-size:22px; text-align:right;">${state.kills}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">LEVEL</td><td style="padding:6px 20px; color:#aa00ff; font-size:22px; text-align:right;">${state.level}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">BOSSES</td><td style="padding:6px 20px; color:#ff0055; font-size:22px; text-align:right;">${state.bossesDefeated}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">TIME</td><td style="padding:6px 20px; color:#fff; font-size:20px; text-align:right;">${mins}m ${secs.toString().padStart(2,'0')}s</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">KILLS/MIN</td><td style="padding:6px 20px; color:#ff8800; font-size:18px; text-align:right;">${kpm}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">COINS</td><td style="padding:6px 20px; color:#ffcc00; font-size:22px; text-align:right;">+${state.runCoins.toLocaleString()}</td></tr></table>${dailyStr}`; if (state.mode === 'mission') ui.menuBtns.innerHTML = `<button onclick="startMission(${state.currentStage})">Retry Sector</button><button onclick="returnToMenu()">Main Menu</button>`; else if (state.mode === 'boss_rush') ui.menuBtns.innerHTML = `<button onclick="startBossRush()">Retry Boss Rush</button><button onclick="returnToMenu()">Main Menu</button>`; else if (state.mode === 'coop') ui.menuBtns.innerHTML = `<button onclick="leaveLobby()">Leave Game</button><button onclick="returnToMenu()">Main Menu</button>`; else if (state.isDaily) ui.menuBtns.innerHTML = `<button onclick="startDailyChallenge()">Retry Daily</button><button onclick="returnToMenu()">Main Menu</button>`; else ui.menuBtns.innerHTML = `<button onclick="startInfinite()">Retry Infinite</button><button onclick="returnToMenu()">Main Menu</button>`; }
+            ui.mainOverlay.classList.remove('hidden'); ui.mainOverlay.classList.remove('win-theme'); ui.boss.style.display = 'none'; document.getElementById('mobile-controls').style.display = 'none'; document.getElementById('menu-coin-display').style.display = 'none'; ui.mainTitle.innerText = "YOU DIED"; ui.mainTitle.style.color = "transparent"; ui.mainTitle.style.webkitTextStroke = "3px #ff0055"; ui.mainTitle.style.textShadow = "0 0 50px #ff0055"; ui.mainDesc.innerHTML = `THE VOID CLAIMED YOU. YOUR FAMILY IS LOST FOREVER.<br><br><table style="margin:10px auto; border:1px solid rgba(255,0,85,0.3); border-collapse:collapse; font-size:16px;"><tr><td style="padding:6px 20px; color:#666; text-align:left;">SCORE</td><td style="padding:6px 20px; color:#00ffcc; font-size:22px; text-align:right;">${Math.floor(state.score).toLocaleString()}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">KILLS</td><td style="padding:6px 20px; color:#ff8800; font-size:22px; text-align:right;">${state.kills}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">LEVEL</td><td style="padding:6px 20px; color:#aa00ff; font-size:22px; text-align:right;">${state.level}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">BOSSES</td><td style="padding:6px 20px; color:#ff0055; font-size:22px; text-align:right;">${state.bossesDefeated}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">TIME</td><td style="padding:6px 20px; color:#fff; font-size:20px; text-align:right;">${mins}m ${secs.toString().padStart(2,'0')}s</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">KILLS/MIN</td><td style="padding:6px 20px; color:#ff8800; font-size:18px; text-align:right;">${kpm}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">COINS</td><td style="padding:6px 20px; color:#ffcc00; font-size:22px; text-align:right;">+${state.runCoins.toLocaleString()}</td></tr></table>`; if (state.mode === 'mission') ui.menuBtns.innerHTML = `<button onclick="startMission(${state.currentStage})">Retry Sector</button><button onclick="returnToMenu()">Main Menu</button>`; else if (state.mode === 'boss_rush') ui.menuBtns.innerHTML = `<button onclick="startBossRush()">Retry Boss Rush</button><button onclick="returnToMenu()">Main Menu</button>`; else if (state.mode === 'coop') ui.menuBtns.innerHTML = `<button onclick="leaveLobby()">Leave Game</button><button onclick="returnToMenu()">Main Menu</button>`; else ui.menuBtns.innerHTML = `<button onclick="startInfinite()">Retry Infinite</button><button onclick="returnToMenu()">Main Menu</button>`; }
         
         function stageCleared() { state.active = false; saveRunCoins(); let elapsed = Math.floor(state.frame / 60); let mins = Math.floor(elapsed / 60); let secs = elapsed % 60; ui.mainOverlay.classList.remove('hidden'); ui.mainOverlay.classList.add('win-theme'); ui.boss.style.display = 'none'; document.getElementById('mobile-controls').style.display = 'none'; document.getElementById('menu-coin-display').style.display = 'none'; canvas.style.display = 'none'; ui.mainTitle.innerText = `SECTOR ${state.currentStage} CLEARED`; ui.mainTitle.style.color = 'transparent'; ui.mainTitle.style.webkitTextStroke = "3px #00ffcc"; ui.mainTitle.style.textShadow = "0 0 50px #00ffcc"; ui.mainDesc.innerHTML = `THREAT NEUTRALIZED. YOU ARE GETTING CLOSER.<br><br><table style="margin:10px auto;border:1px solid rgba(0,255,204,0.2);border-collapse:collapse;font-size:16px;"><tr><td style="padding:8px 20px;color:#666;text-align:left;">SCORE</td><td style="padding:8px 20px;color:#00ffcc;font-size:22px;text-align:right;">${Math.floor(state.score).toLocaleString()}</td></tr><tr><td style="padding:8px 20px;color:#666;text-align:left;">KILLS</td><td style="padding:8px 20px;color:#ff8800;font-size:22px;text-align:right;">${state.kills}</td></tr><tr><td style="padding:8px 20px;color:#666;text-align:left;">TIME</td><td style="padding:8px 20px;color:#fff;font-size:20px;text-align:right;">${mins}m ${secs.toString().padStart(2,'0')}s</td></tr><tr><td style="padding:8px 20px;color:#666;text-align:left;">COINS</td><td style="padding:8px 20px;color:#ffcc00;font-size:22px;text-align:right;">+${state.runCoins.toLocaleString()}</td></tr></table>`; ui.menuBtns.innerHTML = `<button onclick="canvas.style.display='';startMission(${state.currentStage + 1})">Next Sector</button><button onclick="canvas.style.display='';returnToMenu()">Main Menu</button>`; }
         
@@ -3247,9 +3273,9 @@
             5: { text: 'MEGA KILL', color: '#ff0055' },
             7: { text: 'UNSTOPPABLE', color: '#ff00ff' },
             10: { text: 'GODLIKE', color: '#ffffff' },
-            15: { text: 'TRUE SUN GOD', color: '#ffff00' },
-            20: { text: 'NOTHING GETS PAST MY BOW!', color: '#00ff88' },
-            30: { text: 'VENGEFUL AVATAR', color: '#ff0000' }
+            15: { text: 'ANNIHILATOR', color: '#ffff00' },
+            20: { text: 'EXTINCTION EVENT', color: '#00ff88' },
+            30: { text: 'VOID ASCENDANT', color: '#ff0000' }
         };
 
         function registerKill() {
@@ -3321,41 +3347,6 @@
                 `TIME: <span>${mins}m ${secs.toString().padStart(2,'0')}s</span>`;
         }
 
-        // ==================== PILOT STATS (PERSISTENT) ====================
-        let playerStats = { totalKills: 0, highScore: 0, totalCoinsEarned: 0, gamesPlayed: 0, highestLevel: 0, bossesDefeated: 0, playTime: 0 };
-        try { let ps = JSON.parse(localStorage.getItem('neonVoidPlayerStats')); if (ps) playerStats = { ...playerStats, ...ps }; } catch(e) {}
-
-        function savePlayerStats() { localStorage.setItem('neonVoidPlayerStats', JSON.stringify(playerStats)); }
-
-        function updatePlayerStatsOnGameOver() {
-            playerStats.totalKills += state.kills;
-            playerStats.totalCoinsEarned += state.runCoins;
-            playerStats.gamesPlayed++;
-            if (state.score > playerStats.highScore) playerStats.highScore = state.score;
-            if (state.level > playerStats.highestLevel) playerStats.highestLevel = state.level;
-            playerStats.bossesDefeated += state.bossesDefeated;
-            playerStats.playTime += Math.floor(state.frame / 60);
-            savePlayerStats();
-        }
-
-        function openStats() {
-            ui.mainOverlay.classList.add('hidden');
-            document.getElementById('stats-screen').classList.remove('hidden');
-            let c = document.getElementById('stats-content');
-            let time = playerStats.playTime;
-            let hrs = Math.floor(time / 3600);
-            let mins = Math.floor((time % 3600) / 60);
-            c.innerHTML = [
-                ['TOTAL KILLS', playerStats.totalKills.toLocaleString()],
-                ['HIGH SCORE', Math.floor(playerStats.highScore).toLocaleString()],
-                ['LIFETIME COINS', playerStats.totalCoinsEarned.toLocaleString()],
-                ['GAMES PLAYED', playerStats.gamesPlayed],
-                ['HIGHEST LEVEL', playerStats.highestLevel],
-                ['BOSSES DEFEATED', playerStats.bossesDefeated],
-                ['PLAY TIME', hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`]
-            ].map(([l, v]) => `<div class="stat-row"><span class="stat-label">${l}</span><span class="stat-value">${v}</span></div>`).join('');
-        }
-
         // ==================== LOW HP VIGNETTE ====================
         function updateLowHpVignette() {
             let pct = player.hp / state.stats.maxHp;
@@ -3372,7 +3363,7 @@
                 lastWaveLevel = state.level;
                 let el = document.getElementById('wave-announce');
                 el.querySelector('.wave-text').textContent = `WAVE ${state.level}`;
-                let subs = ['THEY ARE COMING', 'BRACE YOURSELF', 'HOLD THE LINE', 'NO RETREAT', 'ENGAGE', 'VOID BREACH', 'INCOMING', 'NOTHING GETS PAST MY BOW', 'ROUND 63 VIBES', 'WHERE IS THE TRUE SUN GOD', 'QUINCY APPROVES', 'POP THEM ALL', 'LIKE ROUND 98 ALL OVER AGAIN', 'FORTIFIED AND CAMO', 'MONKEY KNOWLEDGE ACTIVATED'];
+                let subs = ['THEY ARE COMING', 'BRACE YOURSELF', 'HOLD THE LINE', 'NO RETREAT', 'ENGAGE', 'VOID BREACH', 'INCOMING', 'SHIELDS FAILING', 'THREAT LEVEL RISING', 'HULL BREACH IMMINENT', 'REACTOR CRITICAL', 'ANOMALY DETECTED', 'VOID SURGE', 'SYSTEMS OVERLOADED', 'MAXIMUM OVERDRIVE'];
                 let specialSub = SPECIAL_WAVES[state.level];
                 el.querySelector('.wave-sub').textContent = specialSub || subs[Math.floor(Math.random() * subs.length)];
                 el.style.opacity = '1';
@@ -3926,113 +3917,6 @@
         }
         window.addEventListener('resize', () => { if (menuAnimId) { menuCanvas.width = window.innerWidth; menuCanvas.height = window.innerHeight; } });
 
-        // ==================== ACHIEVEMENT SYSTEM ====================
-        const ACHIEVEMENTS = {
-            first_blood: { name: 'FIRST BLOOD', desc: 'Kill your first enemy', icon: '💀' },
-            centurion: { name: 'CENTURION', desc: 'Kill 100 enemies total', icon: '⚔️' },
-            mass_extinction: { name: 'MASS EXTINCTION', desc: 'Kill 1,000 enemies total', icon: '☠️' },
-            genocide: { name: 'VOID PURGER', desc: 'Kill 10,000 enemies total', icon: '🔥' },
-            boss_hunter: { name: 'BOSS HUNTER', desc: 'Defeat your first boss', icon: '👹' },
-            boss_slayer: { name: 'BOSS SLAYER', desc: 'Defeat 10 bosses total', icon: '🗡️' },
-            boss_legend: { name: 'BOSS LEGEND', desc: 'Defeat 50 bosses total', icon: '👑' },
-            rich: { name: 'SPACE MOGUL', desc: 'Earn 50,000 lifetime coins', icon: '💰' },
-            tycoon: { name: 'VOID TYCOON', desc: 'Earn 500,000 lifetime coins', icon: '💎' },
-            veteran: { name: 'VETERAN PILOT', desc: 'Play 10 games', icon: '🎖️' },
-            deep_void: { name: 'DEEP VOID', desc: 'Reach level 20 in a run', icon: '🌀' },
-            abyss: { name: 'THE ABYSS', desc: 'Reach level 50 in a run', icon: '🕳️' },
-            six_figures: { name: 'SIX FIGURES', desc: 'Score 100,000 points', icon: '📊' },
-            millionaire: { name: 'MILLIONAIRE', desc: 'Score 1,000,000 points', icon: '🏆' },
-            speed_demon: { name: 'SPEED DEMON', desc: 'Get a 10+ kill streak', icon: '⚡' },
-            untouchable: { name: 'UNTOUCHABLE', desc: 'Reach level 10 without taking damage', icon: '🛡️' },
-            shopaholic: { name: 'SHOPAHOLIC', desc: 'Buy 5 upgrades from the hangar', icon: '🛒' },
-            combo_king: { name: 'COMBO KING', desc: 'Reach x5.0 combo', icon: '🔗' },
-            marathon: { name: 'MARATHON', desc: 'Play for 30 minutes total', icon: '⏱️' },
-            quincy_approved: { name: 'NOTHING GETS PAST', desc: 'Achieve a 20 kill streak', icon: '🏹' },
-            round_100: { name: 'ROUND 100', desc: 'Reach level 100 in a run', icon: '💯' },
-            boss_rush: { name: 'RUSH MASTER', desc: 'Complete Boss Rush mode', icon: '🏎️' },
-            prestige_1: { name: 'REBORN', desc: 'Prestige for the first time', icon: '🔄' },
-            prestige_5: { name: 'TRANSCENDED', desc: 'Reach Prestige level 5', icon: '✨' },
-            paradox_slayer: { name: 'PARADOX SLAYER', desc: 'Defeat the Chronos Paradox', icon: '⏳' },
-            perfect_run: { name: 'FLAWLESS', desc: 'Beat Sector 15 at full HP', icon: '💎' },
-            max_combo: { name: 'COMBO GOD', desc: 'Reach x10.0 combo', icon: '🔥' },
-            collector: { name: 'COLLECTOR', desc: 'Buy all upgrades from the hangar', icon: '🏪' }
-        };
-        let unlockedAchievements = [];
-        try { let a = JSON.parse(localStorage.getItem('neonVoidAchievements')); if (Array.isArray(a)) unlockedAchievements = a; } catch(e) {}
-        let achQueue = [];
-        let achShowing = false;
-
-        function checkAchievements() {
-            let checks = {
-                first_blood: () => playerStats.totalKills >= 1,
-                centurion: () => playerStats.totalKills >= 100,
-                mass_extinction: () => playerStats.totalKills >= 1000,
-                genocide: () => playerStats.totalKills >= 10000,
-                boss_hunter: () => playerStats.bossesDefeated >= 1,
-                boss_slayer: () => playerStats.bossesDefeated >= 10,
-                boss_legend: () => playerStats.bossesDefeated >= 50,
-                rich: () => playerStats.totalCoinsEarned >= 50000,
-                tycoon: () => playerStats.totalCoinsEarned >= 500000,
-                veteran: () => playerStats.gamesPlayed >= 10,
-                deep_void: () => playerStats.highestLevel >= 20,
-                abyss: () => playerStats.highestLevel >= 50,
-                six_figures: () => playerStats.highScore >= 100000,
-                millionaire: () => playerStats.highScore >= 1000000,
-                speed_demon: () => killStreak >= 10,
-                shopaholic: () => purchasedUpgrades.length >= 5,
-                combo_king: () => state.combo >= 5.0,
-                marathon: () => playerStats.playTime >= 1800,
-                quincy_approved: () => killStreak >= 20,
-                round_100: () => playerStats.highestLevel >= 100,
-                boss_rush: () => parseInt(localStorage.getItem('neonVoidBossRushBest')) > 0,
-                prestige_1: () => prestigeLevel >= 1,
-                prestige_5: () => prestigeLevel >= 5,
-                paradox_slayer: () => parseInt(localStorage.getItem('neonVoidStage')) >= 16,
-                perfect_run: () => state.currentStage === 15 && player && player.hp >= state.stats.maxHp && !state.active,
-                max_combo: () => state.combo >= 10.0,
-                collector: () => purchasedUpgrades.length >= Object.keys(PERMANENT_UPGRADES).length
-            };
-            for (let [id, check] of Object.entries(checks)) {
-                if (!unlockedAchievements.includes(id) && check()) {
-                    unlockedAchievements.push(id);
-                    localStorage.setItem('neonVoidAchievements', JSON.stringify(unlockedAchievements));
-                    cloudSave();
-                    achQueue.push(id);
-                }
-            }
-            if (achQueue.length > 0 && !achShowing) showNextAchievement();
-        }
-        function showNextAchievement() {
-            if (achQueue.length === 0) { achShowing = false; return; }
-            achShowing = true;
-            let id = achQueue.shift();
-            let ach = ACHIEVEMENTS[id];
-            document.getElementById('ach-popup-name').textContent = ach.name;
-            document.getElementById('ach-popup-desc').textContent = ach.desc;
-            document.getElementById('achievement-popup').classList.add('show');
-            playSound('powerup');
-            setTimeout(() => {
-                document.getElementById('achievement-popup').classList.remove('show');
-                setTimeout(() => showNextAchievement(), 500);
-            }, 3000);
-        }
-        function openAchievements() {
-            ui.mainOverlay.classList.add('hidden');
-            document.getElementById('achievement-screen').classList.remove('hidden');
-            let grid = document.getElementById('ach-grid');
-            grid.innerHTML = '';
-            let total = Object.keys(ACHIEVEMENTS).length;
-            let unlocked = unlockedAchievements.length;
-            document.getElementById('ach-progress').textContent = `${unlocked} / ${total} UNLOCKED`;
-            for (let [id, ach] of Object.entries(ACHIEVEMENTS)) {
-                let isUnlocked = unlockedAchievements.includes(id);
-                let card = document.createElement('div');
-                card.className = 'ach-card' + (isUnlocked ? ' unlocked' : '');
-                card.innerHTML = `<div class="ach-card-name">${isUnlocked ? ach.icon + ' ' : '🔒 '}${ach.name}</div><div class="ach-card-desc">${ach.desc}</div>`;
-                grid.appendChild(card);
-            }
-        }
-
         // ==================== ASTEROID HAZARDS ====================
         let asteroids = [];
         class Asteroid {
@@ -4298,7 +4182,7 @@
             13: "UNLUCKY FOR SOME",
             42: "THE ANSWER TO EVERYTHING",
             50: "HALFWAY TO MADNESS",
-            63: "ROUND 63 PTSD",
+            63: "THE VOID STARES BACK",
             69: "NICE",
             99: "THE FINAL COUNTDOWN",
             100: "WELCOME TO THE ENDGAME",
@@ -4400,62 +4284,6 @@
             }
         });
 
-        // ==================== DAILY CHALLENGE ====================
-        function getDailySeed() {
-            let d = new Date();
-            return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
-        }
-
-        const DAILY_MODIFIERS = [
-            { name: "GLASS CANNON", desc: "3x damage, 50% HP", apply: () => { state.stats.dmgMulti *= 3; state.stats.maxHp = Math.floor(state.stats.maxHp * 0.5); player.hp = state.stats.maxHp; } },
-            { name: "BULLET HELL", desc: "Enemies fire 2x faster", apply: () => { state.difficulty *= 1.5; } },
-            { name: "SPEED DEMON", desc: "Everything moves 1.5x faster", apply: () => { state.stats.speedMulti *= 1.5; state.hyper = true; } },
-            { name: "SHIELD ONLY", desc: "No HP regen, start with 200 shield", apply: () => { player.shield = 200; state.stats.vampirism = 0; } },
-            { name: "RICOCHET", desc: "+3 pierce on all shots", apply: () => { state.stats.pierce += 3; } },
-            { name: "MINIGUN MADNESS", desc: "4x fire rate, 0.3x damage", apply: () => { state.stats.fireRateMulti *= 4; state.stats.dmgMulti *= 0.3; } },
-            { name: "TITAN MODE", desc: "2x HP, 0.5x speed, 2x damage", apply: () => { state.stats.maxHp *= 2; player.hp = state.stats.maxHp; state.stats.speedMulti *= 0.5; state.stats.dmgMulti *= 2; } },
-            { name: "NO CHILL", desc: "Combo decays 3x faster, 2x score", apply: () => { state.comboDecayRate = 3; state.dailyScoreMulti = 2; } },
-            { name: "VOID WALKER", desc: "Permanent magnet, enemies are faster", apply: () => { state.stats.magnet = true; } },
-            { name: "EXPLOSIVE ROUNDS", desc: "All shots explode, lower fire rate", apply: () => { state.stats.explosive = true; state.stats.fireRateMulti *= 0.6; } }
-        ];
-
-        function getDailyChallenge() {
-            let seed = getDailySeed();
-            let idx = seed % DAILY_MODIFIERS.length;
-            return DAILY_MODIFIERS[idx];
-        }
-
-        function getDailyBestScore() {
-            try {
-                let data = JSON.parse(localStorage.getItem('neonVoidDaily'));
-                if (data && data.seed === getDailySeed()) return data.score;
-            } catch(e) {}
-            return 0;
-        }
-
-        function saveDailyScore(score) {
-            let seed = getDailySeed();
-            let best = getDailyBestScore();
-            if (score > best) {
-                localStorage.setItem('neonVoidDaily', JSON.stringify({ seed, score }));
-                return true;
-            }
-            return false;
-        }
-
-        function startDailyChallenge() {
-            let challenge = getDailyChallenge();
-            ui.mainOverlay.classList.add('hidden');
-            showWeaponSelect(() => {
-                state = { active: true, paused: false, mode: 'infinite', frame: 0, score: 0, combo: 1, xp: 0, level: 1, xpNeeded: 100, runCoins: 0, kills: 0, shake: 0, currentStage: 1, bossesDefeated: 0, difficulty: 1, nextBossLevel: 5, spawningBoss: false, warping: true, warpFrames: 0, hardcore: false, hyper: false, stats: getBaseStats(), isDaily: true, dailyMod: challenge };
-                if (selectedWeapon) selectedWeapon.apply();
-                lastWaveLevel = 0; nextMilestoneIdx = 0; dashGhosts = [];
-                let sysName = `DAILY: ${challenge.name}`; ui.status.innerText = sysName; initGameBase();
-                challenge.apply();
-                if (player) player.hp = state.stats.maxHp;
-            });
-        }
-
         // ==================== BOSS RUSH MODE ====================
         function startBossRush() {
             showWeaponSelect(() => {
@@ -4498,55 +4326,6 @@
             15: { title: "SYSTEM RESTORED", text: "It's over. The Glitch is purged. The neural patterns are stabilizing. Somewhere in the data, I can feel them. My family. They're coming home." }
         };
 
-        function openCodex() {
-            ui.mainOverlay.classList.add('hidden');
-            document.getElementById('shop-screen').classList.add('hidden');
-            document.getElementById('codex-screen').classList.remove('hidden');
-            let grid = document.getElementById('codex-grid');
-            grid.innerHTML = '';
-            let unlockedRaw = localStorage.getItem('neonVoidStage'); let unlocked = parseInt(unlockedRaw); if(isNaN(unlocked) || unlocked < 1) unlocked = 1;
-            for (let i = 1; i <= 15; i++) {
-                let log = PILOT_LOGS[i];
-                let isUnlocked = i <= unlocked;
-                let card = document.createElement('div');
-                card.style.cssText = `border: 2px solid ${isUnlocked ? '#ff8800' : '#333'}; padding: 15px 20px; background: rgba(0,0,0,0.8);`;
-                if (isUnlocked) {
-                    card.innerHTML = `<div style="color:#ff8800; font-weight:bold; font-size:16px; margin-bottom:5px;">SECTOR ${i}: ${log.title}</div><div style="color:#ccc; font-size:13px; line-height:1.5;">${log.text}</div>`;
-                } else {
-                    card.innerHTML = `<div style="color:#333; font-weight:bold; font-size:16px;">SECTOR ${i}: [CLASSIFIED]</div><div style="color:#333; font-size:13px;">Complete sector ${i} to decrypt this log.</div>`;
-                }
-                grid.appendChild(card);
-            }
-        }
-
-        function closeCodex() {
-            document.getElementById('codex-screen').classList.add('hidden');
-            document.getElementById('shop-screen').classList.remove('hidden');
-        }
-
-        // ==================== PRESTIGE SYSTEM ====================
-        function prestigeReset() {
-            if (totalCoins < 1000000 * (prestigeLevel + 1)) return;
-            prestigeLevel++;
-            localStorage.setItem('neonVoidPrestige', prestigeLevel);
-            totalCoins = 0; purchasedUpgrades = [];
-            localStorage.setItem('neonVoidCoins', '0');
-            localStorage.setItem('neonVoidUpgrades', '[]');
-            playSound('powerup');
-            renderShop();
-        }
-
-        function renderPrestige() {
-            let section = document.getElementById('prestige-section');
-            let cost = 1000000 * (prestigeLevel + 1);
-            let costText = cost >= 1000000 ? (cost/1000000) + 'M' : (cost/1000) + 'K';
-            let canPrestige = totalCoins >= cost;
-            section.innerHTML = `<div style="color:#aa00ff; font-size:18px; margin-bottom:10px;">PRESTIGE LEVEL: <span style="color:#fff; font-size:28px;">${prestigeLevel}</span></div>` +
-                (prestigeLevel > 0 ? `<div style="color:#888; font-size:14px; margin-bottom:10px;">BONUSES: +${prestigeLevel * 10}% DMG | +${prestigeLevel * 50} HP | +${prestigeLevel * 5}% Coins</div>` : '') +
-                `<div style="color:#888; font-size:13px; margin-bottom:15px;">Reset coins & upgrades for permanent stat bonuses.</div>` +
-                `<button onclick="prestigeReset()" style="border-color:${canPrestige ? '#aa00ff' : '#555'}; color:${canPrestige ? '#aa00ff' : '#555'}; box-shadow: 0 0 20px ${canPrestige ? '#aa00ff' : 'transparent'}; ${canPrestige ? '' : 'cursor:not-allowed; opacity:0.5;'}">PRESTIGE (${costText} coins)</button>`;
-        }
-
         // ==================== SAVE EXPORT/IMPORT ====================
         function exportSave() {
             let data = {};
@@ -4580,8 +4359,77 @@
             input.click();
         }
 
-        // ==================== SYNC CODE SYSTEM ====================
-        function cloudSave() {} // No-op, sync is manual via codes
+        // ==================== CLOUD SAVE SYSTEM (replaces manual sync) ====================
+        let PROFILE_BLOB_ID = localStorage.getItem('neonVoidProfileBlobId') || '';
+        let PROFILE_API = PROFILE_BLOB_ID ? `https://jsonblob.com/api/jsonBlob/${PROFILE_BLOB_ID}` : '';
+        let cloudProfiles = {};
+        let lastCloudSave = 0;
+
+        async function ensureProfileBlob() {
+            if (PROFILE_BLOB_ID && PROFILE_API) return true;
+            try {
+                let res = await fetch('https://jsonblob.com/api/jsonBlob', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                if (res.ok) {
+                    let loc = res.headers.get('Location') || res.headers.get('x-jsonblob');
+                    if (loc) {
+                        PROFILE_BLOB_ID = loc.split('/').pop();
+                        PROFILE_API = `https://jsonblob.com/api/jsonBlob/${PROFILE_BLOB_ID}`;
+                        localStorage.setItem('neonVoidProfileBlobId', PROFILE_BLOB_ID);
+                        return true;
+                    }
+                }
+            } catch(e) { console.warn('Cloud save: failed to create profile blob', e); }
+            return false;
+        }
+
+        async function fetchCloudProfile(username) {
+            if (!username) return;
+            if (!await ensureProfileBlob()) return;
+            try {
+                let res = await fetch(PROFILE_API);
+                if (res.ok) { cloudProfiles = await res.json(); }
+            } catch(e) { console.warn('Cloud profile fetch failed'); }
+            let profile = cloudProfiles[username];
+            if (profile) {
+                if (profile.coins !== undefined) { totalCoins = profile.coins; localStorage.setItem('neonVoidCoins', totalCoins); }
+                if (profile.upgrades) { purchasedUpgrades = profile.upgrades; localStorage.setItem('neonVoidUpgrades', JSON.stringify(purchasedUpgrades)); }
+                if (profile.skins) { unlockedSkins = profile.skins; localStorage.setItem('neonVoidSkins', JSON.stringify(unlockedSkins)); }
+                if (profile.equippedSkin) { equippedSkin = profile.equippedSkin; localStorage.setItem('neonVoidEquippedSkin', equippedSkin); }
+                if (profile.stage) { localStorage.setItem('neonVoidStage', profile.stage); }
+                if (profile.settings) { appSettings = {...appSettings, ...profile.settings}; saveSettings(); }
+                if (profile.totalKills) { localStorage.setItem('neonVoidTotalKills', profile.totalKills); }
+            }
+        }
+
+        async function saveCloudProfile() {
+            if (!currentUsername || Date.now() - lastCloudSave < 10000) return;
+            lastCloudSave = Date.now();
+            if (!await ensureProfileBlob()) return;
+            try {
+                let res = await fetch(PROFILE_API);
+                if (res.ok) cloudProfiles = await res.json();
+            } catch(e) {}
+            cloudProfiles[currentUsername] = {
+                coins: totalCoins,
+                upgrades: purchasedUpgrades,
+                skins: unlockedSkins,
+                equippedSkin: equippedSkin,
+                stage: parseInt(localStorage.getItem('neonVoidStage')) || 1,
+                settings: appSettings,
+                totalKills: parseInt(localStorage.getItem('neonVoidTotalKills')) || 0,
+                timestamp: Date.now()
+            };
+            try {
+                await fetch(PROFILE_API, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(cloudProfiles) });
+            } catch(e) { console.warn('Cloud profile save failed'); }
+        }
+
+        // Backward-compatible alias: existing code calls cloudSave()
+        function cloudSave() { saveCloudProfile(); }
 
         function generateSyncCode() {
             let data = {};
@@ -4634,7 +4482,7 @@
         // --- Username / Login ---
         let currentUsername = localStorage.getItem('neonVoidUsername') || '';
 
-        function loginUser() {
+        async function loginUser() {
             const input = document.getElementById('username-input');
             const err = document.getElementById('login-error');
             const name = input.value.trim().replace(/[^a-zA-Z0-9_\-]/g, '');
@@ -4646,6 +4494,8 @@
             document.getElementById('player-tag').textContent = 'PILOT: ' + currentUsername;
             document.getElementById('player-tag').style.display = 'block';
             playSound('powerup');
+            // Restore cloud profile if available
+            await fetchCloudProfile(currentUsername);
             returnToMenu();
         }
 
@@ -4669,6 +4519,8 @@
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('player-tag').textContent = 'PILOT: ' + currentUsername;
                 document.getElementById('player-tag').style.display = 'block';
+                // Restore cloud profile on page load
+                fetchCloudProfile(currentUsername);
             } else {
                 document.getElementById('login-screen').classList.remove('hidden');
                 ui.mainOverlay.classList.add('hidden');
@@ -4775,6 +4627,8 @@
                         p.hp = data.hp;
                         p.maxHp = data.maxHp;
                         p.alive = data.alive;
+                        if (data.color) p.color = data.color;
+                        if (data.skin) p.skin = data.skin;
                     }
                     break;
                 case 'player-died':
@@ -4837,6 +4691,52 @@
                     entities.enemies = entities.enemies.filter(en => syncedIds.has(en.id));
                     break;
                 }
+                case 'boss-sync': {
+                    // Client receives authoritative boss state from host
+                    if (mpState.isHost) break;
+                    if (data.boss === null) {
+                        // Boss is dead or doesn't exist
+                        if (activeBoss && !activeBoss.isDead) {
+                            activeBoss.isDead = true;
+                            activeBoss.hp = 0;
+                            ui.boss.style.display = 'none';
+                        }
+                        activeBoss = null;
+                        break;
+                    }
+                    let bd = data.boss;
+                    if (!activeBoss || activeBoss.isDead || activeBoss.type !== bd.type) {
+                        // Create new boss on client
+                        activeBoss = new Boss(bd.idx || 0);
+                        activeBoss.bossIdx = bd.idx || 0;
+                    }
+                    // Interpolate position
+                    activeBoss.x = lerp(activeBoss.x, bd.x, 0.25);
+                    activeBoss.y = lerp(activeBoss.y, bd.y, 0.25);
+                    activeBoss.hp = bd.hp;
+                    activeBoss.maxHp = bd.maxHp;
+                    activeBoss.phase = bd.phase;
+                    activeBoss.angle = lerpAngle(activeBoss.angle, bd.angle, 0.25);
+                    activeBoss.frozen = bd.frozen;
+                    if (bd.alpha !== undefined) activeBoss.alpha = bd.alpha;
+                    // Update boss HUD
+                    let bHpPct = activeBoss.hp / activeBoss.maxHp;
+                    ui.bossHp.style.width = (bHpPct * 100) + '%';
+                    ui.bossName.innerText = activeBoss.name;
+                    break;
+                }
+                case 'boss-death':
+                    // Host tells client the boss died — play death effects
+                    if (!mpState.isHost) {
+                        spawnParticles(data.bx, data.by, data.color, 150, 5);
+                        shakeScreen(60); playSound('hit'); triggerSlowMo(45); triggerChroma(8);
+                        state.bossesDefeated++;
+                        if (activeBoss) { activeBoss.isDead = true; activeBoss.hp = 0; }
+                        activeBoss = null;
+                        ui.boss.style.display = 'none';
+                        entities.enemies = []; entities.eBullets = [];
+                    }
+                    break;
                 case 'player-hit':
                     // Host tells us we got hit
                     if (player && data.damage) player.takeDamage(data.damage);
@@ -5056,7 +4956,9 @@
                     angle: player.angle,
                     hp: player.hp,
                     maxHp: state.stats.maxHp,
-                    alive: player.hp > 0
+                    alive: player.hp > 0,
+                    color: (SKINS[equippedSkin] || SKINS['default']).color,
+                    skin: equippedSkin
                 });
             }
 
@@ -5072,6 +4974,25 @@
                     ed.push(entry);
                 }
                 broadcast({ type: 'enemy-sync', e: ed });
+            }
+
+            // Host broadcasts boss state every 4 frames for co-op sync
+            if (mpState.isHost && mpState.mode === 'coop' && state.frame % 4 === 0) {
+                if (activeBoss && !activeBoss.isDead) {
+                    broadcast({ type: 'boss-sync', boss: {
+                        idx: activeBoss.bossIdx || 0,
+                        x: Math.round(activeBoss.x), y: Math.round(activeBoss.y),
+                        hp: Math.round(activeBoss.hp), maxHp: activeBoss.maxHp,
+                        phase: activeBoss.phase, timer: Math.round(activeBoss.timer),
+                        angle: Math.round(activeBoss.angle * 100) / 100,
+                        frozen: activeBoss.frozen || 0,
+                        type: activeBoss.type, name: activeBoss.name,
+                        color: activeBoss.color, radius: activeBoss.radius,
+                        alpha: activeBoss.alpha !== undefined ? Math.round(activeBoss.alpha * 100) / 100 : 1
+                    }});
+                } else if (!activeBoss || activeBoss.isDead) {
+                    broadcast({ type: 'boss-sync', boss: null });
+                }
             }
 
             // Update race timer
@@ -5274,9 +5195,6 @@
             document.getElementById('lobby-browser').classList.add('hidden');
             document.getElementById('lobby-room').classList.add('hidden');
             document.getElementById('leaderboard-screen').classList.add('hidden');
-            document.getElementById('stats-screen').classList.add('hidden');
-            document.getElementById('achievement-screen').classList.add('hidden');
-            document.getElementById('codex-screen').classList.add('hidden');
             document.getElementById('mp-hud').style.display = 'none';
             document.getElementById('race-timer').style.display = 'none';
             document.getElementById('race-standings').style.display = 'none';
@@ -5301,9 +5219,7 @@
             let rushBest = parseInt(localStorage.getItem('neonVoidBossRushBest')) || 0;
             let rushLabel = rushBest > 0 ? `Best: ${Math.floor(rushBest/60)}m ${(rushBest%60).toString().padStart(2,'0')}s` : 'All 15 Bosses';
 
-            let dailyChallenge = getDailyChallenge();
-            let dailyBest = getDailyBestScore();
-            ui.menuBtns.innerHTML = `<button onclick="openMissionSelect()">Mission Mode<br><span style="font-size:12px">15 Sectors</span></button><button class="btn-infinite" onclick="startInfinite()">Infinite Mode<br><span style="font-size:12px">Endless Scaling</span></button><button style="border-color:#ff0055; color:#ff0055; box-shadow: 0 0 20px #ff0055;" onclick="startBossRush()">Boss Rush<br><span style="font-size:12px">${rushLabel}</span></button>${secretBtn}${paradoxBtn}<button style="border-color:#ff8800; color:#ff8800; box-shadow: 0 0 20px #ff8800;" onclick="startDailyChallenge()">Daily Challenge<br><span style="font-size:12px">${dailyChallenge.name}${dailyBest > 0 ? ' | Best: ' + dailyBest : ''}</span></button><button style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;" onclick="startTraining()">Training Camp<br><span style="font-size:12px">Test Weapons</span></button><button style="border-color:#00ffcc; color:#00ffcc; box-shadow: 0 0 20px #00ffcc;" onclick="openMultiplayer()">Multiplayer<br><span style="font-size:12px">Co-Op & Race</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00;" onclick="openShop()">The Hangar<br><span style="font-size:12px">Black Market</span></button><button style="border-color:#aa00ff; color:#aa00ff; box-shadow: 0 0 20px #aa00ff;" onclick="openLeaderboard()">Leaderboards<br><span style="font-size:12px">Top Pilots</span></button><button style="border-color:#00ffcc; color:#00ffcc; box-shadow: 0 0 20px #00ffcc;" onclick="openStats()">Pilot Stats<br><span style="font-size:12px">Career Record</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00;" onclick="openAchievements()">Achievements<br><span style="font-size:12px">${unlockedAchievements.length}/${Object.keys(ACHIEVEMENTS).length} Unlocked</span></button><button style="border-color:#fff; color:#fff;" onclick="openSettings()">Settings<br><span style="font-size:12px">Sys Config</span></button>`;
+            ui.menuBtns.innerHTML = `<button onclick="openMissionSelect()">Mission Mode<br><span style="font-size:12px">15 Sectors</span></button><button class="btn-infinite" onclick="startInfinite()">Infinite Mode<br><span style="font-size:12px">Endless Scaling</span></button><button style="border-color:#ff0055; color:#ff0055; box-shadow: 0 0 20px #ff0055;" onclick="startBossRush()">Boss Rush<br><span style="font-size:12px">${rushLabel}</span></button>${secretBtn}${paradoxBtn}<button style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;" onclick="startTraining()">Training Camp<br><span style="font-size:12px">Test Weapons</span></button><button style="border-color:#00ffcc; color:#00ffcc; box-shadow: 0 0 20px #00ffcc;" onclick="openMultiplayer()">Multiplayer<br><span style="font-size:12px">Co-Op & Race</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00;" onclick="openShop()">The Hangar<br><span style="font-size:12px">Black Market</span></button><button style="border-color:#aa00ff; color:#aa00ff; box-shadow: 0 0 20px #aa00ff;" onclick="openLeaderboard()">Leaderboards<br><span style="font-size:12px">Top Pilots</span></button><button style="border-color:#fff; color:#fff;" onclick="openSettings()">Settings<br><span style="font-size:12px">Sys Config</span></button>`;
             document.getElementById('menu-coin-display').style.display = 'block';
             document.getElementById('mobile-controls').style.display = 'none';
         };
@@ -5311,19 +5227,15 @@
         // --- Override gameOver to hook multiplayer + leaderboards ---
         const _origGameOver = gameOver;
         gameOver = function() {
-            // Save leaderboard + stats
+            // Save leaderboard
             let lbName = currentUsername || 'ANON';
-            if (state.isDaily) {
-                addLeaderboardEntry('daily', lbName, state.score);
-            } else if (state.mode === 'boss_rush') {
+            if (state.mode === 'boss_rush') {
                 addLeaderboardEntry('boss_rush', lbName, state.bossesDefeated);
             } else if (state.mode === 'infinite' || state.mode === 'coop') {
                 addLeaderboardEntry('infinite', lbName, state.score);
             } else if (state.mode === 'mission') {
                 addLeaderboardEntry('infinite', lbName, state.score);
             }
-            updatePlayerStatsOnGameOver();
-            checkAchievements();
             stopMusic();
             startMenuBg();
             if (appSettings.music) startMenuMusic();
@@ -5348,280 +5260,9 @@
 
         // AFK Patrol system removed
 
-        // ==================== DAILY LOGIN REWARDS ====================
-        const DAILY_REWARDS = [
-            { day: 1, coins: 5000, desc: '5,000 COINS' },
-            { day: 2, coins: 10000, desc: '10,000 COINS' },
-            { day: 3, coins: 20000, desc: '20,000 COINS' },
-            { day: 4, coins: 50000, desc: '50,000 COINS' },
-            { day: 5, coins: 100000, desc: '100,000 COINS' },
-            { day: 6, coins: 200000, desc: '200,000 COINS' },
-            { day: 7, coins: 500000, desc: '500K + RANDOM GEAR' }
-        ];
 
-        function checkDailyLogin() {
-            let today = new Date().toDateString();
-            let lastLogin = localStorage.getItem('neonVoidDailyLoginDate');
-            if (lastLogin === today) return null; // Already claimed today
-            let streak = parseInt(localStorage.getItem('neonVoidLoginStreak')) || 0;
-            let lastLoginDate = new Date(lastLogin || 0);
-            let todayDate = new Date(today);
-            let diff = (todayDate - lastLoginDate) / (1000 * 60 * 60 * 24);
-            if (diff > 2) streak = 0; // Reset streak if missed a day
-            streak = Math.min(streak, 6); // 0-6 index (days 1-7)
-            return { streak: streak, reward: DAILY_REWARDS[streak] };
-        }
 
-        function claimDailyLogin(streak) {
-            let reward = DAILY_REWARDS[streak];
-            totalCoins += reward.coins;
-            localStorage.setItem('neonVoidCoins', totalCoins);
-            localStorage.setItem('neonVoidDailyLoginDate', new Date().toDateString());
-            localStorage.setItem('neonVoidLoginStreak', streak + 1);
-            // Day 7 bonus: random gear
-            if (streak === 6) {
-                let gear = generateRandomGear(2); // Epic rarity minimum
-                saveGear(gear);
-            }
-            playSound('powerup');
-        }
-
-        function showDailyLoginPopup(loginData) {
-            if (!loginData) return;
-            let popup = document.createElement('div');
-            popup.id = 'daily-popup';
-            popup.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:monospace;';
-            let daysHtml = DAILY_REWARDS.map((r, i) => {
-                let isCurrent = i === loginData.streak;
-                let claimed = i < loginData.streak;
-                let locked = i > loginData.streak;
-                let border = isCurrent ? '#ffcc00' : (claimed ? '#00ff88' : '#333');
-                let bg = isCurrent ? 'rgba(255,204,0,0.15)' : (claimed ? 'rgba(0,255,136,0.08)' : 'rgba(30,30,30,0.8)');
-                let textCol = isCurrent ? '#ffcc00' : (claimed ? '#00ff88' : '#555');
-                return `<div style="padding:12px 8px;border:2px solid ${border};background:${bg};text-align:center;border-radius:8px;min-width:70px;">
-                    <div style="font-size:11px;color:${textCol};">DAY ${i+1}</div>
-                    <div style="font-size:13px;color:${textCol};font-weight:bold;margin-top:4px;">${r.desc}</div>
-                    ${claimed ? '<div style="color:#00ff88;font-size:16px;">✓</div>' : ''}
-                    ${isCurrent ? '<div style="color:#ffcc00;font-size:11px;margin-top:2px;">TODAY</div>' : ''}
-                </div>`;
-            }).join('');
-            popup.innerHTML = `
-                <div style="font-size:14px;color:#ffcc00;letter-spacing:8px;margin-bottom:8px;">DAILY LOGIN</div>
-                <div style="font-size:32px;color:#fff;font-weight:900;margin-bottom:5px;">DAY ${loginData.streak + 1} REWARD</div>
-                <div style="font-size:14px;color:#666;margin-bottom:25px;">Log in every day for increasing rewards!</div>
-                <div style="display:flex;gap:8px;margin-bottom:25px;flex-wrap:wrap;justify-content:center;">${daysHtml}</div>
-                <div style="font-size:28px;color:#ffcc00;font-weight:bold;text-shadow:0 0 20px #ffcc00;margin-bottom:20px;">+${loginData.reward.desc}</div>
-                <button onclick="claimDailyLogin(${loginData.streak}); this.parentElement.remove();" style="background:rgba(255,204,0,0.15);border:2px solid #ffcc00;color:#ffcc00;padding:15px 60px;font-size:18px;cursor:pointer;font-family:monospace;font-weight:bold;">CLAIM REWARD</button>
-            `;
-            document.body.appendChild(popup);
-        }
-
-        // ==================== EQUIPMENT / GEAR SYSTEM ====================
-        const GEAR_SLOTS = ['weapon_chip', 'armor_plating', 'engine_core', 'shield_module', 'drone_chip'];
-        const GEAR_NAMES = { weapon_chip: 'WEAPON CHIP', armor_plating: 'ARMOR PLATING', engine_core: 'ENGINE CORE', shield_module: 'SHIELD MODULE', drone_chip: 'DRONE CHIP' };
-        const GEAR_ICONS = { weapon_chip: '🔫', armor_plating: '🛡️', engine_core: '⚡', shield_module: '💠', drone_chip: '🤖' };
-        const GEAR_RARITIES = [
-            { name: 'COMMON', color: '#aaaaaa', multi: 1.0 },
-            { name: 'RARE', color: '#0088ff', multi: 1.8 },
-            { name: 'EPIC', color: '#aa00ff', multi: 3.0 },
-            { name: 'LEGENDARY', color: '#ffcc00', multi: 5.0 }
-        ];
-        const GEAR_STATS = {
-            weapon_chip: ['dmgMulti', 'fireRateMulti', 'critChance', 'projCount'],
-            armor_plating: ['maxHp', 'vampirism', 'defense'],
-            engine_core: ['speedMulti', 'dashCdMulti'],
-            shield_module: ['maxHp', 'defense', 'shieldGen'],
-            drone_chip: ['dmgMulti', 'fireRateMulti', 'speedMulti']
-        };
-        const GEAR_STAT_RANGES = {
-            dmgMulti: { min: 0.03, max: 0.15, label: 'DMG' },
-            fireRateMulti: { min: 0.03, max: 0.12, label: 'FIRE RATE' },
-            critChance: { min: 0.02, max: 0.10, label: 'CRIT' },
-            projCount: { min: 1, max: 1, label: 'PROJECTILES', integer: true },
-            maxHp: { min: 10, max: 100, label: 'MAX HP', integer: true },
-            vampirism: { min: 1, max: 5, label: 'LIFESTEAL', integer: true },
-            defense: { min: 1, max: 8, label: 'DEFENSE', integer: true },
-            speedMulti: { min: 0.03, max: 0.12, label: 'SPEED' },
-            dashCdMulti: { min: -0.10, max: -0.03, label: 'DASH CD', invert: true },
-            shieldGen: { min: 1, max: 1, label: 'DASH SHIELD', integer: true, boolean: true }
-        };
-
-        let playerGear = JSON.parse(localStorage.getItem('neonVoidGear')) || {};
-        let gearInventory = JSON.parse(localStorage.getItem('neonVoidGearInv')) || [];
-
-        function generateRandomGear(minRarity) {
-            minRarity = minRarity || 0;
-            let rarityRoll = Math.random();
-            let rarity = minRarity;
-            if (rarityRoll > 0.95) rarity = Math.max(minRarity, 3);
-            else if (rarityRoll > 0.75) rarity = Math.max(minRarity, 2);
-            else if (rarityRoll > 0.45) rarity = Math.max(minRarity, 1);
-            let slot = GEAR_SLOTS[Math.floor(Math.random() * GEAR_SLOTS.length)];
-            let possibleStats = GEAR_STATS[slot];
-            let numStats = rarity >= 3 ? 3 : (rarity >= 2 ? 2 : 1);
-            let stats = {};
-            let chosen = [...possibleStats].sort(() => Math.random()-0.5).slice(0, numStats);
-            for (let s of chosen) {
-                let range = GEAR_STAT_RANGES[s];
-                let val = range.min + Math.random() * (range.max - range.min);
-                val *= GEAR_RARITIES[rarity].multi;
-                if (range.integer) val = Math.max(1, Math.round(val));
-                else val = Math.round(val * 1000) / 1000;
-                stats[s] = val;
-            }
-            return { id: Date.now() + '_' + Math.random().toString(36).slice(2,6), slot, rarity, stats, name: GEAR_NAMES[slot] };
-        }
-
-        function saveGear(gear) {
-            gearInventory.push(gear);
-            localStorage.setItem('neonVoidGearInv', JSON.stringify(gearInventory));
-        }
-
-        function equipGear(gearId) {
-            let gear = gearInventory.find(g => g.id === gearId);
-            if (!gear) return;
-            playerGear[gear.slot] = gear;
-            localStorage.setItem('neonVoidGear', JSON.stringify(playerGear));
-            playSound('powerup');
-        }
-
-        function salvageGear(gearId) {
-            let idx = gearInventory.findIndex(g => g.id === gearId);
-            if (idx === -1) return;
-            let gear = gearInventory[idx];
-            let coins = [500, 2000, 8000, 30000][gear.rarity];
-            totalCoins += coins;
-            localStorage.setItem('neonVoidCoins', totalCoins);
-            gearInventory.splice(idx, 1);
-            localStorage.setItem('neonVoidGearInv', JSON.stringify(gearInventory));
-            playSound('buy');
-            return coins;
-        }
-
-        function applyGearStats(base) {
-            for (let slot of GEAR_SLOTS) {
-                let gear = playerGear[slot];
-                if (!gear) continue;
-                for (let [stat, val] of Object.entries(gear.stats)) {
-                    let range = GEAR_STAT_RANGES[stat];
-                    if (range && range.boolean) { base[stat] = true; }
-                    else if (stat === 'projCount' || stat === 'maxHp' || stat === 'vampirism' || stat === 'defense') { base[stat] = (base[stat] || 0) + val; }
-                    else if (stat === 'dashCdMulti') { base[stat] = (base[stat] || 1) + val; }
-                    else { base[stat] = (base[stat] || 1) + val; }
-                }
-            }
-            return base;
-        }
-
-        function showGearScreen() {
-            ui.mainOverlay.classList.add('hidden');
-            let screen = document.getElementById('gear-screen');
-            if (!screen) {
-                screen = document.createElement('div');
-                screen.id = 'gear-screen';
-                screen.className = 'overlay-screen hidden';
-                screen.style.zIndex = '22';
-                document.body.appendChild(screen);
-            }
-            screen.classList.remove('hidden');
-            renderGearScreen(screen);
-        }
-
-        function renderGearScreen(screen) {
-            // Clean corrupted entries from inventory
-            gearInventory = gearInventory.filter(g => g && g.id && g.slot && g.stats);
-            localStorage.setItem('neonVoidGearInv', JSON.stringify(gearInventory));
-            let equippedHtml = GEAR_SLOTS.map(slot => {
-                let gear = playerGear[slot];
-                let icon = GEAR_ICONS[slot];
-                if (gear) {
-                    let r = GEAR_RARITIES[gear.rarity];
-                    let statsHtml = Object.entries(gear.stats).map(([k,v]) => {
-                        let range = GEAR_STAT_RANGES[k];
-                        let display = range.boolean ? 'YES' : (range.integer ? '+' + v : '+' + (v*100).toFixed(1) + '%');
-                        return `<span style="color:${r.color};font-size:11px;">${range.label}: ${display}</span>`;
-                    }).join(' | ');
-                    return `<div style="border:2px solid ${r.color};background:rgba(0,0,0,0.7);padding:10px;border-radius:8px;min-width:130px;text-align:center;">
-                        <div style="font-size:24px;">${icon}</div>
-                        <div style="color:${r.color};font-size:11px;font-weight:bold;">${r.name}</div>
-                        <div style="color:#fff;font-size:13px;font-weight:bold;">${GEAR_NAMES[slot]}</div>
-                        <div style="margin-top:4px;">${statsHtml}</div>
-                    </div>`;
-                } else {
-                    return `<div style="border:2px solid #333;background:rgba(0,0,0,0.5);padding:10px;border-radius:8px;min-width:130px;text-align:center;">
-                        <div style="font-size:24px;">${icon}</div>
-                        <div style="color:#555;font-size:13px;">${GEAR_NAMES[slot]}</div>
-                        <div style="color:#333;font-size:11px;">EMPTY</div>
-                    </div>`;
-                }
-            }).join('');
-
-            let invHtml = gearInventory.length === 0 ? '<div style="color:#555;text-align:center;padding:20px;">No gear in inventory. Complete missions to earn gear!</div>' :
-                gearInventory.map(g => {
-                    let r = GEAR_RARITIES[g.rarity];
-                    let icon = GEAR_ICONS[g.slot];
-                    let isEquipped = playerGear[g.slot] && playerGear[g.slot].id === g.id;
-                    let statsHtml = Object.entries(g.stats).map(([k,v]) => {
-                        let range = GEAR_STAT_RANGES[k];
-                        let display = range.boolean ? 'YES' : (range.integer ? '+' + v : '+' + (v*100).toFixed(1) + '%');
-                        return `${range.label}: ${display}`;
-                    }).join(' | ');
-                    let salvageCoins = [500, 2000, 8000, 30000][g.rarity];
-                    return `<div style="border:2px solid ${r.color};background:rgba(0,0,0,0.6);padding:8px 12px;border-radius:6px;display:flex;align-items:center;gap:12px;">
-                        <div style="font-size:24px;">${icon}</div>
-                        <div style="flex:1;">
-                            <div style="color:${r.color};font-weight:bold;font-size:13px;">${r.name} ${GEAR_NAMES[g.slot]}</div>
-                            <div style="color:#aaa;font-size:11px;">${statsHtml}</div>
-                        </div>
-                        <div style="display:flex;gap:6px;">
-                            ${isEquipped ? '<span style="color:#00ff88;font-size:12px;">EQUIPPED</span>' : `<button onclick="equipGear('${g.id}');renderGearScreen(document.getElementById('gear-screen'));" style="padding:5px 12px;font-size:11px;min-width:auto;border-color:${r.color};color:${r.color};">EQUIP</button>`}
-                            ${!isEquipped ? `<button onclick="salvageGear('${g.id}');renderGearScreen(document.getElementById('gear-screen'));" style="padding:5px 12px;font-size:11px;min-width:auto;border-color:#ff4400;color:#ff4400;">SALVAGE (+${salvageCoins})</button>` : ''}
-                        </div>
-                    </div>`;
-                }).join('');
-
-            screen.innerHTML = `
-                <div style="width:100%;height:100%;overflow-y:auto;display:flex;flex-direction:column;align-items:center;padding:40px 0;box-sizing:border-box;">
-                    <div style="font-size:48px;font-weight:900;color:transparent;-webkit-text-stroke:2px #aa00ff;text-shadow:0 0 40px #aa00ff;margin-bottom:5px;letter-spacing:5px;">ARMORY</div>
-                    <div style="color:#888;font-size:13px;margin-bottom:25px;">Equip gear to boost your stats. Earn gear from missions.</div>
-                    <div style="color:#00ffcc;font-size:16px;font-weight:bold;margin-bottom:10px;letter-spacing:3px;">EQUIPPED LOADOUT</div>
-                    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:30px;">${equippedHtml}</div>
-                    <div style="color:#ff8800;font-size:16px;font-weight:bold;margin-bottom:10px;letter-spacing:3px;">INVENTORY (${gearInventory.length})</div>
-                    <div style="display:flex;flex-direction:column;gap:6px;max-width:700px;width:90%;">${invHtml}</div>
-                    <button onclick="document.getElementById('gear-screen').classList.add('hidden');returnToMenu();" style="border-color:#fff;color:#fff;margin-top:25px;">BACK TO MENU</button>
-                </div>
-            `;
-        }
-
-        // Award gear on mission completion
-        let _origStageCleared = typeof stageCleared === 'function' ? stageCleared : null;
-        function awardMissionGear() {
-            let stage = state.currentStage || 1;
-            let minRarity = stage >= 12 ? 2 : (stage >= 7 ? 1 : 0);
-            if (Math.random() < 0.4 + stage * 0.03) {
-                let gear = generateRandomGear(minRarity);
-                saveGear(gear);
-                let r = GEAR_RARITIES[gear.rarity];
-                spawnText(canvas.width/2, canvas.height/2 - 60, r.name + ' ' + gear.name + ' FOUND!', r.color, 20);
-            }
-        }
-
-        // Hook gear into getBaseStats
-        let _origGetBaseStats = getBaseStats;
-        getBaseStats = function() {
-            let base = _origGetBaseStats();
-            applyGearStats(base);
-            return base;
-        };
-
-        // Hook gear awards into mission boss kills
-        let _origHandleBossDeath = handleBossDeath;
-        handleBossDeath = function() {
-            if (state.mode === 'mission') awardMissionGear();
-            _origHandleBossDeath();
-        };
-
-        // ==================== MENU UI REVAMP — BTD6/CR STYLE ====================
+        // ==================== MENU UI REVAMP ====================
         function hexToRgb(hex) {
             hex = hex.replace('#', '');
             if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
@@ -5641,11 +5282,10 @@
             @keyframes slideUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
             @keyframes rotateSlow { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
             @keyframes bannerScroll { 0%{transform:translateX(100%)} 100%{transform:translateX(-100%)} }
-            @keyframes streakFire { 0%,100%{text-shadow:0 0 5px #ff4400} 50%{text-shadow:0 0 15px #ff8800,0 0 25px #ff440066} }
 
             .nv-menu-root { position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden;font-family:'Courier New',monospace; }
 
-            /* TOP BAR — Clash Royale style resource bar */
+            /* TOP BAR — resource bar */
             .nv-topbar { display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:linear-gradient(180deg,rgba(20,0,30,0.95),rgba(10,0,15,0.9));border-bottom:2px solid #ff005544;z-index:5;flex-shrink:0; }
             .nv-topbar-left { display:flex;align-items:center;gap:10px; }
             .nv-topbar-right { display:flex;align-items:center;gap:12px; }
@@ -5653,8 +5293,6 @@
             .nv-pilot-avatar { width:28px;height:28px;border-radius:50%;border:2px solid #00ffcc;display:flex;align-items:center;justify-content:center;font-size:14px;background:rgba(0,255,200,0.1); }
             .nv-pilot-name { color:#00ffcc;font-weight:bold;font-size:13px;letter-spacing:1px; }
             .nv-resource { display:flex;align-items:center;gap:5px;background:linear-gradient(135deg,rgba(255,204,0,0.1),rgba(0,0,0,0.6));border:1px solid #ffcc0044;border-radius:14px;padding:3px 12px 3px 6px;font-size:13px;color:#ffcc00;font-weight:bold; }
-            .nv-prestige-badge { color:#aa00ff;font-size:12px;font-weight:bold;background:rgba(170,0,255,0.15);border:1px solid #aa00ff44;border-radius:10px;padding:2px 8px; }
-            .nv-streak { color:#ff6600;font-size:12px;animation:streakFire 1.5s infinite; }
             .nv-settings-btn { width:32px;height:32px;border-radius:50%;border:1px solid #555;background:rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;transition:all 0.2s; }
             .nv-settings-btn:hover { border-color:#fff;background:rgba(255,255,255,0.15);transform:rotate(90deg); }
 
@@ -5671,7 +5309,7 @@
             /* CENTER CONTENT — scrollable area between hero and bottom nav */
             .nv-center { flex:1;overflow-y:auto;overflow-x:hidden;padding:8px 16px 10px;display:flex;flex-direction:column;gap:10px; }
 
-            /* BATTLE BUTTON — The big one like Clash Royale */
+            /* BATTLE BUTTON */
             .nv-battle-section { display:flex;flex-direction:column;align-items:center;gap:8px; }
             .nv-battle-btn { width:280px;height:64px;border-radius:16px;border:3px solid #ff0055;background:linear-gradient(180deg,#2a0015 0%,#1a000a 50%,#2a0015 100%);display:flex;align-items:center;justify-content:center;cursor:pointer;animation:battlePulse 2s infinite;position:relative;overflow:hidden;transition:all 0.15s; }
             .nv-battle-btn:hover { border-color:#ff3377;filter:brightness(1.3); }
@@ -5690,7 +5328,7 @@
             .nv-mode-chip .nv-chip-label { font-size:13px;font-weight:bold;letter-spacing:1px; }
             .nv-mode-chip .nv-chip-sub { font-size:10px;opacity:0.6; }
 
-            /* EVENT BANNER — like BTD6 event panels */
+            /* EVENT BANNER */
             .nv-event-banner { background:linear-gradient(135deg,rgba(255,136,0,0.12),rgba(0,0,0,0.7));border:1.5px solid #ff880044;border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all 0.2s; }
             .nv-event-banner:hover { border-color:#ff8800;transform:translateY(-1px); }
             .nv-event-icon { font-size:28px;flex-shrink:0; }
@@ -5699,7 +5337,7 @@
             .nv-event-desc { font-size:10px;color:#ff880088;margin-top:2px; }
             .nv-event-badge { font-size:9px;color:#000;background:#ff8800;border-radius:8px;padding:2px 8px;font-weight:bold;flex-shrink:0; }
 
-            /* QUICK ACCESS GRID — 2x3 cards like BTD6 home */
+            /* QUICK ACCESS GRID */
             .nv-grid { display:grid;grid-template-columns:1fr 1fr;gap:8px; }
             .nv-grid-card { background:linear-gradient(135deg,rgba(var(--gc),0.08),rgba(0,0,0,0.75));border:1.5px solid rgba(var(--gc),0.4);border-radius:12px;padding:12px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:all 0.2s;position:relative;overflow:hidden; }
             .nv-grid-card:hover { border-color:rgba(var(--gc),0.9);transform:translateY(-2px);box-shadow:0 4px 20px rgba(var(--gc),0.2); }
@@ -5709,7 +5347,7 @@
             .nv-grid-card .gc-sub { font-size:9px;opacity:0.5;margin-top:1px; }
             .nv-grid-card .gc-badge { position:absolute;top:6px;right:8px;font-size:8px;border-radius:6px;padding:1px 6px;font-weight:bold; }
 
-            /* BOTTOM NAV — Fixed tab bar like CR/BTD6 */
+            /* BOTTOM NAV — Fixed tab bar */
             .nv-bottomnav { display:flex;align-items:stretch;background:linear-gradient(180deg,rgba(10,0,15,0.95),rgba(5,0,8,0.98));border-top:2px solid #ff005533;flex-shrink:0;z-index:5; }
             .nv-nav-tab { flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 2px 8px;cursor:pointer;transition:all 0.2s;border-top:2px solid transparent;position:relative; }
             .nv-nav-tab:hover { background:rgba(255,255,255,0.04); }
@@ -5718,10 +5356,6 @@
             .nv-nav-tab .nav-label { font-size:8px;letter-spacing:1px;color:#888;text-transform:uppercase; }
             .nv-nav-tab:hover .nav-label { color:#ccc; }
             .nv-nav-tab .nav-notif { position:absolute;top:3px;right:calc(50% - 16px);width:7px;height:7px;border-radius:50%;background:#ff0055;box-shadow:0 0 6px #ff0055; }
-
-            /* NEWS TICKER at bottom of center */
-            .nv-ticker { overflow:hidden;border-radius:8px;background:rgba(0,255,200,0.04);border:1px solid #00ffcc22;padding:4px 0; }
-            .nv-ticker-inner { display:flex;white-space:nowrap;animation:bannerScroll 20s linear infinite;font-size:10px;color:#00ffcc88;letter-spacing:1px; }
 
             /* Secret boss buttons in modes row */
             .nv-secret-chip { border-style:dashed !important;position:relative; }
@@ -5817,8 +5451,8 @@
             _nvMenuActive = true;
             // Hide all screens
             ['mission-select','shop-screen','settings-screen','pause-screen','draw-screen',
-             'achievement-screen','codex-screen','lobby-browser','lobby-room',
-             'leaderboard-screen','stats-screen'].forEach(id => {
+             'lobby-browser','lobby-room',
+             'leaderboard-screen'].forEach(id => {
                 let el = document.getElementById(id);
                 if (el) el.classList.add('hidden');
             });
@@ -5833,15 +5467,8 @@
 
             // Gather data
             let unlockedRaw = localStorage.getItem('neonVoidStage'); let unlocked = parseInt(unlockedRaw); if(isNaN(unlocked) || unlocked < 1) unlocked = 1;
-            let dailyChallenge = getDailyChallenge();
-            let dailyBest = getDailyBestScore();
             let rushBest = parseInt(localStorage.getItem('neonVoidBossRushBest')) || 0;
             let rushLabel = rushBest > 0 ? `${Math.floor(rushBest/60)}m ${(rushBest%60).toString().padStart(2,'0')}s` : 'All 15';
-            let loginStreak = parseInt(localStorage.getItem('neonVoidLoginStreak')) || 0;
-            let gearCount = gearInventory.length;
-            let equippedCount = Object.keys(playerGear).length;
-            let achieveCount = unlockedAchievements.length;
-            let achieveTotal = Object.keys(ACHIEVEMENTS).length;
             let sectorPct = Math.round((unlocked / 15) * 100);
 
             // Hide original title / desc / coin display — we rebuild everything
@@ -5854,11 +5481,11 @@
 
             // Secret/Paradox mode chips
             let secretChip = unlocked > 14 ? `<div class="nv-mode-chip nv-secret-chip" style="--gc:${mc('#00ff00')};border-color:#00ff0066;background:rgba(0,255,0,0.06);" onclick="startMission(15)">
-                <span class="nv-chip-icon">&#x1F7E2;</span>
+                <span class="nv-chip-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00ff00" stroke-width="2" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></span>
                 <div><div class="nv-chip-label" style="color:#00ff00;">THE GLITCH</div></div>
             </div>` : '';
             let paradoxChip = unlocked > 15 ? `<div class="nv-mode-chip nv-secret-chip" style="--gc:${mc('#ff00ff')};border-color:#ff00ff66;background:rgba(255,0,255,0.06);" onclick="startSecretBoss()">
-                <span class="nv-chip-icon">&#x23F3;</span>
+                <span class="nv-chip-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff00ff" stroke-width="2" stroke-linecap="round"><path d="M5 4h14M5 20h14M12 4v3a5 5 0 0 1-5 5v0a5 5 0 0 1 5 5v3M12 4v3a5 5 0 0 0 5 5v0a5 5 0 0 0-5 5v3"/></svg></span>
                 <div><div class="nv-chip-label" style="color:#ff00ff;">SECTOR ???</div></div>
             </div>` : '';
 
@@ -5874,12 +5501,10 @@
                             <div class="nv-pilot-avatar">${playerAvatar}</div>
                             <span class="nv-pilot-name">${currentUsername || 'PILOT'}</span>
                         </div>
-                        ${prestigeLevel > 0 ? `<span class="nv-prestige-badge">P${prestigeLevel}</span>` : ''}
-                        ${loginStreak > 0 ? `<span class="nv-streak">&#x1F525; ${loginStreak}d</span>` : ''}
                     </div>
                     <div class="nv-topbar-right">
-                        <div class="nv-resource">&#x1FA99; ${totalCoins >= 1000000 ? (totalCoins/1000000).toFixed(1)+'M' : totalCoins >= 1000 ? (totalCoins/1000).toFixed(1)+'K' : totalCoins}</div>
-                        <div class="nv-settings-btn" onclick="openSettings()">&#x2699;</div>
+                        <div class="nv-resource"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffcc00" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 12h6"/></svg> ${totalCoins >= 1000000 ? (totalCoins/1000000).toFixed(1)+'M' : totalCoins >= 1000 ? (totalCoins/1000).toFixed(1)+'K' : totalCoins}</div>
+                        <div class="nv-settings-btn" onclick="openSettings()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></div>
                     </div>
                 </div>
 
@@ -5912,65 +5537,33 @@
                     <!-- GAME MODES HORIZONTAL SCROLL -->
                     <div class="nv-modes-row">
                         <div class="nv-mode-chip" style="--gc:${mc('#ff0055')};border-color:#ff005566;background:rgba(255,0,85,0.06);" onclick="startInfinite()">
-                            <span class="nv-chip-icon">&#x267E;</span>
+                            <span class="nv-chip-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff0055" stroke-width="2.5" stroke-linecap="round"><path d="M6 12c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4zM14 12c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4z"/></svg></span>
                             <div><div class="nv-chip-label" style="color:#ff0055;">INFINITE</div><div class="nv-chip-sub" style="color:#ff005588;">Endless</div></div>
                         </div>
                         <div class="nv-mode-chip" style="--gc:${mc('#ff4400')};border-color:#ff440066;background:rgba(255,68,0,0.06);" onclick="startBossRush()">
-                            <span class="nv-chip-icon">&#x2694;</span>
+                            <span class="nv-chip-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff4400" stroke-width="2" stroke-linecap="round"><path d="M14.5 17.5L3 6V3h3l11.5 11.5M13 7l4-4 4 4-4 4"/><path d="M3 3l7.586 7.586M11 14l7 7M8 6.5L1.5 13"/></svg></span>
                             <div><div class="nv-chip-label" style="color:#ff4400;">BOSS RUSH</div><div class="nv-chip-sub" style="color:#ff440088;">${rushLabel}</div></div>
                         </div>
-                        <div class="nv-mode-chip" style="--gc:${mc('#ff8800')};border-color:#ff880066;background:rgba(255,136,0,0.06);" onclick="startDailyChallenge()">
-                            <span class="nv-chip-icon">&#x1F4C5;</span>
-                            <div><div class="nv-chip-label" style="color:#ff8800;">DAILY</div><div class="nv-chip-sub" style="color:#ff880088;">${dailyChallenge.name}</div></div>
-                        </div>
                         <div class="nv-mode-chip" style="--gc:${mc('#00ff88')};border-color:#00ff8866;background:rgba(0,255,136,0.06);" onclick="startTraining()">
-                            <span class="nv-chip-icon">&#x1F3AF;</span>
+                            <span class="nv-chip-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00ff88" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></span>
                             <div><div class="nv-chip-label" style="color:#00ff88;">TRAINING</div><div class="nv-chip-sub" style="color:#00ff8888;">Practice</div></div>
                         </div>
                         <div class="nv-mode-chip" style="--gc:${mc('#00ccff')};border-color:#00ccff66;background:rgba(0,204,255,0.06);" onclick="openMultiplayer()">
-                            <span class="nv-chip-icon">&#x1F46B;</span>
+                            <span class="nv-chip-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00ccff" stroke-width="2" stroke-linecap="round"><path d="M16 3.13a4 4 0 0 1 0 7.75M21 21v-2a4 4 0 0 0-3-3.87M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg></span>
                             <div><div class="nv-chip-label" style="color:#00ccff;">CO-OP</div><div class="nv-chip-sub" style="color:#00ccff88;">Multiplayer</div></div>
                         </div>
                         ${secretChip}${paradoxChip}
                     </div>
 
-                    <!-- EVENT BANNERS -->
-                    <div class="nv-event-banner" onclick="startDailyChallenge()">
-                        <div class="nv-event-icon">&#x1F31F;</div>
-                        <div class="nv-event-info">
-                            <div class="nv-event-title">DAILY CHALLENGE: ${dailyChallenge.name.toUpperCase()}</div>
-                            <div class="nv-event-desc">${dailyChallenge.desc || 'Special modifiers active'}${dailyBest > 0 ? ' &#x2022; Best: ' + dailyBest.toLocaleString() : ''}</div>
-                        </div>
-                        <div class="nv-event-badge">PLAY</div>
-                    </div>
-
                     <!-- QUICK ACCESS GRID -->
                     <div class="nv-grid">
                         <div class="nv-grid-card" style="--gc:${mc('#ffcc00')};" onclick="openShop()">
-                            <div class="gc-icon">&#x1F3EA;</div>
+                            <div class="gc-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffcc00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
                             <div class="gc-text"><div class="gc-title" style="color:#ffcc00;">HANGAR</div><div class="gc-sub">Black Market</div></div>
                         </div>
-                        <div class="nv-grid-card" style="--gc:${mc('#aa00ff')};" onclick="showGearScreen()">
-                            <div class="gc-icon">&#x2699;</div>
-                            <div class="gc-text"><div class="gc-title" style="color:#aa00ff;">ARMORY</div><div class="gc-sub">${equippedCount}/5 Equipped</div></div>
-                            ${gearCount > 0 ? `<div class="gc-badge" style="background:#aa00ff;color:#fff;">${gearCount} NEW</div>` : ''}
-                        </div>
                         <div class="nv-grid-card" style="--gc:${mc('#ff88ff')};" onclick="openLeaderboard()">
-                            <div class="gc-icon">&#x1F3C6;</div>
+                            <div class="gc-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff88ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V22M14 14.66V22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg></div>
                             <div class="gc-text"><div class="gc-title" style="color:#ff88ff;">RANKS</div><div class="gc-sub">Leaderboards</div></div>
-                        </div>
-                        <div class="nv-grid-card" style="--gc:${mc('#ffaa00')};" onclick="openAchievements()">
-                            <div class="gc-icon">&#x1F3C5;</div>
-                            <div class="gc-text"><div class="gc-title" style="color:#ffaa00;">MEDALS</div><div class="gc-sub">${achieveCount}/${achieveTotal}</div></div>
-                            ${achieveCount < achieveTotal ? `<div class="gc-badge" style="background:#ffaa00;color:#000;">${achieveTotal - achieveCount} LEFT</div>` : ''}
-                        </div>
-                        <div class="nv-grid-card" style="--gc:${mc('#55ddaa')};" onclick="openStats()">
-                            <div class="gc-icon">&#x1F4CA;</div>
-                            <div class="gc-text"><div class="gc-title" style="color:#55ddaa;">STATS</div><div class="gc-sub">Pilot Record</div></div>
-                        </div>
-                        <div class="nv-grid-card" style="--gc:${mc('#ff8800')};" onclick="openCodex()">
-                            <div class="gc-icon">&#x1F4D6;</div>
-                            <div class="gc-text"><div class="gc-title" style="color:#ff8800;">CODEX</div><div class="gc-sub">Mission Logs</div></div>
                         </div>
                     </div>
 
@@ -5980,25 +5573,20 @@
                 <!-- BOTTOM NAVIGATION BAR -->
                 <div class="nv-bottomnav">
                     <div class="nv-nav-tab active" onclick="openMissionSelect()">
-                        <span class="nav-icon">&#x1F680;</span>
+                        <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff0055" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L4 14h6l-2 8 10-12h-6l2-8z"/></svg></span>
                         <span class="nav-label">BATTLE</span>
                     </div>
                     <div class="nv-nav-tab" onclick="openShop()">
-                        <span class="nav-icon">&#x1F3EA;</span>
+                        <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffcc00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span>
                         <span class="nav-label">HANGAR</span>
                     </div>
-                    <div class="nv-nav-tab" onclick="showGearScreen()">
-                        <span class="nav-icon">&#x2699;</span>
-                        <span class="nav-label">ARMORY</span>
-                        ${gearCount > 0 ? '<div class="nav-notif"></div>' : ''}
-                    </div>
                     <div class="nv-nav-tab" onclick="openMultiplayer()">
-                        <span class="nav-icon">&#x1F46B;</span>
+                        <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00ccff" stroke-width="2" stroke-linecap="round"><path d="M16 3.13a4 4 0 0 1 0 7.75M21 21v-2a4 4 0 0 0-3-3.87M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg></span>
                         <span class="nav-label">CO-OP</span>
                     </div>
-                    <div class="nv-nav-tab" onclick="openStats()">
-                        <span class="nav-icon">&#x1F4CA;</span>
-                        <span class="nav-label">PROFILE</span>
+                    <div class="nv-nav-tab" onclick="openLeaderboard()">
+                        <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ff88ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V22M14 14.66V22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg></span>
+                        <span class="nav-label">RANKS</span>
                     </div>
                 </div>
             </div>`;
@@ -6198,167 +5786,7 @@
 
         // (Weapon system already exists at line 3353 — using existing WEAPONS array)
 
-        // ==================== FEATURE: BOSS BESTIARY IN CODEX ====================
-        const BOSS_BESTIARY = {
-            SENTRY: { title: 'SENTRY', desc: 'First line defense drone. Dual turret cannons sweep the area.', weakness: 'Destroy turrets first', tier: 'D' },
-            VORTEX: { title: 'VORTEX', desc: 'Living tear in spacetime. Generates gravitational pull and charges at targets.', weakness: 'Dodge the dash attacks', tier: 'D' },
-            REAVER: { title: 'REAVER', desc: 'Harvester mech armed with spinning scythes. Throws blades at range.', weakness: 'Stay mobile to avoid scythes', tier: 'C' },
-            NEBULA: { title: 'NEBULA WEAVER', desc: 'Creates laser trap networks from stolen neural energy.', weakness: 'Find gaps in the laser grid', tier: 'C' },
-            TITAN: { title: 'TITAN CORE', desc: 'Heavily shielded war platform. Massive HP pool with regenerating shields.', weakness: 'Wait for shield drops', tier: 'B' },
-            WRAITH: { title: 'WRAITH', desc: 'Corrupted echo of lost souls. Phases in and out of reality.', weakness: 'Attack during visible phases', tier: 'B' },
-            ORACLE: { title: 'ORACLE', desc: 'Psychic construct with homing projectiles and laser barriers.', weakness: 'Destroy homing shots early', tier: 'B' },
-            SINGULARITY: { title: 'SINGULARITY', desc: 'Collapsed star entity. Intense gravity well pulls everything in.', weakness: 'Use dash to escape gravity', tier: 'A' },
-            OMEGA: { title: 'OMEGA CORE', desc: 'Ultimate war machine. Combines shields, eye turrets, and laser walls.', weakness: 'Focus eye turrets first', tier: 'A' },
-            VOID: { title: 'VOID GOD', desc: 'Ruler of the Void dimension. Commands all previous boss abilities.', weakness: 'Learn all boss patterns', tier: 'S' },
-            SUN_GOD: { title: 'TRUE SUN GOD', desc: 'Blinding entity of pure energy. Devastating area attacks.', weakness: 'Keep maximum distance', tier: 'S' },
-            VTSG: { title: 'VENGEFUL TSG', desc: 'Corrupted Sun God consumed by rage. Even more powerful attacks.', weakness: 'Perfection required', tier: 'S+' },
-            BAD_BOSS: { title: 'B.A.D. LEVIATHAN', desc: 'Moon-sized destroyer. Ring bursts, homing barrages, spiral bullets.', weakness: 'Phase-specific patterns', tier: 'SS' },
-            SECRET: { title: 'THE OMNIVERSE', desc: 'Reality itself given form. Every boss ability combined and amplified.', weakness: 'Transcend combat', tier: 'SS' },
-            GLITCH: { title: 'THE GLITCH', desc: 'Error in the simulation. Spawns boss echoes, teleports, and overwhelms.', weakness: 'Survive the chaos', tier: 'SSS' },
-            PARADOX: { title: 'CHRONOS PARADOX', desc: 'Time loop anomaly. Exists outside normal spacetime rules.', weakness: '???', tier: '???' }
-        };
 
-        // Override openCodex to include bestiary tab
-        let _origOpenCodex = openCodex;
-        openCodex = function() {
-            ui.mainOverlay.classList.add('hidden');
-            document.getElementById('shop-screen').classList.add('hidden');
-            document.getElementById('codex-screen').classList.remove('hidden');
-
-            let unlockedRaw = localStorage.getItem('neonVoidStage'); let unlocked = parseInt(unlockedRaw); if(isNaN(unlocked) || unlocked < 1) unlocked = 1;
-            let grid = document.getElementById('codex-grid');
-            grid.innerHTML = '';
-
-            // Tab buttons
-            let tabs = document.createElement('div');
-            tabs.style.cssText = 'display:flex;gap:10px;margin-bottom:20px;width:100%;max-width:700px;justify-content:center;';
-            tabs.innerHTML = `
-                <div id="codex-tab-logs" style="padding:8px 20px;border-radius:8px;border:1.5px solid #ff8800;color:#ff8800;cursor:pointer;font-size:13px;font-weight:bold;background:rgba(255,136,0,0.12);" onclick="renderCodexTab('logs')">PILOT LOGS</div>
-                <div id="codex-tab-bestiary" style="padding:8px 20px;border-radius:8px;border:1.5px solid #ff005566;color:#ff005588;cursor:pointer;font-size:13px;font-weight:bold;" onclick="renderCodexTab('bestiary')">BESTIARY</div>
-                <div id="codex-tab-weapons" style="padding:8px 20px;border-radius:8px;border:1.5px solid #00ffcc66;color:#00ffcc88;cursor:pointer;font-size:13px;font-weight:bold;" onclick="renderCodexTab('weapons')">WEAPONS</div>
-            `;
-            grid.appendChild(tabs);
-            renderCodexTab('logs');
-        };
-
-        window.renderCodexTab = function(tab) {
-            let grid = document.getElementById('codex-grid');
-            // Remove previous content but keep tabs
-            let tabs = grid.querySelector('div');
-            while (grid.children.length > 1) grid.removeChild(grid.lastChild);
-
-            // Style active tab
-            ['logs','bestiary','weapons'].forEach(t => {
-                let el = document.getElementById('codex-tab-' + t);
-                if (!el) return;
-                let colors = { logs: '#ff8800', bestiary: '#ff0055', weapons: '#00ffcc' };
-                let isActive = t === tab;
-                el.style.borderColor = isActive ? colors[t] : colors[t] + '66';
-                el.style.color = isActive ? colors[t] : colors[t] + '88';
-                el.style.background = isActive ? 'rgba(' + hexToRgb(colors[t]) + ',0.12)' : 'transparent';
-            });
-
-            let unlockedRaw = localStorage.getItem('neonVoidStage'); let unlocked = parseInt(unlockedRaw); if(isNaN(unlocked) || unlocked < 1) unlocked = 1;
-
-            if (tab === 'logs') {
-                for (let i = 1; i <= 15; i++) {
-                    let log = PILOT_LOGS[i];
-                    let isUnlocked = i <= unlocked;
-                    let card = document.createElement('div');
-                    card.style.cssText = `border:2px solid ${isUnlocked ? '#ff8800' : '#333'};padding:15px 20px;background:rgba(0,0,0,0.8);`;
-                    if (isUnlocked) card.innerHTML = `<div style="color:#ff8800;font-weight:bold;font-size:16px;margin-bottom:5px;">SECTOR ${i}: ${log.title}</div><div style="color:#ccc;font-size:13px;line-height:1.5;">${log.text}</div>`;
-                    else card.innerHTML = `<div style="color:#333;font-weight:bold;font-size:16px;">SECTOR ${i}: [CLASSIFIED]</div><div style="color:#333;font-size:13px;">Complete sector ${i} to decrypt.</div>`;
-                    grid.appendChild(card);
-                }
-            } else if (tab === 'bestiary') {
-                BOSSES.forEach((boss, idx) => {
-                    let data = BOSS_BESTIARY[boss.type] || {};
-                    let isUnlocked = idx < unlocked;
-                    let card = document.createElement('div');
-                    card.style.cssText = `border:2px solid ${isUnlocked ? boss.col : '#222'};padding:14px 18px;background:${isUnlocked ? 'linear-gradient(135deg,rgba(' + hexToRgb(boss.col) + ',0.06),rgba(0,0,0,0.85))' : 'rgba(0,0,0,0.8)'};border-radius:8px;`;
-                    if (isUnlocked) {
-                        card.innerHTML = `
-                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                                <span style="color:${boss.col};font-weight:bold;font-size:15px;">${boss.name}</span>
-                                <span style="color:${boss.col};font-size:11px;border:1px solid ${boss.col}44;padding:1px 8px;border-radius:6px;">TIER ${data.tier || '?'}</span>
-                            </div>
-                            <div style="color:#aaa;font-size:12px;line-height:1.5;margin-bottom:6px;">${data.desc || ''}</div>
-                            <div style="display:flex;gap:15px;font-size:10px;">
-                                <span style="color:#ff8800;">HP: ${boss.hp.toLocaleString()}</span>
-                                <span style="color:#00ffcc;">TIP: ${data.weakness || 'Unknown'}</span>
-                            </div>
-                        `;
-                    } else {
-                        card.innerHTML = `<div style="color:#333;font-weight:bold;font-size:15px;">SECTOR ${idx + 1}: ???</div><div style="color:#222;font-size:12px;">Defeat to scan.</div>`;
-                    }
-                    grid.appendChild(card);
-                });
-            } else if (tab === 'weapons') {
-                WEAPONS.forEach(w => {
-                    let isEquipped = selectedWeapon && selectedWeapon.id === w.id;
-                    let card = document.createElement('div');
-                    card.style.cssText = `border:2px solid ${isEquipped ? w.color : '#444'};padding:14px 18px;background:${isEquipped ? 'linear-gradient(135deg,rgba(' + hexToRgb(w.color) + ',0.1),rgba(0,0,0,0.85))' : 'rgba(0,0,0,0.8)'};border-radius:8px;`;
-                    card.innerHTML = `
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-                            <span style="color:${w.color};font-weight:bold;font-size:14px;">${w.name}${isEquipped ? ' [EQUIPPED]' : ''}</span>
-                        </div>
-                        <div style="color:#888;font-size:11px;margin-bottom:6px;">${w.desc}</div>
-                        <div style="color:#666;font-size:10px;">${w.stats}</div>`;
-                    grid.appendChild(card);
-                });
-            }
-        };
-
-        // ==================== FEATURE: LOOT CHEST POST-MISSION ====================
-        function showLootChest(stage) {
-            let chestOverlay = document.createElement('div');
-            chestOverlay.id = 'loot-chest-overlay';
-            chestOverlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:monospace;';
-
-            // Determine rewards
-            let coinReward = Math.floor((500 + stage * 300) * (DIFFICULTIES[selectedDifficulty]?.coinMult || 1));
-            let rewards = [{ type: 'coins', amount: coinReward, label: `+${coinReward.toLocaleString()} COINS`, color: '#ffcc00' }];
-
-            // Chance for gear based on stage
-            if (Math.random() < 0.3 + stage * 0.04) {
-                let minRarity = stage >= 12 ? 2 : stage >= 8 ? 1 : 0;
-                let gear = generateRandomGear(minRarity);
-                saveGear(gear);
-                let rarityNames = ['COMMON', 'RARE', 'EPIC', 'LEGENDARY'];
-                let rarityColors = ['#aaa', '#0088ff', '#aa00ff', '#ffcc00'];
-                rewards.push({ type: 'gear', label: gear.name, sublabel: rarityNames[gear.rarity] + ' ' + gear.slot.replace('_', ' ').toUpperCase(), color: rarityColors[gear.rarity] });
-            }
-
-            // XP bonus
-            let xpBonus = 50 + stage * 25;
-            rewards.push({ type: 'xp', label: `+${xpBonus} XP BONUS`, color: '#aa00ff' });
-
-            let rewardHTML = rewards.map((r, idx) => `
-                <div style="opacity:0;animation:slideUp 0.4s ${0.3 + idx * 0.2}s forwards;padding:10px 24px;border:1.5px solid ${r.color}44;border-radius:10px;background:rgba(${hexToRgb(r.color)},0.08);margin:4px 0;">
-                    <div style="color:${r.color};font-weight:bold;font-size:16px;letter-spacing:1px;">${r.label}</div>
-                    ${r.sublabel ? `<div style="color:${r.color}88;font-size:11px;">${r.sublabel}</div>` : ''}
-                </div>
-            `).join('');
-
-            chestOverlay.innerHTML = `
-                <div style="font-size:48px;margin-bottom:10px;animation:menuFloat 2s ease-in-out infinite;">&#x1F381;</div>
-                <div style="font-size:22px;color:#ffcc00;font-weight:bold;letter-spacing:4px;margin-bottom:5px;">MISSION REWARDS</div>
-                <div style="font-size:11px;color:#666;letter-spacing:2px;margin-bottom:20px;">SECTOR ${stage} CLEARED</div>
-                <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
-                    ${rewardHTML}
-                </div>
-                <button onclick="this.parentElement.remove();totalCoins+=${coinReward};localStorage.setItem('neonVoidCoins',totalCoins);" style="margin-top:24px;background:rgba(255,204,0,0.15);border:2px solid #ffcc0066;color:#ffcc00;padding:12px 50px;font-size:16px;cursor:pointer;font-family:monospace;font-weight:bold;border-radius:10px;">COLLECT</button>
-            `;
-            document.body.appendChild(chestOverlay);
-        }
-
-        // Hook loot chest into stageCleared
-        let _stageClearedForLoot = stageCleared;
-        stageCleared = function() {
-            _stageClearedForLoot();
-            // Show loot chest after a brief delay
-            setTimeout(() => showLootChest(state.currentStage), 500);
-        };
 
         // ==================== FEATURE: COMBO VISUAL OVERHAUL ====================
         // Add CSS for combo effects
@@ -6423,16 +5851,138 @@
             }, 50);
         };
 
-        // ==================== STARTUP FLOW ====================
-        function startupFlow() {
-            let loginData = checkDailyLogin();
-            if (loginData) showDailyLoginPopup(loginData);
+        // ==================== 3D RENDERING MODE ====================
+        let scene3d, camera3d, renderer3d, meshPool = {}, starField3d;
+        let is3DActive = false;
+
+        function init3D() {
+            if (!window.THREE) return;
+            scene3d = new THREE.Scene();
+            scene3d.fog = new THREE.FogExp2(0x000011, 0.0008);
+            camera3d = new THREE.PerspectiveCamera(60, canvas.width / canvas.height, 1, 5000);
+            camera3d.position.set(canvas.width/2, -400, 800);
+            camera3d.lookAt(canvas.width/2, canvas.height/2, 0);
+            renderer3d = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer3d.setSize(canvas.width, canvas.height);
+            renderer3d.domElement.style.position = 'fixed';
+            renderer3d.domElement.style.top = '0';
+            renderer3d.domElement.style.left = '0';
+            renderer3d.domElement.style.zIndex = '5';
+            renderer3d.domElement.style.pointerEvents = 'none';
+            renderer3d.domElement.id = 'three-canvas';
+            document.body.appendChild(renderer3d.domElement);
+            scene3d.add(new THREE.AmbientLight(0x222244, 0.5));
+            let pLight = new THREE.PointLight(0x00ffcc, 2, 600);
+            pLight.name = 'playerLight';
+            scene3d.add(pLight);
+            let starGeo = new THREE.BufferGeometry();
+            let starPos = [];
+            for (let i = 0; i < 2000; i++) { starPos.push(Math.random() * 3000 - 500, Math.random() * 3000 - 500, Math.random() * -1500); }
+            starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
+            let starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 2, transparent: true, opacity: 0.6 });
+            starField3d = new THREE.Points(starGeo, starMat);
+            scene3d.add(starField3d);
+            is3DActive = true;
         }
+
+        function destroy3D() {
+            if (renderer3d) { renderer3d.domElement.remove(); renderer3d.dispose(); }
+            scene3d = camera3d = renderer3d = null;
+            meshPool = {};
+            is3DActive = false;
+        }
+
+        function toggle3D(enable) {
+            if (enable && !is3DActive) init3D();
+            else if (!enable && is3DActive) destroy3D();
+            appSettings.render3D = enable;
+            saveSettings();
+            if (enable && renderer3d) { canvas.style.opacity = '0'; } else { canvas.style.opacity = '1'; }
+        }
+
+        function getMesh(id, type) {
+            if (meshPool[id]) return meshPool[id];
+            let mesh, mat;
+            switch(type) {
+                case 'player': { let shipGeo = new THREE.ConeGeometry(20, 40, 4); mat = new THREE.MeshPhongMaterial({ color: 0x00ffcc, emissive: 0x00ffcc, emissiveIntensity: 0.4, wireframe: false, transparent: true, opacity: 0.9 }); mesh = new THREE.Mesh(shipGeo, mat); let wireGeo = new THREE.ConeGeometry(21, 41, 4); let wireMat = new THREE.MeshBasicMaterial({ color: 0x00ffcc, wireframe: true, transparent: true, opacity: 0.5 }); mesh.add(new THREE.Mesh(wireGeo, wireMat)); break; }
+                case 'bullet': { let bGeo = new THREE.SphereGeometry(4, 6, 6); mat = new THREE.MeshBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.9 }); mesh = new THREE.Mesh(bGeo, mat); break; }
+                case 'eBullet': { let ebGeo = new THREE.SphereGeometry(5, 6, 6); mat = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.9 }); mesh = new THREE.Mesh(ebGeo, mat); break; }
+                case 'powerup': { let puGeo = new THREE.OctahedronGeometry(12); mat = new THREE.MeshPhongMaterial({ color: 0xffcc00, emissive: 0xffcc00, emissiveIntensity: 0.5, wireframe: true }); mesh = new THREE.Mesh(puGeo, mat); break; }
+                case 'tank': case 'horde': case 'bad': { let cubeGeo = new THREE.BoxGeometry(22, 22, 22); mat = new THREE.MeshPhongMaterial({ color: 0xff0055, emissive: 0xff0055, emissiveIntensity: 0.3, wireframe: false }); mesh = new THREE.Mesh(cubeGeo, mat); let wCube = new THREE.Mesh(new THREE.BoxGeometry(23, 23, 23), new THREE.MeshBasicMaterial({ color: 0xff0055, wireframe: true, transparent: true, opacity: 0.4 })); mesh.add(wCube); break; }
+                case 'sniper': { let triGeo = new THREE.ConeGeometry(14, 30, 3); mat = new THREE.MeshPhongMaterial({ color: 0xffcc00, emissive: 0xffcc00, emissiveIntensity: 0.3 }); mesh = new THREE.Mesh(triGeo, mat); break; }
+                case 'speed': case 'dasher': { let speedGeo = new THREE.ConeGeometry(10, 25, 4); mat = new THREE.MeshPhongMaterial({ color: 0x00ff88, emissive: 0x00ff88, emissiveIntensity: 0.4 }); mesh = new THREE.Mesh(speedGeo, mat); break; }
+                case 'ghost': { let ghostGeo = new THREE.SphereGeometry(14, 8, 8); mat = new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.2, transparent: true, opacity: 0.3 }); mesh = new THREE.Mesh(ghostGeo, mat); break; }
+                case 'teleporter': { let teleGeo = new THREE.TorusGeometry(12, 5, 8, 16); mat = new THREE.MeshPhongMaterial({ color: 0xaa00ff, emissive: 0xaa00ff, emissiveIntensity: 0.5 }); mesh = new THREE.Mesh(teleGeo, mat); break; }
+                case 'orbiter': { let orbGeo = new THREE.TorusKnotGeometry(10, 3, 32, 8); mat = new THREE.MeshPhongMaterial({ color: 0xff00ff, emissive: 0xff00ff, emissiveIntensity: 0.4 }); mesh = new THREE.Mesh(orbGeo, mat); break; }
+                case 'mine': { let mineGeo = new THREE.IcosahedronGeometry(10); mat = new THREE.MeshPhongMaterial({ color: 0xff4400, emissive: 0xff4400, emissiveIntensity: 0.5 }); mesh = new THREE.Mesh(mineGeo, mat); break; }
+                case 'splitter': { let splitGeo = new THREE.DodecahedronGeometry(16); mat = new THREE.MeshPhongMaterial({ color: 0x00ccff, emissive: 0x00ccff, emissiveIntensity: 0.3 }); mesh = new THREE.Mesh(splitGeo, mat); break; }
+                case 'boss': { let bossGeo = new THREE.IcosahedronGeometry(40); mat = new THREE.MeshPhongMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 0.4, wireframe: false }); mesh = new THREE.Mesh(bossGeo, mat); let wBoss = new THREE.Mesh(new THREE.IcosahedronGeometry(42), new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true, transparent: true, opacity: 0.3 })); mesh.add(wBoss); break; }
+                default: { let defGeo = new THREE.BoxGeometry(18, 18, 18); mat = new THREE.MeshPhongMaterial({ color: 0xff0055, emissive: 0xff0055, emissiveIntensity: 0.3 }); mesh = new THREE.Mesh(defGeo, mat); break; }
+            }
+            scene3d.add(mesh);
+            meshPool[id] = mesh;
+            return mesh;
+        }
+
+        function removeMesh(id) {
+            let m = meshPool[id];
+            if (m) { scene3d.remove(m); if (m.geometry) m.geometry.dispose(); if (m.material) m.material.dispose(); delete meshPool[id]; }
+        }
+
+        function update3D() {
+            if (!is3DActive || !scene3d || !state.active) { if (renderer3d) renderer3d.domElement.style.display = 'none'; return; }
+            renderer3d.domElement.style.display = 'block';
+            let activeIds = new Set();
+            if (player && player.hp > 0) {
+                let pm = getMesh('player', 'player');
+                pm.position.set(player.x, player.y, 0);
+                pm.rotation.z = player.angle - Math.PI/2;
+                pm.rotation.x = -0.3;
+                activeIds.add('player');
+                let pLight = scene3d.getObjectByName('playerLight');
+                if (pLight) pLight.position.set(player.x, player.y, 100);
+            }
+            for (let e of entities.enemies) {
+                if (!e) continue;
+                let eid = 'enemy_' + e.id;
+                let em = getMesh(eid, e.type);
+                em.position.set(e.x, e.y, 0);
+                em.rotation.z = e.angle || 0;
+                em.rotation.y += 0.02;
+                if (e.type === 'ghost' && em.material) em.material.opacity = e.alpha || 0.3;
+                activeIds.add(eid);
+            }
+            entities.bullets.forEach((b, i) => { if (!b) return; let bid = 'bullet_' + i; let bm = getMesh(bid, 'bullet'); bm.position.set(b.x, b.y, 0); activeIds.add(bid); });
+            entities.eBullets.forEach((b, i) => { if (!b) return; let bid = 'ebullet_' + i; let bm = getMesh(bid, 'eBullet'); bm.position.set(b.x, b.y, 0); activeIds.add(bid); });
+            entities.powerups.forEach((p, i) => { if (!p) return; let pid = 'powerup_' + i; let pm = getMesh(pid, 'powerup'); pm.position.set(p.x, p.y, 0); pm.rotation.y += 0.05; pm.rotation.x += 0.03; activeIds.add(pid); });
+            if (activeBoss && !activeBoss.isDead) {
+                let bm = getMesh('boss', 'boss');
+                bm.position.set(activeBoss.x, activeBoss.y, 0);
+                bm.rotation.y += 0.01;
+                let scale = activeBoss.radius / 40;
+                bm.scale.set(scale, scale, scale);
+                if (bm.material) { let col = new THREE.Color(activeBoss.color); bm.material.color = col; bm.material.emissive = col; }
+                activeIds.add('boss');
+            }
+            for (let id in meshPool) { if (!activeIds.has(id)) removeMesh(id); }
+            if (player) {
+                let targetX = player.x;
+                let targetY = player.y - 200;
+                camera3d.position.x += (targetX - camera3d.position.x) * 0.05;
+                camera3d.position.y += (targetY - camera3d.position.y) * 0.05;
+                camera3d.lookAt(camera3d.position.x, camera3d.position.y + 300, 0);
+            }
+            if (state.shake > 0) { camera3d.position.x += (Math.random() - 0.5) * state.shake * 2; camera3d.position.y += (Math.random() - 0.5) * state.shake * 2; }
+            if (starField3d) starField3d.rotation.z += 0.0001;
+            renderer3d.render(scene3d, camera3d);
+        }
+
+        window.addEventListener('resize', () => { if (renderer3d && camera3d) { renderer3d.setSize(canvas.width, canvas.height); camera3d.aspect = canvas.width / canvas.height; camera3d.updateProjectionMatrix(); } });
 
         applySettings();
         checkLogin();
         startMenuBg();
-        if (currentUsername) { returnToMenu(); setTimeout(startupFlow, 300); }
+        if (currentUsername) { returnToMenu(); }
     </script>
 </body>
 </html>
