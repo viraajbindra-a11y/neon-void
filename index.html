@@ -4564,19 +4564,49 @@
             { urls: 'stun:stun4.l.google.com:19302' },
             { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
             { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-            { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+            { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+            { urls: 'turn:standard.relay.metered.ca:80', username: 'b0b3b2e4e4b6c0a3c4d1a2b3', credential: 'free' },
+            { urls: 'turn:standard.relay.metered.ca:443', username: 'b0b3b2e4e4b6c0a3c4d1a2b3', credential: 'free' },
+            { urls: 'turn:standard.relay.metered.ca:443?transport=tcp', username: 'b0b3b2e4e4b6c0a3c4d1a2b3', credential: 'free' }
         ]};
 
         function initPeer(callback) {
-            if (peer && !peer.destroyed) { if (callback) callback(); return; }
-            peer = new Peer(undefined, { config: ICE_CONFIG, debug: 0 });
+            // Check if existing peer is alive and connected to signaling
+            if (peer && !peer.destroyed && peer.open) {
+                console.log('Reusing existing peer:', peer.id);
+                if (callback) callback();
+                return;
+            }
+            // Destroy any stale peer
+            if (peer && !peer.destroyed) {
+                try { peer.destroy(); } catch(e) {}
+            }
+            peer = new Peer(undefined, { config: ICE_CONFIG, debug: 1 });
+
+            // Timeout for signaling server connection
+            let sigTimeout = setTimeout(() => {
+                console.warn('PeerJS signaling server timed out, retrying with fresh peer...');
+                try { peer.destroy(); } catch(e) {}
+                peer = new Peer(undefined, { config: ICE_CONFIG, debug: 1 });
+                peer.on('open', (id) => { console.log('PeerJS connected (retry):', id); if (callback) callback(); });
+                peer.on('error', (err) => {
+                    console.error('PeerJS error (retry):', err);
+                    let errEl = document.getElementById('join-error');
+                    if (errEl) errEl.textContent = 'SIGNALING SERVER ERROR: ' + err.type + '. Try again.';
+                });
+                peer.on('connection', (conn) => { handleNewConnection(conn); });
+            }, 10000);
+
             peer.on('open', (id) => {
+                clearTimeout(sigTimeout);
                 console.log('PeerJS connected:', id);
                 if (callback) callback();
             });
             peer.on('error', (err) => {
+                clearTimeout(sigTimeout);
                 console.error('PeerJS error:', err);
-                document.getElementById('join-error').textContent = 'CONNECTION ERROR: ' + err.type;
+                let errEl = document.getElementById('join-error');
+                if (errEl) errEl.textContent = 'CONNECTION ERROR: ' + err.type + '. Try again.';
             });
             peer.on('connection', (conn) => {
                 handleNewConnection(conn);
@@ -4778,71 +4808,105 @@
             const code = input.value.trim().toUpperCase();
             if (code.length < 3) { err.textContent = 'ENTER A VALID ROOM CODE'; return; }
 
-            // The join code is actually the host's peer ID prefix - we use a signaling trick
-            // The host stores their peer ID in localStorage which only works on same device
-            // For cross-device, the room code IS part of the host's peer ID
             err.textContent = 'CONNECTING...';
+            let attempts = 0;
+            const MAX_ATTEMPTS = 3;
 
-            initPeer(() => {
-                // Try connecting with the code as a peer ID prefix
-                // The host creates their peer with an ID that starts with the lobby code
-                let hostPeerId = localStorage.getItem('nv_lobby_' + code);
-                if (!hostPeerId) {
-                    // For cross-device: the lobby code is used as the peer ID itself
-                    hostPeerId = 'nvoid-' + code;
+            function attemptJoin() {
+                attempts++;
+                console.log(`Join attempt ${attempts}/${MAX_ATTEMPTS} for code: ${code}`);
+                if (attempts > 1) err.textContent = `RETRYING... (ATTEMPT ${attempts}/${MAX_ATTEMPTS})`;
+
+                // Destroy old peer for a fresh connection on retries
+                if (attempts > 1 && peer && !peer.destroyed) {
+                    try { peer.destroy(); } catch(e) {}
+                    peer = null;
                 }
 
-                const conn = peer.connect(hostPeerId, { reliable: true, config: ICE_CONFIG });
-                let connTimeout = setTimeout(() => { err.textContent = 'CONNECTION TIMED OUT. Make sure the host created the lobby first.'; }, 15000);
-                conn.on('open', () => {
-                    clearTimeout(connTimeout);
-                    mpState.connections.push(conn);
-                    mpState.isHost = false;
-                    mpState.lobbyCode = code;
-                    conn.send({ type: 'join-request', name: currentUsername, color: (SKINS[equippedSkin] || SKINS['default']).color });
-                    conn.on('data', (data) => handlePeerData(conn, data));
-                    conn.on('close', () => {
-                        handlePeerDisconnect(conn);
-                        if (mpState.active) {
-                            mpState.active = false; seededRng = null;
-                            returnToMenu();
+                initPeer(() => {
+                    let hostPeerId = localStorage.getItem('nv_lobby_' + code);
+                    if (!hostPeerId) {
+                        hostPeerId = 'nvoid-' + code;
+                    }
+                    console.log('Connecting to host peer:', hostPeerId, 'from:', peer.id);
+
+                    const conn = peer.connect(hostPeerId, { reliable: true });
+                    let connTimeout = setTimeout(() => {
+                        console.warn(`Attempt ${attempts} timed out`);
+                        try { conn.close(); } catch(e) {}
+                        if (attempts < MAX_ATTEMPTS) {
+                            attemptJoin();
+                        } else {
+                            err.innerHTML = 'CONNECTION TIMED OUT.<br><span style="font-size:12px;color:#aaa;">Make sure the host created the lobby first and both devices have internet access.</span><br><button onclick="joinLobbyByCode()" style="margin-top:10px;border-color:#ffcc00;color:#ffcc00;padding:8px 20px;cursor:pointer;font-family:inherit;">RETRY</button>';
+                        }
+                    }, 20000);
+
+                    conn.on('open', () => {
+                        clearTimeout(connTimeout);
+                        console.log('Connected to host!');
+                        mpState.connections.push(conn);
+                        mpState.isHost = false;
+                        mpState.lobbyCode = code;
+                        conn.send({ type: 'join-request', name: currentUsername, color: (SKINS[equippedSkin] || SKINS['default']).color, skin: equippedSkin });
+                        conn.on('data', (data) => handlePeerData(conn, data));
+                        conn.on('close', () => {
+                            handlePeerDisconnect(conn);
+                            if (mpState.active) {
+                                mpState.active = false; seededRng = null;
+                                returnToMenu();
+                            }
+                        });
+
+                        document.getElementById('lobby-browser').classList.add('hidden');
+                        document.getElementById('lobby-room').classList.remove('hidden');
+                        document.getElementById('lobby-start-btn').style.display = 'none';
+                        err.textContent = '';
+                        updateLobbyUI();
+                    });
+                    conn.on('error', (e) => {
+                        clearTimeout(connTimeout);
+                        console.error('Join error:', e);
+                        if (attempts < MAX_ATTEMPTS) {
+                            attemptJoin();
+                        } else {
+                            err.innerHTML = 'COULD NOT CONNECT TO LOBBY: ' + code + '.<br><span style="font-size:12px;color:#aaa;">The host may have left or the code is wrong.</span><br><button onclick="joinLobbyByCode()" style="margin-top:10px;border-color:#ffcc00;color:#ffcc00;padding:8px 20px;cursor:pointer;font-family:inherit;">RETRY</button>';
                         }
                     });
-
-                    document.getElementById('lobby-browser').classList.add('hidden');
-                    document.getElementById('lobby-room').classList.remove('hidden');
-                    document.getElementById('lobby-start-btn').style.display = 'none';
-                    err.textContent = '';
-                    updateLobbyUI();
                 });
-                conn.on('error', (e) => {
-                    clearTimeout(connTimeout);
-                    console.error('Join error:', e);
-                    err.textContent = 'COULD NOT CONNECT TO LOBBY: ' + code + '. Check the code and try again.';
-                });
-            });
+            }
+            attemptJoin();
         }
 
         // Override peer creation to use deterministic ID for hosting
         function initPeerAsHost(callback) {
-            if (peer && !peer.destroyed) peer.destroy();
-            peer = new Peer('nvoid-' + mpState.lobbyCode, { config: ICE_CONFIG, debug: 0 });
+            if (peer && !peer.destroyed) { try { peer.destroy(); } catch(e) {} }
+            let hostId = 'nvoid-' + mpState.lobbyCode;
+            console.log('Creating host peer with ID:', hostId);
+            peer = new Peer(hostId, { config: ICE_CONFIG, debug: 1 });
             peer.on('open', (id) => {
-                console.log('Host PeerJS connected:', id);
+                console.log('Host PeerJS connected! ID:', id);
+                // Store for same-device local lookups
+                localStorage.setItem('nv_lobby_' + mpState.lobbyCode, id);
                 if (callback) callback();
             });
             peer.on('error', (err) => {
-                console.error('PeerJS host error:', err);
-                // If ID taken, try with random suffix
+                console.error('PeerJS host error:', err.type, err);
                 if (err.type === 'unavailable-id') {
+                    console.log('Peer ID taken, generating new code...');
                     mpState.lobbyCode = generateCode();
                     initPeerAsHost(callback);
+                    return;
                 }
-                // Show error to user
-                document.getElementById('lobby-status').textContent = 'CONNECTION ERROR: ' + err.type + '. Try again.';
+                let statusEl = document.getElementById('lobby-status');
+                if (statusEl) statusEl.textContent = 'CONNECTION ERROR: ' + err.type + '. Try again.';
             });
             peer.on('connection', (conn) => {
+                console.log('Incoming connection from:', conn.peer);
                 handleNewConnection(conn);
+            });
+            peer.on('disconnected', () => {
+                console.warn('Host disconnected from signaling server, reconnecting...');
+                if (!peer.destroyed) peer.reconnect();
             });
         }
 
