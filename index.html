@@ -5528,6 +5528,9 @@
         }
 
         function renderGearScreen(screen) {
+            // Clean corrupted entries from inventory
+            gearInventory = gearInventory.filter(g => g && g.id && g.slot && g.stats);
+            localStorage.setItem('neonVoidGearInv', JSON.stringify(gearInventory));
             let equippedHtml = GEAR_SLOTS.map(slot => {
                 let gear = playerGear[slot];
                 let icon = GEAR_ICONS[slot];
@@ -6320,8 +6323,7 @@
             if (Math.random() < 0.3 + stage * 0.04) {
                 let minRarity = stage >= 12 ? 2 : stage >= 8 ? 1 : 0;
                 let gear = generateRandomGear(minRarity);
-                gearInventory.push(gear);
-                saveGear();
+                saveGear(gear);
                 let rarityNames = ['COMMON', 'RARE', 'EPIC', 'LEGENDARY'];
                 let rarityColors = ['#aaa', '#0088ff', '#aa00ff', '#ffcc00'];
                 rewards.push({ type: 'gear', label: gear.name, sublabel: rarityNames[gear.rarity] + ' ' + gear.slot.replace('_', ' ').toUpperCase(), color: rarityColors[gear.rarity] });
