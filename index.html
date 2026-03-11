@@ -293,7 +293,7 @@
     </div>
 
     <div id="main-overlay" class="overlay-screen" style="overflow-y:auto;">
-        <div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-start;min-height:100%;padding:30px 0 50px;">
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100%;padding:30px 0 50px;">
         <div class="title-text" id="main-title">NEON VOID</div>
         <div class="subtitle-text" id="main-desc">
             <strong>ARROW KEYS / WASD</strong> to Move | <strong>SPACE / MOUSE</strong> to Shoot<br>
@@ -704,6 +704,21 @@
         let player, activeBoss = null, activeOrbitalStrike = null;
         let entities = { bullets: [], enemies: [], eBullets: [], particles: [], powerups: [], texts: [], stars: [], trails: [] };
         let enemyIdCounter = 0;
+
+        // Returns the closest player (local or remote) to given position — used for enemy AI targeting in co-op
+        function getClosestPlayer(ex, ey) {
+            let best = { x: player.x, y: player.y, dist: Math.hypot(player.x - ex, player.y - ey), isLocal: true, peerId: null };
+            if (mpState && mpState.active && peer) {
+                for (const [pid, p] of Object.entries(mpState.players)) {
+                    if (pid === peer.id || !p.alive) continue;
+                    let px = p.displayX || p.targetX || p.x;
+                    let py = p.displayY || p.targetY || p.y;
+                    let d = Math.hypot(px - ex, py - ey);
+                    if (d < best.dist) best = { x: px, y: py, dist: d, isLocal: false, peerId: pid };
+                }
+            }
+            return best;
+        }
 
 
         function shakeScreen(amt) { state.shake = Math.max(state.shake, amt); }
@@ -1143,28 +1158,56 @@
                 if (this.flashTimer > 0) this.flashTimer--;
                 if (this.kbVx || this.kbVy) { this.x += (this.kbVx || 0); this.y += (this.kbVy || 0); this.kbVx *= 0.8; this.kbVy *= 0.8; if (Math.abs(this.kbVx) < 0.1) this.kbVx = 0; if (Math.abs(this.kbVy) < 0.1) this.kbVy = 0; }
                 if (this.type === 'dummy') return; if (this.frozen > 0 && this.type !== 'bad') { this.frozen--; return; }
-                let dx = player.x - this.x; let dy = player.y - this.y; let dist = Math.hypot(dx, dy); this.angle = Math.atan2(dy, dx); let hyperMult = state.hyper ? 1.5 : 1.0;
-                
+
+                // CO-OP CLIENT: skip AI, just interpolate from host sync data
+                if (mpState.active && mpState.mode === 'coop' && !mpState.isHost) {
+                    if (this.syncX !== undefined) {
+                        this.x = lerp(this.x, this.syncX, 0.25);
+                        this.y = lerp(this.y, this.syncY, 0.25);
+                        if (this.syncAngle !== undefined) this.angle = lerpAngle(this.angle, this.syncAngle, 0.25);
+                        if (this.syncHp !== undefined) this.hp = this.syncHp;
+                    }
+                    this.timer += (state.hyper ? 1.5 : 1.0);
+                    if (this.type === 'ghost') this.alpha = 0.2 + Math.abs(Math.sin(this.timer * 0.05)) * 0.8;
+                    if (this.type === 'cloaked') this.alpha = this.syncAlpha !== undefined ? this.syncAlpha : 0.05;
+                    return;
+                }
+
+                // Target closest player in co-op, else local player
+                let target;
+                if (mpState.active && mpState.mode === 'coop') {
+                    target = getClosestPlayer(this.x, this.y);
+                } else {
+                    target = { x: player.x, y: player.y, isLocal: true, peerId: null };
+                }
+                let dx = target.x - this.x; let dy = target.y - this.y; let dist = Math.hypot(dx, dy); this.angle = Math.atan2(dy, dx); let hyperMult = state.hyper ? 1.5 : 1.0;
+
                 if (this.type === 'mine') { if (dist < 150) { this.speed = 0; this.color = '#ffffff'; this.radius = 15 + Math.sin(this.timer * 0.5) * 5; if (!this.fuse) this.fuse = 0; this.fuse += hyperMult; if (this.fuse > 60) { playSound('hit'); spawnParticles(this.x, this.y, '#ff0000', 30); for(let i=0; i<16; i++) { let a = (Math.PI*2/16)*i; entities.eBullets.push(new Projectile(this.x, this.y, Math.cos(a)*8, Math.sin(a)*8, '#ff0000', state.hardcore?60:30, true)); } this.hp = 0; } } else { this.speed = ENEMY_TYPES.mine.spd * (state.hardcore ? 1.3 : 1.0); this.color = '#ff0000'; } }
-                if (this.type === 'teleporter') { if (Math.floor(this.timer) % 120 === 0) { playSound('dash'); this.x = player.x + (Math.random()-0.5)*300; this.y = player.y + (Math.random()-0.5)*300; spawnParticles(this.x, this.y, '#00ffff', 10); } } else if (this.type === 'sniper' && dist < 350) { this.x -= Math.cos(this.angle) * (this.speed * 0.5) * hyperMult; this.y -= Math.sin(this.angle) * (this.speed * 0.5) * hyperMult; } else { this.x += Math.cos(this.angle) * this.speed * hyperMult; this.y += Math.sin(this.angle) * this.speed * hyperMult; }
-                
+                if (this.type === 'teleporter') { if (Math.floor(this.timer) % 120 === 0) { playSound('dash'); this.x = target.x + (Math.random()-0.5)*300; this.y = target.y + (Math.random()-0.5)*300; spawnParticles(this.x, this.y, '#00ffff', 10); } } else if (this.type === 'sniper' && dist < 350) { this.x -= Math.cos(this.angle) * (this.speed * 0.5) * hyperMult; this.y -= Math.sin(this.angle) * (this.speed * 0.5) * hyperMult; } else { this.x += Math.cos(this.angle) * this.speed * hyperMult; this.y += Math.sin(this.angle) * this.speed * hyperMult; }
+
                 this.timer += hyperMult; if (this.type === 'ghost') { this.alpha = 0.2 + Math.abs(Math.sin(this.timer * 0.05)) * 0.8; }
                 let timerInt = Math.floor(this.timer);
-                
+
                 if (this.type === 'shooter' && timerInt % 50 === 0) { entities.eBullets.push(new Projectile(this.x, this.y, Math.cos(this.angle)*10, Math.sin(this.angle)*10, '#ff0055', state.hardcore?40:20, true)); }
                 if (this.type === 'teleporter' && timerInt % 120 === 30) { for(let i=0; i<4; i++) { let spread = this.angle + (i * Math.PI/2); entities.eBullets.push(new Projectile(this.x, this.y, Math.cos(spread)*8, Math.sin(spread)*8, '#00ffff', state.hardcore?40:20, true)); } }
                 if (this.type === 'heavy_shooter' && timerInt % 75 === 0) { for(let i=-1; i<=1; i++) { let spread = this.angle + (i * 0.3); entities.eBullets.push(new Projectile(this.x, this.y, Math.cos(spread)*8, Math.sin(spread)*8, '#ff8800', state.hardcore?50:25, true)); } }
                 if (this.type === 'pulsar' && timerInt % 120 === 0) { for(let i=0; i<8; i++) { let spread = (Math.PI*2/8)*i + this.angle; entities.eBullets.push(new Projectile(this.x, this.y, Math.cos(spread)*6, Math.sin(spread)*6, '#ff00ff', state.hardcore?40:20, true)); } }
-                if (this.type === 'sniper') { if (timerInt % 90 > 60) { ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(player.x, player.y); ctx.strokeStyle = 'rgba(255, 255, 0, 0.4)'; ctx.lineWidth = 1.5; ctx.stroke(); } if (timerInt % 90 === 0) { entities.eBullets.push(new Projectile(this.x, this.y, Math.cos(this.angle)*20, Math.sin(this.angle)*20, '#ffff00', state.hardcore?100:50, true)); } }
+                if (this.type === 'sniper') { if (timerInt % 90 > 60) { ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(target.x, target.y); ctx.strokeStyle = 'rgba(255, 255, 0, 0.4)'; ctx.lineWidth = 1.5; ctx.stroke(); } if (timerInt % 90 === 0) { entities.eBullets.push(new Projectile(this.x, this.y, Math.cos(this.angle)*20, Math.sin(this.angle)*20, '#ffff00', state.hardcore?100:50, true)); } }
                 if (this.type === 'avatar' && timerInt % 30 === 0) { for(let i=-1; i<=1; i++) { let spread = this.angle + (i * 0.3); entities.eBullets.push(new Projectile(this.x, this.y, Math.cos(spread)*12, Math.sin(spread)*12, '#ffff00', state.hardcore?60:30, true)); } }
                 if (this.type === 'dark_avatar' && timerInt % 20 === 0) { for(let i=-2; i<=2; i++) { let spread = this.angle + (i * 0.2); entities.eBullets.push(new Projectile(this.x, this.y, Math.cos(spread)*14, Math.sin(spread)*14, '#ff0000', state.hardcore?80:40, true)); } }
                 if (this.type === 'bad' && timerInt % 120 === 0) { for(let i=0; i<8; i++) { let spread = this.angle + (i * Math.PI/4); entities.eBullets.push(new Projectile(this.x, this.y, Math.cos(spread)*6, Math.sin(spread)*6, '#800080', state.hardcore?100:50, true)); } }
-                if (this.type === 'orbiter') { let orbitDist = 180; let orbitSpd = 0.03 * hyperMult; if (!this.orbitAngle) this.orbitAngle = Math.random() * Math.PI * 2; this.orbitAngle += orbitSpd; this.x = player.x + Math.cos(this.orbitAngle) * orbitDist; this.y = player.y + Math.sin(this.orbitAngle) * orbitDist; if (timerInt % 60 === 0) { entities.eBullets.push(new Projectile(this.x, this.y, Math.cos(this.angle)*10, Math.sin(this.angle)*10, '#ff88ff', state.hardcore?40:20, true)); } }
+                if (this.type === 'orbiter') { let orbitDist = 180; let orbitSpd = 0.03 * hyperMult; if (!this.orbitAngle) this.orbitAngle = Math.random() * Math.PI * 2; this.orbitAngle += orbitSpd; this.x = target.x + Math.cos(this.orbitAngle) * orbitDist; this.y = target.y + Math.sin(this.orbitAngle) * orbitDist; if (timerInt % 60 === 0) { entities.eBullets.push(new Projectile(this.x, this.y, Math.cos(this.angle)*10, Math.sin(this.angle)*10, '#ff88ff', state.hardcore?40:20, true)); } }
                 if (this.type === 'shielder') { if (!this.shieldHp) { this.shieldHp = this.maxHp * 0.5; this.shieldMax = this.shieldHp; } if (this.shieldHp > 0 && timerInt % 60 === 0) { entities.eBullets.push(new Projectile(this.x, this.y, Math.cos(this.angle)*8, Math.sin(this.angle)*8, '#4488ff', state.hardcore?40:20, true)); } }
                 if (this.type === 'bomber' && timerInt % 90 === 0) { let p = new Projectile(this.x, this.y, 0, 0, '#ff6600', 0, true); p.life = 180; p.radius = 8; p.isMine = true; entities.eBullets.push(p); }
                 if (this.type === 'healer' && timerInt % 60 === 0) { for (let ne of entities.enemies) { if (ne && ne !== this && ne.type !== 'dummy' && Math.hypot(ne.x - this.x, ne.y - this.y) < 200) { ne.hp = Math.min(ne.maxHp, ne.hp + ne.maxHp * 0.05); } } }
                 if (this.type === 'cloaked') { this.alpha = dist < 200 ? Math.max(0.3, 1 - (dist / 200)) : 0.05; }
-                if (this.type === 'leech' && dist < 100 && timerInt % 10 === 0) { player.takeDamage(2); this.hp = Math.min(this.maxHp, this.hp + 5); spawnParticles(this.x, this.y, '#88ff00', 2, 0.3); }
+                if (this.type === 'leech' && dist < 100 && timerInt % 10 === 0) {
+                    if (mpState.active && mpState.mode === 'coop' && target && !target.isLocal) {
+                        let tc = mpState.connections.find(c => c.peer === target.peerId);
+                        if (tc && tc.open) tc.send({ type: 'player-hit', peerId: target.peerId, damage: 2 });
+                    } else { player.takeDamage(2); }
+                    this.hp = Math.min(this.maxHp, this.hp + 5); spawnParticles(this.x, this.y, '#88ff00', 2, 0.3);
+                }
             }
             
             draw(ctx) {
@@ -1358,16 +1401,19 @@
                 if (e.isGold) { spawnText(e.x, e.y - 20, 'GOLDEN!', '#ffcc00', 22); spawnParticles(e.x, e.y, '#ffcc00', 20); }
                 if (Math.random() < 0.15) entities.powerups.push(new Powerup(e.x, e.y));
                 
-                if (e.type === 'bad') {
-                    entities.enemies.push(new Enemy(e.x - 30, e.y - 30, 'tank'));
-                    entities.enemies.push(new Enemy(e.x + 30, e.y - 30, 'tank'));
-                    entities.enemies.push(new Enemy(e.x - 30, e.y + 30, 'sniper'));
-                    entities.enemies.push(new Enemy(e.x, e.y + 30, 'sniper'));
-                    entities.enemies.push(new Enemy(e.x + 30, e.y + 30, 'sniper'));
-                }
-                if (e.type === 'splitter') {
-                    entities.enemies.push(new Enemy(e.x - 20, e.y, 'chaser'));
-                    entities.enemies.push(new Enemy(e.x + 20, e.y, 'chaser'));
+                // In co-op, only host spawns children — clients get them via enemy-sync
+                if (!mpState.active || mpState.isHost) {
+                    if (e.type === 'bad') {
+                        entities.enemies.push(new Enemy(e.x - 30, e.y - 30, 'tank'));
+                        entities.enemies.push(new Enemy(e.x + 30, e.y - 30, 'tank'));
+                        entities.enemies.push(new Enemy(e.x - 30, e.y + 30, 'sniper'));
+                        entities.enemies.push(new Enemy(e.x, e.y + 30, 'sniper'));
+                        entities.enemies.push(new Enemy(e.x + 30, e.y + 30, 'sniper'));
+                    }
+                    if (e.type === 'splitter') {
+                        entities.enemies.push(new Enemy(e.x - 20, e.y, 'chaser'));
+                        entities.enemies.push(new Enemy(e.x + 20, e.y, 'chaser'));
+                    }
                 }
                 if (e.type === 'bomber') {
                     for (let i = 0; i < 3; i++) {
@@ -1440,6 +1486,8 @@
         function spawnWave() {
             if (state.mode === 'training') { if (entities.enemies.length < 5 && state.frame % 120 === 0) { entities.enemies.push(new Enemy((gameRng() * (canvas.width - 200)) + 100, (gameRng() * (canvas.height - 200)) + 100, 'dummy')); } return; }
             if (state.mode === 'boss_rush') { if (!activeBoss && !state.spawningBoss && state.bossesDefeated < 15) { state.spawningBoss = true; setTimeout(() => { activeBoss = new Boss(state.bossesDefeated); state.spawningBoss = false; }, 1500); } return; }
+            // In co-op, only host spawns enemies — clients receive via enemy-sync
+            if (mpState.active && mpState.mode === 'coop' && !mpState.isHost) return;
             if (state.warping || activeBoss || state.spawningBoss || countdownActive) return;
             let spawnRate = Math.max(10, 50 - state.level * 2); let maxEnemies = 25 + state.level * 3;
             if (state.frame % spawnRate === 0 && entities.enemies.length < maxEnemies) {
@@ -1600,33 +1648,69 @@
                             return false; 
                         });
                         
-                        for (let i=entities.enemies.length-1; i>=0; i--) { 
-                            let e = entities.enemies[i]; 
-                            if (!e) continue; 
-                            
-                            if (e.hp <= 0) { 
-                                if (e.type !== 'dummy') killEnemy(e); 
+                        let isCoopClient = mpState.active && mpState.mode === 'coop' && !mpState.isHost;
+                        let isCoopHost = mpState.active && mpState.mode === 'coop' && mpState.isHost;
+                        for (let i=entities.enemies.length-1; i>=0; i--) {
+                            let e = entities.enemies[i];
+                            if (!e) continue;
+
+                            if (e.hp <= 0) {
+                                if (e.type !== 'dummy') killEnemy(e);
                                 else { let dIdx = entities.enemies.indexOf(e); if (dIdx > -1) entities.enemies.splice(dIdx, 1); }
-                                continue; 
-                            } 
-                            
-                            e.update(); 
-                            if (f === framesToRun - 1) e.draw(ctx); 
-                            
-                            if (Math.hypot(e.x-player.x, e.y-player.y) < player.radius + e.radius) { 
-                                if (player.timers.invuln > 0 || state.mode === 'training') { 
-                                    e.hp -= 100 * state.stats.dmgMulti; 
-                                } else { 
-                                    player.takeDamage(e.type === 'dark_avatar' ? 80 : (e.type === 'avatar' ? 50 : (e.type === 'rammer' ? 40 : 30))); 
+                                continue;
+                            }
+
+                            e.update();
+                            if (f === framesToRun - 1) e.draw(ctx);
+
+                            // Local player collision (host handles for everyone, client only for itself if not co-op)
+                            if (!isCoopClient && Math.hypot(e.x-player.x, e.y-player.y) < player.radius + e.radius) {
+                                if (player.timers.invuln > 0 || state.mode === 'training') {
+                                    e.hp -= 100 * state.stats.dmgMulti;
+                                } else {
+                                    player.takeDamage(e.type === 'dark_avatar' ? 80 : (e.type === 'avatar' ? 50 : (e.type === 'rammer' ? 40 : 30)));
                                     if (e.type !== 'bad' && e.type !== 'dummy') { let cIdx = entities.enemies.indexOf(e); if (cIdx > -1) entities.enemies.splice(cIdx, 1); }
-                                } 
-                            } 
-                            if (e.x < -300 || e.x > canvas.width+300 || e.y < -300 || e.y > canvas.height+300) { let oIdx = entities.enemies.indexOf(e); if (oIdx > -1) entities.enemies.splice(oIdx, 1); } 
+                                }
+                            }
+                            // Host checks enemy collision with remote players
+                            if (isCoopHost) {
+                                for (const [pid, rp] of Object.entries(mpState.players)) {
+                                    if (pid === peer.id || !rp.alive) continue;
+                                    let rpx = rp.displayX || rp.targetX || rp.x;
+                                    let rpy = rp.displayY || rp.targetY || rp.y;
+                                    if (Math.hypot(e.x - rpx, e.y - rpy) < 12 + e.radius) {
+                                        let dmg = e.type === 'dark_avatar' ? 80 : (e.type === 'avatar' ? 50 : (e.type === 'rammer' ? 40 : 30));
+                                        let tc = mpState.connections.find(c => c.peer === pid);
+                                        if (tc && tc.open) tc.send({ type: 'player-hit', peerId: pid, damage: dmg });
+                                        if (e.type !== 'bad' && e.type !== 'dummy') { let cIdx = entities.enemies.indexOf(e); if (cIdx > -1) entities.enemies.splice(cIdx, 1); }
+                                        break;
+                                    }
+                                }
+                            }
+                            if (e.x < -300 || e.x > canvas.width+300 || e.y < -300 || e.y > canvas.height+300) { let oIdx = entities.enemies.indexOf(e); if (oIdx > -1) entities.enemies.splice(oIdx, 1); }
                         }
-                        
+
                         if (activeBoss && activeBoss.hp <= 0 && !activeBoss.isDead) { activeBoss.isDead = true; handleBossDeath(); }
-                        
-                        updateArr(entities.eBullets, (b, i) => { if (Math.hypot(b.x-player.x, b.y-player.y) < player.radius) { player.takeDamage(b.dmg); entities.eBullets.splice(i,1); return true; } return false; });
+
+                        updateArr(entities.eBullets, (b, i) => {
+                            // Client in co-op: skip damage (host sends player-hit), but still render/update
+                            if (isCoopClient) return false;
+                            if (Math.hypot(b.x-player.x, b.y-player.y) < player.radius) { player.takeDamage(b.dmg); entities.eBullets.splice(i,1); return true; }
+                            // Host checks eBullets vs remote players
+                            if (isCoopHost) {
+                                for (const [pid, rp] of Object.entries(mpState.players)) {
+                                    if (pid === peer.id || !rp.alive) continue;
+                                    let rpx = rp.displayX || rp.targetX || rp.x;
+                                    let rpy = rp.displayY || rp.targetY || rp.y;
+                                    if (Math.hypot(b.x - rpx, b.y - rpy) < 12) {
+                                        let tc = mpState.connections.find(c => c.peer === pid);
+                                        if (tc && tc.open) tc.send({ type: 'player-hit', peerId: pid, damage: b.dmg });
+                                        entities.eBullets.splice(i, 1); return true;
+                                    }
+                                }
+                            }
+                            return false;
+                        });
                         if (activeBoss && activeBoss.alpha > 0.5) { let bDist = Math.hypot(activeBoss.x-player.x, activeBoss.y-player.y); if (bDist < player.radius + activeBoss.radius) { /* Knockback: always push player out of boss */ let pushAngle = Math.atan2(player.y - activeBoss.y, player.x - activeBoss.x); let pushForce = (player.radius + activeBoss.radius - bDist + 8); player.x += Math.cos(pushAngle) * pushForce; player.y += Math.sin(pushAngle) * pushForce; player.x = Math.max(10, Math.min(canvas.width-10, player.x)); player.y = Math.max(10, Math.min(canvas.height-10, player.y)); if (player.timers.invuln > 0 || state.mode === 'training') activeBoss.hp -= 10 * state.stats.dmgMulti; else player.takeDamage(10); } }
                     }
                     if (f === framesToRun - 1) {
@@ -4715,14 +4799,47 @@
                         let de = entities.enemies[eidx];
                         spawnParticles(de.x, de.y, de.color, 20);
                         entities.enemies.splice(eidx, 1);
-                        if (de.type === 'bad') {
-                            entities.enemies.push(new Enemy(de.x - 30, de.y - 30, 'tank'));
-                            entities.enemies.push(new Enemy(de.x + 30, de.y - 30, 'tank'));
-                            entities.enemies.push(new Enemy(de.x - 30, de.y + 30, 'sniper'));
-                            entities.enemies.push(new Enemy(de.x, de.y + 30, 'sniper'));
-                            entities.enemies.push(new Enemy(de.x + 30, de.y + 30, 'sniper'));
+                        // Only host spawns children — clients get them via enemy-sync
+                        if (mpState.isHost || !mpState.active) {
+                            if (de.type === 'bad') {
+                                entities.enemies.push(new Enemy(de.x - 30, de.y - 30, 'tank'));
+                                entities.enemies.push(new Enemy(de.x + 30, de.y - 30, 'tank'));
+                                entities.enemies.push(new Enemy(de.x - 30, de.y + 30, 'sniper'));
+                                entities.enemies.push(new Enemy(de.x, de.y + 30, 'sniper'));
+                                entities.enemies.push(new Enemy(de.x + 30, de.y + 30, 'sniper'));
+                            }
                         }
                     }
+                    break;
+                case 'enemy-sync': {
+                    // Client receives authoritative enemy state from host
+                    if (mpState.isHost) break;
+                    let syncedIds = new Set();
+                    for (let ed of data.e) {
+                        syncedIds.add(ed.i);
+                        let existing = entities.enemies.find(en => en.id === ed.i);
+                        if (existing) {
+                            existing.syncX = ed.x; existing.syncY = ed.y;
+                            existing.syncAngle = ed.a; existing.syncHp = ed.h;
+                            if (ed.f) existing.frozen = ed.f;
+                            if (ed.al !== undefined) existing.syncAlpha = ed.al;
+                        } else {
+                            let ne = new Enemy(ed.x, ed.y, ed.t);
+                            ne.id = ed.i; ne.hp = ed.h; ne.angle = ed.a;
+                            ne.syncX = ed.x; ne.syncY = ed.y; ne.syncAngle = ed.a; ne.syncHp = ed.h;
+                            if (ed.f) ne.frozen = ed.f;
+                            if (ed.al !== undefined) ne.syncAlpha = ed.al;
+                            if (ed.g) { ne.isGold = true; ne.color = '#ffcc00'; }
+                            entities.enemies.push(ne);
+                        }
+                    }
+                    // Remove enemies host no longer has
+                    entities.enemies = entities.enemies.filter(en => syncedIds.has(en.id));
+                    break;
+                }
+                case 'player-hit':
+                    // Host tells us we got hit
+                    if (player && data.damage) player.takeDamage(data.damage);
                     break;
             }
         }
@@ -4941,6 +5058,20 @@
                     maxHp: state.stats.maxHp,
                     alive: player.hp > 0
                 });
+            }
+
+            // Host broadcasts enemy positions every 4 frames for co-op sync
+            if (mpState.isHost && mpState.mode === 'coop' && state.frame % 4 === 0 && player) {
+                let ed = [];
+                for (let e of entities.enemies) {
+                    if (!e) continue;
+                    let entry = { i: e.id, x: Math.round(e.x), y: Math.round(e.y), h: Math.round(e.hp), t: e.type, a: Math.round(e.angle * 100) / 100 };
+                    if (e.frozen > 0) entry.f = e.frozen;
+                    if (e.type === 'ghost' || e.type === 'cloaked') entry.al = Math.round(e.alpha * 100) / 100;
+                    if (e.isGold) entry.g = 1;
+                    ed.push(entry);
+                }
+                broadcast({ type: 'enemy-sync', e: ed });
             }
 
             // Update race timer
