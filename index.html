@@ -1639,7 +1639,7 @@
             updateDust(ctx);
             checkComboMilestone();
             mpSync();
-            if (state.frame % 3 === 0) drawMinimap();
+            if (state.frame % 3 === 0 && appSettings.minimap !== false) drawMinimap();
             updateLowHpVignette();
             checkWaveAnnounce();
             checkKillMilestone();
@@ -5930,52 +5930,9 @@
                 fctx.fill();
             }
             fctx.globalAlpha = 1;
-            // Draw minimap
-            if (appSettings.minimap !== false) drawMinimap(fctx);
         };
-
-        // ==================== FEATURE: MINIMAP ====================
-        function drawMinimap(fctx) {
-            if (!state.active || state.paused) return;
-            let mw = 120, mh = 90;
-            let mx = canvas.width - mw - 10, my = canvas.height - mh - 10;
-            let sx = mw / canvas.width, sy = mh / canvas.height;
-            fctx.save();
-            fctx.globalAlpha = 0.5;
-            fctx.fillStyle = 'rgba(0,0,0,0.6)';
-            fctx.strokeStyle = '#ff005544';
-            fctx.lineWidth = 1;
-            fctx.fillRect(mx, my, mw, mh);
-            fctx.strokeRect(mx, my, mw, mh);
-            // Player dot
-            fctx.globalAlpha = 1;
-            fctx.fillStyle = '#00ffcc';
-            fctx.beginPath();
-            fctx.arc(mx + player.x * sx, my + player.y * sy, 2.5, 0, Math.PI * 2);
-            fctx.fill();
-            // Enemies
-            fctx.globalAlpha = 0.8;
-            for (let e of entities.enemies) {
-                if (!e) continue;
-                fctx.fillStyle = e.color || '#ff4400';
-                fctx.fillRect(mx + e.x * sx - 1, my + e.y * sy - 1, 2, 2);
-            }
-            // Boss
-            if (activeBoss && !activeBoss.isDead) {
-                fctx.fillStyle = activeBoss.color;
-                fctx.globalAlpha = 1;
-                fctx.beginPath();
-                fctx.arc(mx + activeBoss.x * sx, my + activeBoss.y * sy, 3, 0, Math.PI * 2);
-                fctx.fill();
-            }
-            // Powerups
-            fctx.globalAlpha = 0.9;
-            for (let p of entities.powerups) {
-                fctx.fillStyle = p.color;
-                fctx.fillRect(mx + p.x * sx - 1.5, my + p.y * sy - 1.5, 3, 3);
-            }
-            fctx.restore();
-        }
+        // NOTE: Game already has drawMinimap() at line ~3402 using its own canvas element.
+        // The minimap toggle in settings controls appSettings.minimap which the original respects.
 
         // ==================== FEATURE: DIFFICULTY SELECTOR ====================
         let selectedDifficulty = localStorage.getItem('neonVoidDifficulty') || 'normal';
