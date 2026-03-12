@@ -318,6 +318,8 @@
             <h2 style="color: #ff0000; text-decoration: underline; margin-top: 20px; letter-spacing: 5px; text-shadow: 0 0 10px #ff0000;">ILLEGAL UPGRADES</h2>
             <div class="subtitle-text">Purchase these forbidden technologies to permanently buff your ship.</div>
             <div class="btn-container" id="upgrade-grid" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; max-width: 1000px; margin-bottom: 30px;"></div>
+            <h2 id="wisp-skins-header" style="color: #00ccff; text-decoration: underline; margin-top: 20px; letter-spacing: 5px; text-shadow: 0 0 10px #00ccff; display: none;">WISP SKINS</h2>
+            <div class="btn-container" id="wisp-skin-grid" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; max-width: 1000px; margin-bottom: 30px;"></div>
             <button onclick="returnToMenu()" style="border-color: #fff; color: #fff; box-shadow: 0 0 20px #fff; margin-bottom: 50px;">BACK TO MENU</button>
         </div>
     </div>
@@ -422,6 +424,20 @@
             'abyssal': { name: 'ABYSSAL LORD', color: '#440088', price: 1000000 }
         };
 
+        const WISP_SKINS = {
+            'default':  { name: 'STARLIGHT',     color: '#ffffff', price: 0 },
+            'ember':    { name: 'EMBER SPRITE',  color: '#ff4400', price: 50000 },
+            'frost':    { name: 'FROST WISP',    color: '#00ccff', price: 50000 },
+            'toxic':    { name: 'TOXIC GLOW',    color: '#88ff00', price: 100000 },
+            'phantom':  { name: 'PHANTOM WISP',  color: '#aa00ff', price: 150000 },
+            'solar':    { name: 'SOLAR FLARE',   color: '#ffcc00', price: 250000 },
+            'void':     { name: 'VOID SHADE',    color: '#440088', price: 500000 },
+            'rainbow':  { name: 'PRISMATIC',     color: '#ff00ff', price: 1000000 }
+        };
+        let equippedWispSkin = localStorage.getItem('neonVoidWispSkin') || 'default';
+        if (!WISP_SKINS[equippedWispSkin]) equippedWispSkin = 'default';
+        let unlockedWispSkins = ['default'];
+        try { let wsp = JSON.parse(localStorage.getItem('neonVoidWispSkins')); if(Array.isArray(wsp)) unlockedWispSkins = wsp; } catch(e){}
 
         let equippedSkin = localStorage.getItem('neonVoidEquippedSkin') || 'default';
         if (!SKINS[equippedSkin]) equippedSkin = 'default';
@@ -448,7 +464,7 @@
             'tesla': { name: "TESLA COIL", desc: "Zaps nearby enemies", price: 400000 },
             'nuke_dash': { name: "NUCLEAR DASH", desc: "Dash leaves a plasma trap", price: 500000 },
             'bloodthirst': { name: "BLOODTHIRST CORE", desc: "Kills grant massive speed/fire rate", price: 1000000 },
-            'wisp': { name: "ASTRAL WISP", desc: "A loyal pet that shoots and grabs items", price: 2000000 },
+            'wisp': { name: "ASTRAL WISP", desc: "A loyal companion that attacks enemies and fetches items", price: 2000000 },
             'dart_protocol': { name: "PRECISION PROTOCOL", desc: "Extra projectile on every shot", price: 75000 },
             'alchemist': { name: "ALCHEMIST BREW", desc: "+25% damage and +15% speed permanently", price: 150000 },
             'shield_gen': { name: "SHIELD GENERATOR", desc: "Dash grants a 2-second shield", price: 175000 },
@@ -689,7 +705,7 @@
 
 
         function getBaseStats() {
-            let base = { dmgMulti: 1.5, fireRateMulti: 1.0, maxHp: 500, speedMulti: 1.2, projCount: 1, homing: false, explosive: false, vampirism: 0, dashCdMulti: 1.0, pierce: 0, guardian: 0, bombDrones: 0, laserDrones: 0, miniDrones: 0, scatterDrones: 0, empDrones: 0, sawDrones: 0, sniperDrones: 0, critChance: 0.05, critMult: 2.0, tesla: 0, timeDilator: false, nukeDash: false, magnet: false, antimatter: false, bloodthirst: false, bloodthirstTimer: 0, wisp: false, wispAngle: 0, shieldGen: false, nanoRepair: false, coinMulti: 1.0, voidSiphon: false, overcharge: false, phaseShift: false, quantumEcho: false };
+            let base = { dmgMulti: 1.5, fireRateMulti: 1.0, maxHp: 500, speedMulti: 1.2, projCount: 1, homing: false, explosive: false, vampirism: 0, dashCdMulti: 1.0, pierce: 0, guardian: 0, bombDrones: 0, laserDrones: 0, miniDrones: 0, scatterDrones: 0, empDrones: 0, sawDrones: 0, sniperDrones: 0, critChance: 0.05, critMult: 2.0, tesla: 0, timeDilator: false, nukeDash: false, magnet: false, antimatter: false, bloodthirst: false, bloodthirstTimer: 0, wisp: false, shieldGen: false, nanoRepair: false, coinMulti: 1.0, voidSiphon: false, overcharge: false, phaseShift: false, quantumEcho: false };
             if (purchasedUpgrades.includes('homing')) base.homing = true; if (purchasedUpgrades.includes('explosive')) base.explosive = true; if (purchasedUpgrades.includes('pierce')) base.pierce += 1; if (purchasedUpgrades.includes('drone_bomb')) base.bombDrones += 1; if (purchasedUpgrades.includes('drone_laser')) base.laserDrones += 1; if (purchasedUpgrades.includes('drone_mini')) base.miniDrones += 1; if (purchasedUpgrades.includes('drone_scatter')) base.scatterDrones += 1; if (purchasedUpgrades.includes('drone_emp')) base.empDrones += 1; if (purchasedUpgrades.includes('drone_saw')) base.sawDrones += 1; if (purchasedUpgrades.includes('drone_sniper')) base.sniperDrones += 1; if (purchasedUpgrades.includes('guardian')) base.guardian += 1; if (purchasedUpgrades.includes('tesla')) base.tesla += 1; if (purchasedUpgrades.includes('time_dilator')) base.timeDilator = true; if (purchasedUpgrades.includes('nuke_dash')) base.nukeDash = true; if (purchasedUpgrades.includes('magnet')) base.magnet = true; if (purchasedUpgrades.includes('antimatter')) base.antimatter = true; if (purchasedUpgrades.includes('bloodthirst')) base.bloodthirst = true; if (purchasedUpgrades.includes('wisp')) base.wisp = true;
             if (purchasedUpgrades.includes('dart_protocol')) base.projCount += 1; if (purchasedUpgrades.includes('alchemist')) { base.dmgMulti *= 1.25; base.speedMulti *= 1.15; }
             if (purchasedUpgrades.includes('shield_gen')) base.shieldGen = true; if (purchasedUpgrades.includes('nano_repair')) base.nanoRepair = true; if (purchasedUpgrades.includes('coin_boost')) base.coinMulti = 1.5; if (purchasedUpgrades.includes('void_siphon')) base.voidSiphon = true; if (purchasedUpgrades.includes('overcharge')) base.overcharge = true; if (purchasedUpgrades.includes('phase_shift')) base.phaseShift = true; if (purchasedUpgrades.includes('quantum_echo')) base.quantumEcho = true;
@@ -954,12 +970,345 @@
             }
         }
 
+        // ==================== ASTRAL WISP COMPANION ====================
+        class Wisp {
+            constructor(owner) {
+                this.x = owner.x + 30;
+                this.y = owner.y;
+                this.vx = 0;
+                this.vy = 0;
+                this.radius = 8;
+                this.hp = 100;
+                this.maxHp = 100;
+                this.dmg = 30;
+                this.attackCd = 0;
+                this.maxSpeed = 8;
+                this.accel = 0.5;
+                this.friction = 0.92;
+                this.state = 'FOLLOW'; // FOLLOW, ATTACK, FETCH, RETURN, DEAD
+                this.target = null;
+                this.fetchTarget = null;
+                this.deathTimer = 0;
+                this.owner = owner;
+                this.bobOffset = Math.random() * Math.PI * 2;
+            }
+
+            update() {
+                if (this.state === 'DEAD') {
+                    this.deathTimer--;
+                    if (this.deathTimer <= 0) this.respawn();
+                    return;
+                }
+
+                // Scale with level
+                this.maxHp = 100 + state.level * 5;
+                this.dmg = 30 + state.level * 2;
+
+                // Take damage from enemy bullets
+                for (let i = entities.eBullets.length - 1; i >= 0; i--) {
+                    let b = entities.eBullets[i];
+                    if (!b) continue;
+                    if (Math.hypot(b.x - this.x, b.y - this.y) < this.radius + (b.radius || 6)) {
+                        this.hp -= b.dmg || 10;
+                        spawnParticles(this.x, this.y, '#ff0000', 5);
+                        entities.eBullets.splice(i, 1);
+                    }
+                }
+
+                // Take contact damage from enemies
+                for (let e of entities.enemies) {
+                    if (!e || e.frozen > 0) continue;
+                    if (Math.hypot(e.x - this.x, e.y - this.y) < this.radius + e.radius) {
+                        this.hp -= 3;
+                        break;
+                    }
+                }
+
+                if (this.hp <= 0) { this.die(); return; }
+
+                if (this.attackCd > 0) this.attackCd--;
+
+                // AI state machine
+                let nearestEnemy = getNearestEnemy(this.x, this.y);
+                let enemyDist = nearestEnemy ? Math.hypot(nearestEnemy.x - this.x, nearestEnemy.y - this.y) : Infinity;
+                let playerDist = Math.hypot(this.owner.x - this.x, this.owner.y - this.y);
+
+                switch (this.state) {
+                    case 'FOLLOW':
+                        if (nearestEnemy && enemyDist < 300) {
+                            this.target = nearestEnemy;
+                            this.state = 'ATTACK';
+                            break;
+                        }
+                        let np = this.findNearestPowerup();
+                        if (np && Math.hypot(np.x - this.x, np.y - this.y) < 200) {
+                            this.fetchTarget = np;
+                            this.state = 'FETCH';
+                            break;
+                        }
+                        this.followPlayer();
+                        break;
+
+                    case 'ATTACK':
+                        if (!this.target || this.target.hp <= 0 || !entities.enemies.includes(this.target)) {
+                            this.target = null;
+                            this.state = 'RETURN';
+                            break;
+                        }
+                        if (playerDist > 400) {
+                            this.target = null;
+                            this.state = 'RETURN';
+                            break;
+                        }
+                        this.moveToward(this.target.x, this.target.y);
+                        if (this.attackCd <= 0 && Math.hypot(this.target.x - this.x, this.target.y - this.y) < this.radius + this.target.radius) {
+                            this.ramAttack(this.target);
+                        }
+                        break;
+
+                    case 'FETCH':
+                        if (!this.fetchTarget || !entities.powerups.includes(this.fetchTarget)) {
+                            this.fetchTarget = null;
+                            this.state = 'RETURN';
+                            break;
+                        }
+                        let pd = Math.hypot(this.fetchTarget.x - this.x, this.fetchTarget.y - this.y);
+                        if (pd > this.radius + this.fetchTarget.r) {
+                            this.moveToward(this.fetchTarget.x, this.fetchTarget.y);
+                        } else {
+                            // Drag powerup toward player
+                            this.fetchTarget.x += (this.owner.x - this.fetchTarget.x) * 0.12;
+                            this.fetchTarget.y += (this.owner.y - this.fetchTarget.y) * 0.12;
+                            this.moveToward(this.owner.x, this.owner.y);
+                            if (Math.hypot(this.fetchTarget.x - this.owner.x, this.fetchTarget.y - this.owner.y) < 40) {
+                                this.fetchTarget = null;
+                                this.state = 'FOLLOW';
+                            }
+                        }
+                        break;
+
+                    case 'RETURN':
+                        this.moveToward(this.owner.x, this.owner.y);
+                        if (playerDist < 60) this.state = 'FOLLOW';
+                        if (nearestEnemy && enemyDist < 200) {
+                            this.target = nearestEnemy;
+                            this.state = 'ATTACK';
+                        }
+                        break;
+                }
+
+                // Apply physics
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vx *= this.friction;
+                this.vy *= this.friction;
+                this.x = Math.max(this.radius, Math.min(canvas.width - this.radius, this.x));
+                this.y = Math.max(this.radius, Math.min(canvas.height - this.radius, this.y));
+
+                // Trail
+                if (appSettings.graphics === 'high' && state.frame % 2 === 0) {
+                    entities.trails.push(new Trail(this.x, this.y, this.getColor()));
+                }
+            }
+
+            followPlayer() {
+                let dx = this.owner.x - this.x;
+                let dy = this.owner.y - this.y;
+                let dist = Math.hypot(dx, dy);
+                let idealDist = 45 + Math.sin(state.frame * 0.03 + this.bobOffset) * 10;
+                if (dist > idealDist + 10) {
+                    this.vx += (dx / dist) * this.accel * 0.6;
+                    this.vy += (dy / dist) * this.accel * 0.6;
+                } else if (dist < idealDist - 15) {
+                    this.vx -= (dx / dist) * this.accel * 0.3;
+                    this.vy -= (dy / dist) * this.accel * 0.3;
+                }
+                // Gentle perpendicular drift
+                this.vx += Math.cos(state.frame * 0.02 + this.bobOffset) * 0.08;
+                this.vy += Math.sin(state.frame * 0.025 + this.bobOffset) * 0.08;
+                let spd = Math.hypot(this.vx, this.vy);
+                if (spd > this.maxSpeed * 0.4) {
+                    this.vx = (this.vx / spd) * this.maxSpeed * 0.4;
+                    this.vy = (this.vy / spd) * this.maxSpeed * 0.4;
+                }
+            }
+
+            moveToward(tx, ty) {
+                let dx = tx - this.x;
+                let dy = ty - this.y;
+                let dist = Math.hypot(dx, dy);
+                if (dist > 1) {
+                    this.vx += (dx / dist) * this.accel;
+                    this.vy += (dy / dist) * this.accel;
+                }
+                let spd = Math.hypot(this.vx, this.vy);
+                if (spd > this.maxSpeed) {
+                    this.vx = (this.vx / spd) * this.maxSpeed;
+                    this.vy = (this.vy / spd) * this.maxSpeed;
+                }
+            }
+
+            ramAttack(enemy) {
+                let dmg = this.dmg * state.stats.dmgMulti;
+                enemy.hp -= dmg;
+                enemy.flashTimer = 8;
+                this.attackCd = 30;
+                spawnParticles(enemy.x, enemy.y, this.getColor(), 10);
+                spawnText(enemy.x, enemy.y - 15, Math.floor(dmg) + '', this.getColor(), 14);
+                playSound('hit');
+                let dx = this.x - enemy.x;
+                let dy = this.y - enemy.y;
+                let d = Math.hypot(dx, dy) || 1;
+                this.vx += (dx / d) * 6;
+                this.vy += (dy / d) * 6;
+                if (enemy.hp <= 0 && enemy !== activeBoss) {
+                    killEnemy(enemy);
+                    this.target = null;
+                    this.state = 'RETURN';
+                }
+                if (enemy === activeBoss && activeBoss.hp <= 0 && !activeBoss.isDead) {
+                    activeBoss.isDead = true;
+                    handleBossDeath();
+                    this.target = null;
+                    this.state = 'RETURN';
+                }
+            }
+
+            findNearestPowerup() {
+                let nearest = null, minDist = Infinity;
+                entities.powerups.forEach(p => {
+                    let d = Math.hypot(p.x - this.x, p.y - this.y);
+                    if (d < minDist) { minDist = d; nearest = p; }
+                });
+                return nearest;
+            }
+
+            die() {
+                this.state = 'DEAD';
+                this.deathTimer = 300;
+                this.target = null;
+                this.fetchTarget = null;
+                spawnParticles(this.x, this.y, this.getColor(), 40, 2);
+                spawnText(this.x, this.y, 'WISP DOWN', '#ff0055', 18);
+                playSound('hit');
+            }
+
+            respawn() {
+                this.state = 'FOLLOW';
+                this.hp = this.maxHp;
+                this.x = this.owner.x + 30;
+                this.y = this.owner.y;
+                this.vx = 0;
+                this.vy = 0;
+                this.attackCd = 0;
+                spawnParticles(this.x, this.y, this.getColor(), 25, 1.5);
+                spawnText(this.x, this.y, 'WISP REVIVED', '#00ff88', 16);
+                playSound('powerup');
+            }
+
+            getColor() {
+                let skin = WISP_SKINS[equippedWispSkin] || WISP_SKINS['default'];
+                if (equippedWispSkin === 'rainbow') return `hsl(${state.frame * 3 % 360}, 100%, 60%)`;
+                return skin.color;
+            }
+
+            draw(ctx) {
+                if (this.state === 'DEAD') {
+                    // Draw ghost respawn indicator
+                    let secs = Math.ceil(this.deathTimer / 60);
+                    ctx.save();
+                    ctx.globalAlpha = 0.3 + Math.sin(state.frame * 0.1) * 0.15;
+                    ctx.fillStyle = this.getColor();
+                    ctx.beginPath();
+                    ctx.arc(this.owner.x + 30, this.owner.y - 20, 6, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.globalAlpha = 1;
+                    ctx.fillStyle = '#ffffff88';
+                    ctx.font = 'bold 10px Courier New';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(secs + 's', this.owner.x + 30, this.owner.y - 30);
+                    ctx.textAlign = 'left';
+                    ctx.restore();
+                    return;
+                }
+
+                let color = this.getColor();
+                let pulse = Math.sin(state.frame * 0.1 + this.bobOffset) * 0.2 + 0.8;
+
+                ctx.save();
+
+                // Outer glow
+                if (appSettings.graphics === 'high') {
+                    ctx.shadowBlur = 20;
+                    ctx.shadowColor = color;
+                }
+
+                // State-based ring
+                if (this.state === 'ATTACK') {
+                    ctx.strokeStyle = '#ff005588';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius + 5 + Math.sin(state.frame * 0.2) * 2, 0, Math.PI * 2);
+                    ctx.stroke();
+                } else if (this.state === 'FETCH') {
+                    ctx.strokeStyle = '#00ff0066';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius + 4, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                // Main body -- glowing orb
+                ctx.globalAlpha = pulse;
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Inner bright core
+                ctx.globalAlpha = 1;
+                ctx.fillStyle = '#ffffffcc';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Two small "eye" dots when attacking (angry face)
+                if (this.state === 'ATTACK' && this.target) {
+                    let ea = Math.atan2(this.target.y - this.y, this.target.x - this.x);
+                    ctx.fillStyle = '#ff0055';
+                    ctx.beginPath();
+                    ctx.arc(this.x + Math.cos(ea - 0.3) * 4, this.y + Math.sin(ea - 0.3) * 4, 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(this.x + Math.cos(ea + 0.3) * 4, this.y + Math.sin(ea + 0.3) * 4, 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // HP bar (only when damaged)
+                if (this.hp < this.maxHp) {
+                    ctx.globalAlpha = 1;
+                    ctx.shadowBlur = 0;
+                    let barW = 22, barH = 3;
+                    let hpPct = Math.max(0, this.hp / this.maxHp);
+                    ctx.fillStyle = '#00000088';
+                    ctx.fillRect(this.x - barW/2, this.y - this.radius - 8, barW, barH);
+                    ctx.fillStyle = hpPct > 0.5 ? '#00ff88' : (hpPct > 0.25 ? '#ffcc00' : '#ff0055');
+                    ctx.fillRect(this.x - barW/2, this.y - this.radius - 8, barW * hpPct, barH);
+                }
+
+                ctx.shadowBlur = 0;
+                ctx.restore();
+            }
+        }
+
         class Player {
             constructor() {
                 this.x = canvas.width / 2; this.y = canvas.height / 2; this.radius = 12; this.hp = state.stats.maxHp;
                 this.shield = 0; this.nukeShield = false; this.angle = -Math.PI / 2; this.lastShot = 0; this.dashCd = 0;
                 this.timers = { overdrive: 0, shield: 0, dash: 0, invuln: 0, shieldGen: 0 }; this.target = null; this.shotCount = 0;
                 this.baseColor = (SKINS[equippedSkin] || SKINS['default']).color;
+                this.wisp = null;
+                if (state.stats.wisp) this.wisp = new Wisp(this);
                 ui.hp.style.background = this.baseColor; ui.hp.style.boxShadow = `0 0 10px ${this.baseColor}`;
                 ui.xp.style.background = this.baseColor; ui.xp.style.boxShadow = `0 0 15px ${this.baseColor}`;
             }
@@ -1030,24 +1379,9 @@
                 this.updateDrones();
                 
                 // WISP COMPANION LOGIC
-                if (state.stats.wisp) {
-                    state.stats.wispAngle += 0.05;
-                    let wx = this.x + Math.cos(state.stats.wispAngle) * 50;
-                    let wy = this.y + Math.sin(state.stats.wispAngle) * 50;
-                    if (appSettings.graphics === 'high') entities.trails.push(new Trail(wx, wy, '#ffffff'));
-                    
-                    if (state.frame % 45 === 0) {
-                        let wTarget = this.target || getNearestEnemy(wx, wy);
-                        if (wTarget) {
-                            let wa = Math.atan2(wTarget.y - wy, wTarget.x - wx);
-                            let wp = new Projectile(wx, wy, Math.cos(wa)*15, Math.sin(wa)*15, '#ffffff', 30 * state.stats.dmgMulti);
-                            wp.radius = 3; entities.bullets.push(wp);
-                        }
-                    }
-                    entities.powerups.forEach(p => {
-                        let pd = Math.hypot(wx - p.x, wy - p.y);
-                        if (pd < 150) { p.x += (wx - p.x) / pd * 6; p.y += (wy - p.y) / pd * 6; }
-                    });
+                if (state.stats.wisp && this.wisp) {
+                    this.wisp.owner = this;
+                    this.wisp.update();
                 }
                 
                 for (let k in this.timers) if (this.timers[k] > 0) this.timers[k]--;
@@ -1166,13 +1500,8 @@
                 if (this.timers.shieldGen > 0) { ctx.strokeStyle = '#00ccff'; ctx.lineWidth = 2; ctx.globalAlpha = 0.4 + Math.sin(state.frame*0.15)*0.2; ctx.beginPath(); ctx.arc(0, 0, 28 + Math.sin(state.frame*0.1)*3, 0, Math.PI*2); ctx.stroke(); ctx.globalAlpha = 1; }
                 ctx.restore();
                 
-                if (state.stats.wisp) {
-                    let wx = this.x + Math.cos(state.stats.wispAngle) * 50;
-                    let wy = this.y + Math.sin(state.stats.wispAngle) * 50;
-                    ctx.fillStyle = '#ffffff';
-                    if (appSettings.graphics === 'high') { ctx.shadowBlur = 15; ctx.shadowColor = '#ffffff'; }
-                    ctx.beginPath(); ctx.arc(wx, wy, 5, 0, Math.PI*2); ctx.fill();
-                    ctx.shadowBlur = 0;
+                if (state.stats.wisp && this.wisp) {
+                    this.wisp.draw(ctx);
                 }
 
 
@@ -3126,8 +3455,27 @@
                 if (isUnlocked) { btn.innerText = "UNLOCKED"; btn.style.background = '#ff8800'; btn.style.color = '#000'; btn.disabled = true; } else { let costText = upg.price >= 1000000 ? (upg.price/1000000) + 'M' : (upg.price >= 1000 ? (upg.price/1000) + 'K' : upg.price); btn.innerText = `BUY: ${costText}`; if (totalCoins >= upg.price) { btn.onclick = () => { totalCoins -= upg.price; purchasedUpgrades.push(id); localStorage.setItem('neonVoidCoins', totalCoins); localStorage.setItem('neonVoidUpgrades', JSON.stringify(purchasedUpgrades)); playSound('buy'); cloudSave(); renderShop(); }; } else { btn.style.opacity = '0.5'; btn.style.cursor = 'not-allowed'; } }
                 card.appendChild(btn); upGrid.appendChild(card);
             }
+            // Wisp skin shop
+            let wispHeader = document.getElementById('wisp-skins-header');
+            let wispGrid = document.getElementById('wisp-skin-grid');
+            if (wispHeader) wispHeader.style.display = purchasedUpgrades.includes('wisp') ? 'block' : 'none';
+            if (wispGrid) {
+                wispGrid.innerHTML = '';
+                if (purchasedUpgrades.includes('wisp')) {
+                    for (const [id, skin] of Object.entries(WISP_SKINS)) {
+                        let card = document.createElement('div'); card.className = 'skin-card'; card.style.borderColor = skin.color;
+                        let isUnlocked = unlockedWispSkins.includes(id); let isEquipped = equippedWispSkin === id;
+                        card.innerHTML = `<div style="width:30px;height:30px;border-radius:50%;background:${skin.color};box-shadow:0 0 15px ${skin.color};margin:0 auto 10px;"></div><div style="color:${skin.color};font-weight:bold;text-align:center;font-size:12px;">${skin.name}</div>`;
+                        let btn = document.createElement('button'); btn.style.borderColor = skin.color; btn.style.color = skin.color;
+                        if (isEquipped) { btn.innerText = "EQUIPPED"; btn.style.background = skin.color; btn.style.color = '#000'; }
+                        else if (isUnlocked) { btn.innerText = "EQUIP"; btn.onclick = () => { equippedWispSkin = id; localStorage.setItem('neonVoidWispSkin', id); playSound('powerup'); renderShop(); }; }
+                        else { let costText = skin.price >= 1000000 ? (skin.price/1000000)+'M' : (skin.price >= 1000 ? (skin.price/1000)+'K' : skin.price); btn.innerText = 'BUY: ' + costText; if (totalCoins >= skin.price) { btn.onclick = () => { totalCoins -= skin.price; unlockedWispSkins.push(id); localStorage.setItem('neonVoidCoins', totalCoins); localStorage.setItem('neonVoidWispSkins', JSON.stringify(unlockedWispSkins)); playSound('buy'); if (typeof cloudSave === 'function') cloudSave(); renderShop(); }; } else { btn.style.opacity = '0.5'; btn.style.cursor = 'not-allowed'; } }
+                        card.appendChild(btn); wispGrid.appendChild(card);
+                    }
+                }
+            }
         }
-        
+
         function initGameBase() { player = new Player(); activeBoss = null; asteroids = []; exhaustParticles = []; entities = { bullets: [], enemies: [], eBullets: [], particles: [], powerups: [], texts: [], stars: [], trails: [] }; let starCount = appSettings.graphics === 'low' ? 40 : 150; for(let i=0; i<starCount; i++) entities.stars.push(new Star()); ui.mainOverlay.classList.add('hidden'); document.getElementById('mission-select').classList.add('hidden'); document.getElementById('shop-screen').classList.add('hidden'); document.getElementById('settings-screen').classList.add('hidden'); ui.boss.style.display = 'none'; ui.bossAlert.style.display = 'none'; ui.kills.innerText = "KILLS: 0"; mobileAutoShoot = false; document.getElementById('mob-shoot').style.background = 'rgba(0,255,204,0.2)'; document.getElementById('mob-shoot').style.color = '#00ffcc'; document.getElementById('mobile-controls').style.display = appSettings.mobile ? 'flex' : 'none'; if(audioCtx.state === 'suspended') audioCtx.resume(); killStreak = 0; lastScoreEggCheck = 0; idleFrames = 0; idleMessageShown = false; killFlavorCooldown = 0; lastComboMilestone = 0; muzzleFlashes = []; slowMoActive = false; slowMoFrames = 0; stopMenuMusic(); stopMenuBg(); showCountdown(); if (appSettings.music) startMusic(); update(); }
         
         function startMission(stageNum) { 
@@ -4911,6 +5259,7 @@
                         if (data.color) p.color = data.color;
                         if (data.skin) p.skin = data.skin;
                         if (data.drones) p.drones = data.drones;
+                        if (data.wisp !== undefined) p.wisp = data.wisp;
                     }
                     break;
                 case 'bullet-sync':
@@ -5290,7 +5639,15 @@
                         saw: state.stats.sawDrones || 0,
                         sniper: state.stats.sniperDrones || 0,
                         guardian: state.stats.guardian || 0
-                    }
+                    },
+                    wisp: (player.wisp && player.wisp.state !== 'DEAD') ? {
+                        x: Math.round(player.wisp.x),
+                        y: Math.round(player.wisp.y),
+                        st: player.wisp.state,
+                        hp: Math.round(player.wisp.hp),
+                        mhp: player.wisp.maxHp,
+                        skin: equippedWispSkin
+                    } : null
                 };
                 broadcast(ps);
             }
@@ -5386,6 +5743,22 @@
                 // ---- Draw drones around remote player ----
                 if (p.drones) {
                     drawDronesAt(ctx, px, py, p.drones, p.color, false);
+                }
+
+                // Remote wisp
+                if (p.wisp) {
+                    let wc = (WISP_SKINS[p.wisp.skin] || WISP_SKINS['default']).color;
+                    if (p.wisp.skin === 'rainbow') wc = 'hsl(' + (state.frame * 3 % 360) + ', 100%, 60%)';
+                    ctx.save();
+                    if (appSettings.graphics === 'high') { ctx.shadowBlur = 15; ctx.shadowColor = wc; }
+                    ctx.fillStyle = wc;
+                    ctx.globalAlpha = 0.8;
+                    ctx.beginPath(); ctx.arc(p.wisp.x, p.wisp.y, 8, 0, Math.PI*2); ctx.fill();
+                    ctx.globalAlpha = 1;
+                    ctx.fillStyle = '#ffffffcc';
+                    ctx.beginPath(); ctx.arc(p.wisp.x, p.wisp.y, 3, 0, Math.PI*2); ctx.fill();
+                    ctx.shadowBlur = 0;
+                    ctx.restore();
                 }
 
                 // ---- Draw remote player's bullets ----
