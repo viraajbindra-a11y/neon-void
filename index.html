@@ -806,6 +806,154 @@
         }
 
 
+        // ==================== DRONE DRAWING (shared for local + remote) ====================
+        function drawDronesAt(ctx, px, py, drones, playerColor, doCollisions) {
+            let bob = Math.sin(state.frame * 0.1) * 5;
+            let spin = state.frame * 0.05;
+
+            // Bomb Drone — chunky missile turret
+            if (drones.bomb > 0) {
+                let dx = px-25, dy = py-25 + bob;
+                ctx.save(); ctx.translate(dx, dy); ctx.rotate(spin);
+                if (appSettings.graphics === 'high') { ctx.shadowBlur = 12; ctx.shadowColor = '#ff4400'; }
+                ctx.fillStyle = '#ff4400';
+                ctx.fillRect(-7, -4, 14, 8);
+                ctx.fillStyle = '#cc3300';
+                ctx.fillRect(-3, -7, 6, 3); // barrel
+                ctx.fillRect(-3, 4, 6, 3);
+                ctx.fillStyle = '#ff660088';
+                ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI*2); ctx.fill();
+                ctx.restore();
+            }
+
+            // Laser Drone — sleek diamond with beam line
+            if (drones.laser > 0) {
+                let dx = px+25, dy = py-25 + bob;
+                ctx.save(); ctx.translate(dx, dy); ctx.rotate(-spin * 0.7);
+                if (appSettings.graphics === 'high') { ctx.shadowBlur = 12; ctx.shadowColor = '#00ff00'; }
+                ctx.fillStyle = '#00ff00';
+                ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(6, 0); ctx.lineTo(0, 8); ctx.lineTo(-6, 0); ctx.closePath(); ctx.fill();
+                ctx.strokeStyle = '#00ff0066'; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(0, -18); ctx.stroke();
+                ctx.fillStyle = '#88ff8888';
+                ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI*2); ctx.fill();
+                ctx.restore();
+            }
+
+            // Minigun Drone — rotating barrel cluster
+            if (drones.mini > 0) {
+                let dx = px-25, dy = py+25 + bob;
+                ctx.save(); ctx.translate(dx, dy);
+                if (appSettings.graphics === 'high') { ctx.shadowBlur = 10; ctx.shadowColor = '#ffff00'; }
+                ctx.fillStyle = '#888';
+                ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI*2); ctx.fill();
+                ctx.strokeStyle = '#ffff00'; ctx.lineWidth = 1.5;
+                for (let i = 0; i < 3; i++) {
+                    let a = (state.frame * 0.3) + (i * Math.PI * 2 / 3);
+                    ctx.beginPath(); ctx.moveTo(Math.cos(a)*3, Math.sin(a)*3); ctx.lineTo(Math.cos(a)*12, Math.sin(a)*12); ctx.stroke();
+                }
+                ctx.fillStyle = '#ffff0088';
+                ctx.beginPath(); ctx.arc(0, 0, 2.5, 0, Math.PI*2); ctx.fill();
+                ctx.restore();
+            }
+
+            // Scatter Drone — starburst shape
+            if (drones.scatter > 0) {
+                let dx = px+25, dy = py+25 + bob;
+                ctx.save(); ctx.translate(dx, dy); ctx.rotate(spin);
+                if (appSettings.graphics === 'high') { ctx.shadowBlur = 12; ctx.shadowColor = '#ff00ff'; }
+                ctx.fillStyle = '#ff00ff';
+                ctx.beginPath();
+                for (let i = 0; i < 5; i++) {
+                    let a1 = (i / 5) * Math.PI * 2 - Math.PI/2;
+                    let a2 = ((i + 0.5) / 5) * Math.PI * 2 - Math.PI/2;
+                    ctx.lineTo(Math.cos(a1) * 9, Math.sin(a1) * 9);
+                    ctx.lineTo(Math.cos(a2) * 4, Math.sin(a2) * 4);
+                }
+                ctx.closePath(); ctx.fill();
+                ctx.fillStyle = '#ff88ff88';
+                ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI*2); ctx.fill();
+                ctx.restore();
+            }
+
+            // EMP Drone — pulsing ring with lightning bolt
+            if (drones.emp > 0) {
+                let dx = px, dy = py-35 + bob;
+                let pulse = 0.5 + Math.sin(state.frame * 0.15) * 0.3;
+                ctx.save(); ctx.translate(dx, dy);
+                if (appSettings.graphics === 'high') { ctx.shadowBlur = 15; ctx.shadowColor = '#00ffff'; }
+                ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 1.5; ctx.globalAlpha = pulse + 0.3;
+                ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI*2); ctx.stroke();
+                ctx.globalAlpha = 1;
+                ctx.fillStyle = '#00ffff';
+                // Lightning bolt
+                ctx.beginPath(); ctx.moveTo(-2, -6); ctx.lineTo(2, -1); ctx.lineTo(-1, -1); ctx.lineTo(2, 6); ctx.lineTo(-2, 1); ctx.lineTo(1, 1); ctx.closePath(); ctx.fill();
+                ctx.restore();
+            }
+
+            // Sniper Drone — long rifle shape
+            if (drones.sniper > 0) {
+                let dx = px, dy = py+35 + bob;
+                ctx.save(); ctx.translate(dx, dy); ctx.rotate(spin * 0.3);
+                if (appSettings.graphics === 'high') { ctx.shadowBlur = 12; ctx.shadowColor = '#ffffff'; }
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(-2, -12, 4, 24); // barrel
+                ctx.fillStyle = '#aaa';
+                ctx.fillRect(-4, -2, 8, 4); // body
+                ctx.fillStyle = '#ff000088';
+                ctx.beginPath(); ctx.arc(0, -12, 2, 0, Math.PI*2); ctx.fill(); // laser dot
+                ctx.restore();
+            }
+
+            ctx.shadowBlur = 0;
+
+            // Guardian orbitals — energy shield arcs
+            if (drones.guardian > 0) {
+                let gt = state.frame * 0.1; let gCount = drones.guardian * 2;
+                ctx.strokeStyle = playerColor; ctx.lineWidth = 5;
+                if (appSettings.graphics === 'high') { ctx.shadowBlur = 15; ctx.shadowColor = playerColor; }
+                for (let i = 0; i < gCount; i++) {
+                    let a = gt + (i * Math.PI * 2 / gCount);
+                    ctx.beginPath(); ctx.arc(px, py, 60, a, a + Math.PI/3); ctx.stroke();
+                }
+                ctx.shadowBlur = 0;
+            }
+
+            // Saw Drones — actual spinning sawblade
+            if (drones.saw > 0) {
+                let st = state.frame * -0.15; let sCount = drones.saw * 2;
+                if (appSettings.graphics === 'high') { ctx.shadowBlur = 15; ctx.shadowColor = '#ff0000'; }
+                for (let i = 0; i < sCount; i++) {
+                    let a = st + (i * Math.PI * 2 / sCount);
+                    let sx = px + Math.cos(a) * 100; let sy = py + Math.sin(a) * 100;
+                    ctx.save(); ctx.translate(sx, sy); ctx.rotate(state.frame * 0.5);
+                    // Saw blade — circle with teeth
+                    ctx.fillStyle = '#ff0000';
+                    ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = '#cc0000';
+                    for (let t = 0; t < 8; t++) {
+                        let ta = (t / 8) * Math.PI * 2;
+                        ctx.beginPath();
+                        ctx.moveTo(Math.cos(ta) * 7, Math.sin(ta) * 7);
+                        ctx.lineTo(Math.cos(ta - 0.3) * 13, Math.sin(ta - 0.3) * 13);
+                        ctx.lineTo(Math.cos(ta + 0.3) * 13, Math.sin(ta + 0.3) * 13);
+                        ctx.closePath(); ctx.fill();
+                    }
+                    // Center hole
+                    ctx.fillStyle = '#440000';
+                    ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI*2); ctx.fill();
+                    ctx.restore();
+
+                    // Collision (only for local player)
+                    if (doCollisions) {
+                        for (let ei = entities.enemies.length - 1; ei >= 0; ei--) { let e = entities.enemies[ei]; if (e && Math.hypot(e.x - sx, e.y - sy) < e.radius + 15) { e.hp -= 5 * state.stats.dmgMulti; if(e.hp <= 0) killEnemy(e); } }
+                        if (activeBoss && Math.hypot(activeBoss.x - sx, activeBoss.y - sy) < activeBoss.radius + 15) { activeBoss.hp -= 5 * state.stats.dmgMulti; if (activeBoss.hp <= 0 && !activeBoss.isDead) { activeBoss.isDead = true; handleBossDeath(); } }
+                    }
+                }
+                ctx.shadowBlur = 0;
+            }
+        }
+
         class Player {
             constructor() {
                 this.x = canvas.width / 2; this.y = canvas.height / 2; this.radius = 12; this.hp = state.stats.maxHp;
@@ -1028,30 +1176,13 @@
                 }
 
 
-                let bob = Math.sin(state.frame * 0.1) * 5;
-                if (appSettings.graphics === 'high') { ctx.shadowBlur = 10; ctx.shadowColor = '#fff'; }
-                if (state.stats.bombDrones > 0) { ctx.fillStyle = '#ff4400'; ctx.beginPath(); ctx.arc(this.x-25, this.y-25 + bob, 6, 0, Math.PI*2); ctx.fill(); }
-                if (state.stats.laserDrones > 0) { ctx.fillStyle = '#00ff00'; ctx.beginPath(); ctx.arc(this.x+25, this.y-25 + bob, 6, 0, Math.PI*2); ctx.fill(); }
-                if (state.stats.miniDrones > 0) { ctx.fillStyle = '#ffff00'; ctx.beginPath(); ctx.arc(this.x-25, this.y+25 + bob, 6, 0, Math.PI*2); ctx.fill(); }
-                if (state.stats.scatterDrones > 0) { ctx.fillStyle = '#ff00ff'; ctx.beginPath(); ctx.arc(this.x+25, this.y+25 + bob, 6, 0, Math.PI*2); ctx.fill(); }
-                if (state.stats.empDrones > 0) { ctx.fillStyle = '#00ffff'; ctx.beginPath(); ctx.arc(this.x, this.y-35 + bob, 6, 0, Math.PI*2); ctx.fill(); }
-                if (state.stats.sniperDrones > 0) { ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(this.x, this.y+35 + bob, 6, 0, Math.PI*2); ctx.fill(); }
-                ctx.shadowBlur = 0;
-
-
-                if (state.stats.guardian > 0) { let gt = state.frame * 0.1; let gCount = state.stats.guardian * 2; ctx.strokeStyle = this.baseColor; ctx.lineWidth = 5; if (appSettings.graphics === 'high') { ctx.shadowBlur = 15; ctx.shadowColor = this.baseColor; } for(let i=0; i<gCount; i++) { let a = gt + (i * Math.PI * 2 / gCount); ctx.beginPath(); ctx.arc(this.x, this.y, 60, a, a + Math.PI/3); ctx.stroke(); } ctx.shadowBlur = 0; }
-                
-                if (state.stats.sawDrones > 0) {
-                    let st = state.frame * -0.15; let sCount = state.stats.sawDrones * 2; ctx.fillStyle = '#ff0000';
-                    if (appSettings.graphics === 'high') { ctx.shadowBlur = 15; ctx.shadowColor = '#ff0000'; }
-                    for(let i=0; i<sCount; i++) {
-                        let a = st + (i * Math.PI * 2 / sCount); let sx = this.x + Math.cos(a) * 100; let sy = this.y + Math.sin(a) * 100;
-                        ctx.save(); ctx.translate(sx, sy); ctx.rotate(state.frame * 0.5); ctx.beginPath(); ctx.moveTo(10,0); ctx.lineTo(-5,5); ctx.lineTo(-5,-5); ctx.fill(); ctx.beginPath(); ctx.moveTo(-10,0); ctx.lineTo(5,-5); ctx.lineTo(5,5); ctx.fill(); ctx.restore();
-                        for (let ei = entities.enemies.length - 1; ei >= 0; ei--) { let e = entities.enemies[ei]; if (e && Math.hypot(e.x - sx, e.y - sy) < e.radius + 15) { e.hp -= 5 * state.stats.dmgMulti; if(e.hp <= 0) killEnemy(e); } }
-                        if (activeBoss && Math.hypot(activeBoss.x - sx, activeBoss.y - sy) < activeBoss.radius + 15) { activeBoss.hp -= 5 * state.stats.dmgMulti; if (activeBoss.hp <= 0 && !activeBoss.isDead) { activeBoss.isDead = true; handleBossDeath(); } }
-                    }
-                    ctx.shadowBlur = 0;
-                }
+                // Draw drones using shared function
+                drawDronesAt(ctx, this.x, this.y, {
+                    bomb: state.stats.bombDrones, laser: state.stats.laserDrones,
+                    mini: state.stats.miniDrones, scatter: state.stats.scatterDrones,
+                    emp: state.stats.empDrones, sniper: state.stats.sniperDrones,
+                    saw: state.stats.sawDrones, guardian: state.stats.guardian
+                }, this.baseColor, true);
             }
         }
 
@@ -4665,6 +4796,12 @@
                         p.alive = data.alive;
                         if (data.color) p.color = data.color;
                         if (data.skin) p.skin = data.skin;
+                        if (data.drones) p.drones = data.drones;
+                    }
+                    break;
+                case 'bullet-sync':
+                    if (mpState.players[conn.peer]) {
+                        mpState.players[conn.peer].remoteBullets = data.b || [];
                     }
                     break;
                 case 'player-died':
@@ -5019,7 +5156,7 @@
 
             // Send our state every 4 frames (~15fps at 60fps game)
             if (state.frame % 4 === 0 && player) {
-                broadcast({
+                let ps = {
                     type: 'player-state',
                     x: player.x,
                     y: player.y,
@@ -5028,8 +5165,31 @@
                     maxHp: state.stats.maxHp,
                     alive: player.hp > 0,
                     color: (SKINS[equippedSkin] || SKINS['default']).color,
-                    skin: equippedSkin
-                });
+                    skin: equippedSkin,
+                    // Drone counts for visual rendering on remote
+                    drones: {
+                        bomb: state.stats.bombDrones || 0,
+                        laser: state.stats.laserDrones || 0,
+                        mini: state.stats.miniDrones || 0,
+                        scatter: state.stats.scatterDrones || 0,
+                        emp: state.stats.empDrones || 0,
+                        saw: state.stats.sawDrones || 0,
+                        sniper: state.stats.sniperDrones || 0,
+                        guardian: state.stats.guardian || 0
+                    }
+                };
+                broadcast(ps);
+            }
+
+            // Broadcast bullets every 6 frames so remote players see our shots
+            if (state.frame % 6 === 0 && player) {
+                let bd = [];
+                for (let b of entities.bullets) {
+                    if (!b || b.isEnemy) continue;
+                    bd.push({ x: Math.round(b.x), y: Math.round(b.y), c: b.color, r: b.radius || 4, bomb: b.isBomb ? 1 : 0 });
+                    if (bd.length >= 60) break; // cap to avoid huge packets
+                }
+                if (bd.length > 0) broadcast({ type: 'bullet-sync', b: bd });
             }
 
             // Host broadcasts enemy positions every 4 frames for co-op sync
@@ -5107,10 +5267,40 @@
                 p.displayY = lerp(p.displayY, ty, LERP_SPEED);
                 p.displayAngle = lerpAngle(p.displayAngle, ta, LERP_SPEED);
 
-                // Draw ship
+                let px = p.displayX, py = p.displayY;
+
+                // ---- Draw drones around remote player ----
+                if (p.drones) {
+                    drawDronesAt(ctx, px, py, p.drones, p.color, false);
+                }
+
+                // ---- Draw remote player's bullets ----
+                if (p.remoteBullets && p.remoteBullets.length > 0) {
+                    ctx.save();
+                    ctx.globalAlpha = 0.7;
+                    for (let rb of p.remoteBullets) {
+                        if (appSettings.graphics === 'high') { ctx.shadowBlur = 8; ctx.shadowColor = rb.c; }
+                        ctx.fillStyle = rb.c;
+                        ctx.beginPath();
+                        ctx.arc(rb.x, rb.y, rb.r || 4, 0, Math.PI*2);
+                        ctx.fill();
+                        // Bomb glow
+                        if (rb.bomb) {
+                            ctx.globalAlpha = 0.3;
+                            ctx.beginPath();
+                            ctx.arc(rb.x, rb.y, (rb.r || 4) * 2.5, 0, Math.PI*2);
+                            ctx.fill();
+                            ctx.globalAlpha = 0.7;
+                        }
+                    }
+                    ctx.shadowBlur = 0;
+                    ctx.restore();
+                }
+
+                // ---- Draw ship ----
                 ctx.save();
                 ctx.globalAlpha = 0.8;
-                ctx.translate(p.displayX, p.displayY);
+                ctx.translate(px, py);
                 ctx.rotate(p.displayAngle);
                 ctx.shadowBlur = 15;
                 ctx.shadowColor = p.color;
@@ -5122,15 +5312,26 @@
                 ctx.beginPath(); ctx.arc(-12, 0, 3 + Math.random()*2, 0, Math.PI*2); ctx.fill();
                 ctx.restore();
 
-                // Name tag above
+                // ---- Name tag + HP bar ----
                 ctx.globalAlpha = 1;
                 ctx.fillStyle = p.color;
                 ctx.font = 'bold 12px Courier New';
                 ctx.textAlign = 'center';
                 ctx.shadowBlur = 8;
                 ctx.shadowColor = p.color;
-                ctx.fillText(p.name, p.displayX, p.displayY - 25);
+                ctx.fillText(p.name, px, py - 25);
                 ctx.shadowBlur = 0;
+
+                // HP bar under name
+                if (p.hp !== undefined && p.maxHp) {
+                    let barW = 40, barH = 3;
+                    let hpPct = Math.max(0, p.hp / p.maxHp);
+                    ctx.fillStyle = '#333';
+                    ctx.fillRect(px - barW/2, py - 20, barW, barH);
+                    ctx.fillStyle = hpPct > 0.5 ? '#00ff88' : hpPct > 0.25 ? '#ffcc00' : '#ff0055';
+                    ctx.fillRect(px - barW/2, py - 20, barW * hpPct, barH);
+                }
+
                 ctx.textAlign = 'left';
             }
         }
