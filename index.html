@@ -1244,32 +1244,146 @@
             }
             
             draw(ctx) {
-                if (this.isHoming && appSettings.graphics === 'high') {
-                    ctx.globalAlpha = 0.3; ctx.fillStyle = this.color;
-                    for (let t = 1; t <= 3; t++) {
-                        ctx.beginPath(); ctx.arc(this.x - this.vx * t * 0.5, this.y - this.vy * t * 0.5, this.radius * (1 - t * 0.2), 0, Math.PI*2); ctx.fill();
-                    }
-                    ctx.globalAlpha = 1;
-                    ctx.shadowBlur = 10; ctx.shadowColor = this.color;
-                }
-                if (this.isMine && appSettings.graphics === 'high') { ctx.shadowBlur = 15; ctx.shadowColor = '#ff6600'; }
-                // Projectile trail for player bullets
-                if (!this.isEnemy && !this.isMine && appSettings.graphics === 'high') {
-                    ctx.globalAlpha = 0.15;
-                    ctx.fillStyle = this.isCrit ? '#ff0000' : this.color;
-                    for (let t = 1; t <= 4; t++) {
-                        ctx.fillRect(this.x - this.vx*t*0.4 - 1, this.y - this.vy*t*0.4 - 1, 2, 2);
-                    }
-                    ctx.globalAlpha = 1;
-                }
+                let angle = Math.atan2(this.vy, this.vx);
+                let speed = Math.hypot(this.vx, this.vy);
+                let col = this.isCrit ? '#ff0000' : this.color;
+                let hiGfx = appSettings.graphics === 'high';
+
                 if (this.ghost) ctx.globalAlpha = 0.4;
-                ctx.fillStyle = this.isCrit ? '#ff0000' : (this.isMine ? `rgba(255,102,0,${0.5 + Math.sin(state.frame * 0.2) * 0.3})` : this.color);
-                if (this.radius > 6 || this.isMine) { ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); ctx.fill(); if (this.isMine) { ctx.strokeStyle = '#ff6600'; ctx.lineWidth = 1; ctx.stroke(); } }
-                else { ctx.fillRect(this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2); }
-                if (this.ghost) ctx.globalAlpha = 1;
-                // Crit glow
-                if (this.isCrit && appSettings.graphics === 'high') { ctx.globalAlpha = 0.3; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius + 3, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1; }
+
+                // --- MINES: pulsing danger sphere ---
+                if (this.isMine) {
+                    let pulse = 0.6 + Math.sin(state.frame * 0.2) * 0.3;
+                    if (hiGfx) { ctx.shadowBlur = 20; ctx.shadowColor = '#ff6600'; }
+                    // Outer danger ring
+                    ctx.strokeStyle = `rgba(255,102,0,${pulse * 0.5})`;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.arc(this.x, this.y, this.radius + 4 + Math.sin(state.frame * 0.15) * 2, 0, Math.PI*2); ctx.stroke();
+                    // Core
+                    ctx.fillStyle = `rgba(255,102,0,${pulse})`;
+                    ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); ctx.fill();
+                    // Inner warning dot
+                    ctx.fillStyle = '#ffcc00';
+                    ctx.beginPath(); ctx.arc(this.x, this.y, 2, 0, Math.PI*2); ctx.fill();
+                    ctx.shadowBlur = 0;
+                    if (this.ghost) ctx.globalAlpha = 1;
+                    return;
+                }
+
+                // --- BOMB projectiles: glowing mortar shell ---
+                if (this.isBomb) {
+                    if (hiGfx) { ctx.shadowBlur = 15; ctx.shadowColor = col; }
+                    // Trail
+                    if (hiGfx) {
+                        ctx.globalAlpha = 0.2;
+                        ctx.fillStyle = col;
+                        for (let t = 1; t <= 5; t++) {
+                            let tr = this.radius * (1 - t * 0.15);
+                            ctx.beginPath(); ctx.arc(this.x - this.vx * t * 0.4, this.y - this.vy * t * 0.4, tr, 0, Math.PI*2); ctx.fill();
+                        }
+                        ctx.globalAlpha = this.ghost ? 0.4 : 1;
+                    }
+                    // Shell body
+                    ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(angle);
+                    ctx.fillStyle = col;
+                    ctx.beginPath(); ctx.ellipse(0, 0, this.radius * 1.4, this.radius * 0.8, 0, 0, Math.PI*2); ctx.fill();
+                    // Warhead tip
+                    ctx.fillStyle = '#ffffff88';
+                    ctx.beginPath(); ctx.ellipse(this.radius * 0.8, 0, 3, 2, 0, 0, Math.PI*2); ctx.fill();
+                    ctx.restore();
+                    ctx.shadowBlur = 0;
+                    if (this.ghost) ctx.globalAlpha = 1;
+                    return;
+                }
+
+                // --- HOMING bullets: comet with fiery tail ---
+                if ((this.isHoming || (!this.isEnemy && state.stats.homing)) && hiGfx) {
+                    ctx.save();
+                    for (let t = 1; t <= 6; t++) {
+                        ctx.globalAlpha = 0.25 * (1 - t / 7);
+                        ctx.fillStyle = t < 3 ? col : '#ff880066';
+                        let tr = this.radius * (1 - t * 0.12);
+                        ctx.beginPath(); ctx.arc(this.x - this.vx * t * 0.35, this.y - this.vy * t * 0.35, tr, 0, Math.PI*2); ctx.fill();
+                    }
+                    ctx.restore();
+                    ctx.globalAlpha = this.ghost ? 0.4 : 1;
+                    ctx.shadowBlur = 12; ctx.shadowColor = col;
+                }
+
+                // --- ENEMY bullets: menacing red/orange energy orbs ---
+                if (this.isEnemy) {
+                    if (hiGfx) { ctx.shadowBlur = 10; ctx.shadowColor = col; }
+                    // Trail
+                    if (hiGfx && speed > 2) {
+                        ctx.globalAlpha = 0.15;
+                        ctx.fillStyle = col;
+                        for (let t = 1; t <= 3; t++) {
+                            ctx.beginPath(); ctx.arc(this.x - this.vx * t * 0.3, this.y - this.vy * t * 0.3, this.radius * 0.6, 0, Math.PI*2); ctx.fill();
+                        }
+                        ctx.globalAlpha = this.ghost ? 0.4 : 1;
+                    }
+                    // Outer glow ring
+                    ctx.fillStyle = col + '44';
+                    ctx.beginPath(); ctx.arc(this.x, this.y, this.radius + 2, 0, Math.PI*2); ctx.fill();
+                    // Core
+                    ctx.fillStyle = col;
+                    ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); ctx.fill();
+                    // Hot center
+                    ctx.fillStyle = '#ffffff88';
+                    ctx.beginPath(); ctx.arc(this.x, this.y, this.radius * 0.4, 0, Math.PI*2); ctx.fill();
+                    ctx.shadowBlur = 0;
+                    if (this.ghost) ctx.globalAlpha = 1;
+                    return;
+                }
+
+                // --- PLAYER BULLETS: elongated energy bolts ---
+                if (hiGfx) { ctx.shadowBlur = 8; ctx.shadowColor = col; }
+
+                // Energy trail
+                if (hiGfx && speed > 3) {
+                    let trailLen = Math.min(speed * 0.6, 8);
+                    ctx.globalAlpha = 0.12;
+                    ctx.fillStyle = col;
+                    for (let t = 1; t <= 5; t++) {
+                        let sz = this.radius * (1 - t * 0.15);
+                        ctx.beginPath();
+                        ctx.arc(this.x - this.vx * t * 0.3, this.y - this.vy * t * 0.3, sz, 0, Math.PI*2);
+                        ctx.fill();
+                    }
+                    ctx.globalAlpha = this.ghost ? 0.4 : 1;
+                }
+
+                // Elongated bolt shape
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(angle);
+
+                // Main bolt body — stretched ellipse
+                let bLen = Math.max(this.radius * 2.2, speed * 0.5);
+                let bWid = this.radius * 0.7;
+                ctx.fillStyle = col;
+                ctx.beginPath(); ctx.ellipse(0, 0, bLen, bWid, 0, 0, Math.PI*2); ctx.fill();
+
+                // Bright core — thinner inner line
+                ctx.fillStyle = '#ffffffcc';
+                ctx.beginPath(); ctx.ellipse(bLen * 0.15, 0, bLen * 0.5, bWid * 0.35, 0, 0, Math.PI*2); ctx.fill();
+
+                // Leading edge spark
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath(); ctx.arc(bLen * 0.7, 0, 1.2, 0, Math.PI*2); ctx.fill();
+
+                ctx.restore();
+
+                // Crit indicator — pulsing red aura
+                if (this.isCrit && hiGfx) {
+                    ctx.globalAlpha = 0.25 + Math.sin(state.frame * 0.4) * 0.15;
+                    ctx.fillStyle = '#ff0000';
+                    ctx.beginPath(); ctx.arc(this.x, this.y, this.radius + 4, 0, Math.PI*2); ctx.fill();
+                    ctx.globalAlpha = 1;
+                }
+
                 ctx.shadowBlur = 0;
+                if (this.ghost) ctx.globalAlpha = 1;
             }
         }
 
