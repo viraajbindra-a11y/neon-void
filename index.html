@@ -72,8 +72,11 @@
         .mob-fire { width: 70px; height: 70px; border: 2px solid #00ffcc; color: #00ffcc; font-size: 14px; box-shadow: 0 0 15px rgba(0,255,204,0.25); }
         .mob-dash-btn { width: 60px; height: 60px; border: 2px solid #ffcc00; color: #ffcc00; font-size: 12px; box-shadow: 0 0 15px rgba(255,204,0,0.25); }
         
-        #levelup-screen button { border-color: #ffcc00; color: #ffcc00; width: 280px; height: 160px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 15px; box-shadow: 0 0 20px #ffcc00; }
-        #levelup-screen button:hover { background: #ffcc00; color: black; box-shadow: 0 0 50px #ffcc00; }
+        @keyframes upgradeCardPulse { 0%, 100% { box-shadow: 0 0 20px #ffcc00, 0 0 40px rgba(255, 204, 0, 0); } 50% { box-shadow: 0 0 25px #ffcc00, 0 0 50px rgba(255, 204, 0, 0.15); } }
+        @keyframes upgradeCardHoverGlow { 0%, 100% { box-shadow: 0 0 40px #ffcc00, 0 0 80px rgba(255, 204, 0, 0.4), inset 0 0 30px rgba(255, 204, 0, 0.1); } 50% { box-shadow: 0 0 60px #ffcc00, 0 0 120px rgba(255, 204, 0, 0.5), inset 0 0 50px rgba(255, 204, 0, 0.15); } }
+        #levelup-screen button { border-color: #ffcc00; color: #ffcc00; width: 280px; height: 160px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 15px; box-shadow: 0 0 20px #ffcc00; animation: upgradeCardPulse 2s ease-in-out infinite; transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease; }
+        #levelup-screen button:hover { background: rgba(255, 204, 0, 0.15); color: #fff; animation: upgradeCardHoverGlow 1.2s ease-in-out infinite; transform: scale(1.06); border-color: #ffe066; }
+        #levelup-screen button:active { transform: scale(0.97); background: #ffcc00; color: black; }
         .perk-desc { font-size: 15px; font-weight: normal; text-align: center; color: #fff; text-shadow: none; }
         
         #damage-flash { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,0,0,0.4); z-index: 19; pointer-events: none; opacity: 0; transition: opacity 0.1s; }
@@ -780,9 +783,35 @@
 
 
         class Particle {
-            constructor(x, y, c, sm = 1) { this.x = x; this.y = y; this.c = c; let a = Math.random() * Math.PI * 2; let s = (Math.random() * 6 + 1) * sm; this.vx = Math.cos(a) * s; this.vy = Math.sin(a) * s; this.life = 1; this.decay = Math.random() * 0.05 + 0.02; this.size = Math.random() * 4 + 1; }
+            constructor(x, y, c, sm = 1) {
+                this.x = x; this.y = y; this.c = c;
+                let a = Math.random() * Math.PI * 2;
+                let s = (Math.random() * 6 + 1) * sm;
+                this.vx = Math.cos(a) * s; this.vy = Math.sin(a) * s;
+                this.life = 1; this.decay = Math.random() * 0.05 + 0.02;
+                // Size variation: mostly small, some big
+                let sizeRoll = Math.random();
+                if (sizeRoll < 0.15) this.size = Math.random() * 8 + 4; // big spark
+                else if (sizeRoll < 0.4) this.size = Math.random() * 3 + 2; // medium
+                else this.size = Math.random() * 2 + 0.5; // small ember
+            }
             update() { this.vx *= 0.93; this.vy *= 0.93; this.x += this.vx; this.y += this.vy; this.life -= this.decay; }
-            draw(ctx) { ctx.globalAlpha = Math.max(0, this.life); ctx.fillStyle = this.c; ctx.fillRect(this.x, this.y, this.size, this.size); ctx.globalAlpha = 1; }
+            draw(ctx) {
+                let a = Math.max(0, this.life);
+                // Outer glow pass (larger, more transparent)
+                if (this.size > 2 && appSettings.graphics === 'high') {
+                    ctx.globalAlpha = a * 0.25;
+                    ctx.fillStyle = this.c;
+                    ctx.beginPath();
+                    ctx.arc(this.x + this.size * 0.5, this.y + this.size * 0.5, this.size * 1.8, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                // Core particle
+                ctx.globalAlpha = a;
+                ctx.fillStyle = this.c;
+                ctx.fillRect(this.x, this.y, this.size, this.size);
+                ctx.globalAlpha = 1;
+            }
         }
 
 
@@ -794,11 +823,80 @@
 
 
         class Star {
-            constructor() { this.x = Math.random() * canvas.width; this.y = Math.random() * canvas.height; this.z = Math.random() * 2 + 0.1; this.c = Math.random() > 0.5 ? '#ffffff' : (SKINS[equippedSkin] || SKINS['default']).color; }
+            constructor() {
+                this.x = Math.random() * canvas.width; this.y = Math.random() * canvas.height; this.z = Math.random() * 2 + 0.1;
+                // Color tint: mix of blue, cyan, white, and skin color
+                let r = Math.random();
+                if (r < 0.35) this.c = '#ffffff';
+                else if (r < 0.55) this.c = '#aaccff'; // soft blue
+                else if (r < 0.7) this.c = '#88ddff'; // cyan tint
+                else if (r < 0.82) this.c = '#ccddff'; // pale blue-white
+                else this.c = (SKINS[equippedSkin] || SKINS['default']).color;
+                // Twinkle phase offset
+                this.twinkleSpeed = Math.random() * 0.03 + 0.01;
+                this.twinkleOffset = Math.random() * Math.PI * 2;
+            }
             update() { let stretch = state.warping ? 40 : 1; this.y += this.z * (player ? (player.timers.dash > 0 ? 8 : 2) : 1) * stretch; if (this.y > canvas.height) { this.y = 0; this.x = Math.random() * canvas.width; } }
-            draw(ctx) { ctx.globalAlpha = this.z / 2; ctx.fillStyle = this.c; let stretch = state.warping ? 50 : this.z; ctx.fillRect(this.x, this.y, this.z, stretch); ctx.globalAlpha = 1; }
+            draw(ctx) {
+                let twinkle = 0.5 + 0.5 * Math.sin(state.frame * this.twinkleSpeed + this.twinkleOffset);
+                let baseAlpha = this.z / 2;
+                ctx.globalAlpha = baseAlpha * (0.4 + 0.6 * twinkle);
+                ctx.fillStyle = this.c;
+                let stretch = state.warping ? 50 : this.z;
+                ctx.fillRect(this.x, this.y, this.z, stretch);
+                // Brighter stars get a soft glow
+                if (this.z > 1.4 && appSettings.graphics === 'high') {
+                    ctx.globalAlpha = baseAlpha * twinkle * 0.25;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.z * 2, 0, Math.PI * 2);
+                    ctx.fillStyle = this.c;
+                    ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+            }
         }
 
+        // Nebula clouds — faint background radial gradients
+        let nebulaClouds = [];
+        function initNebulae() {
+            nebulaClouds = [];
+            if (appSettings.graphics === 'low') return;
+            let colors = [
+                { r: 30, g: 60, b: 120 },   // deep blue
+                { r: 80, g: 20, b: 100 },   // purple
+                { r: 20, g: 80, b: 90 },    // teal
+            ];
+            for (let i = 0; i < 3; i++) {
+                let c = colors[i];
+                nebulaClouds.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    radius: 200 + Math.random() * 250,
+                    color: c,
+                    drift: (Math.random() - 0.5) * 0.15,
+                    phase: Math.random() * Math.PI * 2,
+                });
+            }
+        }
+        function drawNebulae(ctx) {
+            if (appSettings.graphics === 'low' || nebulaClouds.length === 0) return;
+            ctx.save();
+            ctx.globalCompositeOperation = 'screen';
+            for (let n of nebulaClouds) {
+                let pulse = 0.8 + 0.2 * Math.sin(state.frame * 0.005 + n.phase);
+                let alpha = 0.06 * pulse;
+                let grad = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.radius);
+                grad.addColorStop(0, `rgba(${n.color.r}, ${n.color.g}, ${n.color.b}, ${alpha})`);
+                grad.addColorStop(0.5, `rgba(${n.color.r}, ${n.color.g}, ${n.color.b}, ${alpha * 0.4})`);
+                grad.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = grad;
+                ctx.fillRect(n.x - n.radius, n.y - n.radius, n.radius * 2, n.radius * 2);
+                n.y += n.drift;
+                if (n.y > canvas.height + n.radius) { n.y = -n.radius; n.x = Math.random() * canvas.width; }
+                if (n.y < -n.radius) { n.y = canvas.height + n.radius; n.x = Math.random() * canvas.width; }
+            }
+            ctx.restore();
+        }
 
         class OrbitalStrike {
             constructor(x) { this.x = x; this.width = 150; this.life = 180; this.active = false; this.color = '#ffcc00'; }
@@ -2348,13 +2446,45 @@
             try {
                 for(let f = 0; f < framesToRun; f++) {
                     state.frame++; 
-                    if (f === framesToRun - 1) { ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'; ctx.fillRect(0, 0, canvas.width, canvas.height); if (appSettings.graphics === 'high') ctx.globalCompositeOperation = 'lighter'; entities.stars.forEach(s => { s.draw(ctx); }); ctx.globalCompositeOperation = 'source-over'; }
+                    if (f === framesToRun - 1) { ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'; ctx.fillRect(0, 0, canvas.width, canvas.height); drawNebulae(ctx); if (appSettings.graphics === 'high') ctx.globalCompositeOperation = 'lighter'; entities.stars.forEach(s => { s.draw(ctx); }); ctx.globalCompositeOperation = 'source-over'; }
                     entities.stars.forEach(s => { s.update(); });
                     
                     if (f === framesToRun - 1) { ctx.save(); if (state.shake > 0) { ctx.translate((Math.random()-0.5)*state.shake, (Math.random()-0.5)*state.shake); state.shake *= 0.85; if(state.shake < 0.5) state.shake = 0; } }
                     
                     if (state.warping) {
                         state.warpFrames++; if (state.warpFrames > 60) state.warping = false;
+                        // Radial speed-lines during warp
+                        if (f === framesToRun - 1 && appSettings.graphics !== 'low') {
+                            let cx = canvas.width / 2, cy = canvas.height / 2;
+                            let progress = state.warpFrames / 60;
+                            let lineCount = 40;
+                            ctx.save();
+                            ctx.globalCompositeOperation = 'lighter';
+                            for (let i = 0; i < lineCount; i++) {
+                                let angle = (Math.PI * 2 / lineCount) * i + state.warpFrames * 0.02;
+                                let innerR = 50 + progress * 80;
+                                let outerR = 300 + progress * 500;
+                                let x1 = cx + Math.cos(angle) * innerR;
+                                let y1 = cy + Math.sin(angle) * innerR;
+                                let x2 = cx + Math.cos(angle) * outerR;
+                                let y2 = cy + Math.sin(angle) * outerR;
+                                ctx.beginPath();
+                                ctx.moveTo(x1, y1);
+                                ctx.lineTo(x2, y2);
+                                ctx.strokeStyle = `rgba(120, 180, 255, ${0.15 * (1 - progress * 0.5)})`;
+                                ctx.lineWidth = 1.5 + Math.random() * 1.5;
+                                ctx.stroke();
+                            }
+                            // Central bright flash that grows
+                            let flashAlpha = Math.sin(progress * Math.PI) * 0.15;
+                            let flashGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 200 + progress * 300);
+                            flashGrad.addColorStop(0, `rgba(180, 220, 255, ${flashAlpha})`);
+                            flashGrad.addColorStop(0.5, `rgba(80, 140, 255, ${flashAlpha * 0.3})`);
+                            flashGrad.addColorStop(1, 'rgba(0,0,0,0)');
+                            ctx.fillStyle = flashGrad;
+                            ctx.fillRect(0, 0, canvas.width, canvas.height);
+                            ctx.restore();
+                        }
                     } else {
                         player.update(); if (state.stats.nanoRepair && state.frame % 120 === 0 && player.hp < state.stats.maxHp) { player.hp = Math.min(state.stats.maxHp, player.hp + 1); spawnParticles(player.x, player.y, '#00ff88', 3, 0.3); } if (f === framesToRun - 1) player.draw(ctx);
                         spawnWave(); 
@@ -3673,7 +3803,7 @@
             }
         }
 
-        function initGameBase() { player = new Player(); activeBoss = null; asteroids = []; exhaustParticles = []; entities = { bullets: [], enemies: [], eBullets: [], particles: [], powerups: [], texts: [], stars: [], trails: [] }; let starCount = appSettings.graphics === 'low' ? 40 : 150; for(let i=0; i<starCount; i++) entities.stars.push(new Star()); ui.mainOverlay.classList.add('hidden'); document.getElementById('mission-select').classList.add('hidden'); document.getElementById('shop-screen').classList.add('hidden'); document.getElementById('settings-screen').classList.add('hidden'); ui.boss.style.display = 'none'; ui.bossAlert.style.display = 'none'; ui.kills.innerText = "KILLS: 0"; mobileAutoShoot = false; document.getElementById('mob-shoot').style.background = 'rgba(0,255,204,0.2)'; document.getElementById('mob-shoot').style.color = '#00ffcc'; document.getElementById('mobile-controls').style.display = appSettings.mobile ? 'flex' : 'none'; if(audioCtx.state === 'suspended') audioCtx.resume(); killStreak = 0; lastScoreEggCheck = 0; idleFrames = 0; idleMessageShown = false; killFlavorCooldown = 0; lastComboMilestone = 0; muzzleFlashes = []; slowMoActive = false; slowMoFrames = 0; stopMenuMusic(); stopMenuBg(); showCountdown(); if (appSettings.music) startMusic(); update(); }
+        function initGameBase() { player = new Player(); activeBoss = null; asteroids = []; exhaustParticles = []; entities = { bullets: [], enemies: [], eBullets: [], particles: [], powerups: [], texts: [], stars: [], trails: [] }; let starCount = appSettings.graphics === 'low' ? 40 : 150; for(let i=0; i<starCount; i++) entities.stars.push(new Star()); initNebulae(); ui.mainOverlay.classList.add('hidden'); document.getElementById('mission-select').classList.add('hidden'); document.getElementById('shop-screen').classList.add('hidden'); document.getElementById('settings-screen').classList.add('hidden'); ui.boss.style.display = 'none'; ui.bossAlert.style.display = 'none'; ui.kills.innerText = "KILLS: 0"; mobileAutoShoot = false; document.getElementById('mob-shoot').style.background = 'rgba(0,255,204,0.2)'; document.getElementById('mob-shoot').style.color = '#00ffcc'; document.getElementById('mobile-controls').style.display = appSettings.mobile ? 'flex' : 'none'; if(audioCtx.state === 'suspended') audioCtx.resume(); killStreak = 0; lastScoreEggCheck = 0; idleFrames = 0; idleMessageShown = false; killFlavorCooldown = 0; lastComboMilestone = 0; muzzleFlashes = []; slowMoActive = false; slowMoFrames = 0; stopMenuMusic(); stopMenuBg(); showCountdown(); if (appSettings.music) startMusic(); update(); }
         
         function startMission(stageNum) { 
             let bootMission = () => {
@@ -4653,19 +4783,33 @@
                 let m = muzzleFlashes[i];
                 m.life--;
                 if (m.life <= 0) { muzzleFlashes.splice(i, 1); continue; }
+                let alpha = m.life / 4;
                 c.save();
                 c.translate(m.x, m.y);
                 c.rotate(m.angle);
-                c.globalAlpha = m.life / 4;
-                let grad = c.createRadialGradient(0, 0, 0, 0, 0, 18);
+                // Outer glow — large, soft, transparent
+                if (appSettings.graphics === 'high') {
+                    c.globalAlpha = alpha * 0.35;
+                    let outerGrad = c.createRadialGradient(5, 0, 0, 0, 0, 40);
+                    outerGrad.addColorStop(0, player.baseColor);
+                    outerGrad.addColorStop(1, 'transparent');
+                    c.fillStyle = outerGrad;
+                    c.beginPath();
+                    c.arc(5, 0, 40, 0, Math.PI * 2);
+                    c.fill();
+                }
+                // Bright core flash
+                c.globalAlpha = Math.min(1, alpha * 1.3);
+                let grad = c.createRadialGradient(0, 0, 0, 0, 0, 22);
                 grad.addColorStop(0, '#ffffff');
-                grad.addColorStop(0.3, player.baseColor);
+                grad.addColorStop(0.25, '#ffffff');
+                grad.addColorStop(0.5, player.baseColor);
                 grad.addColorStop(1, 'transparent');
                 c.fillStyle = grad;
                 c.beginPath();
-                c.moveTo(20, 0);
-                c.lineTo(-5, -8);
-                c.lineTo(-5, 8);
+                c.moveTo(25, 0);
+                c.lineTo(-6, -10);
+                c.lineTo(-6, 10);
                 c.closePath();
                 c.fill();
                 c.restore();
