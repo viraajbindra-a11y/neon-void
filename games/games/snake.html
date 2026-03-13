@@ -36,9 +36,11 @@
     justify-content: center;
     z-index: 10;
     pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
   }
 
-  .overlay.active { pointer-events: all; }
+  .overlay.active { pointer-events: all; opacity: 1; }
 
   .overlay-bg {
     position: absolute;
