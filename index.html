@@ -1614,6 +1614,7 @@
                 playSound('shoot'); addMuzzleFlash(this.x, this.y, this.angle); const s = 22; const c = this.timers.overdrive > 0 || state.stats.bloodthirstTimer > 0 ? '#ff8800' : this.baseColor; let dmg = 20 * state.stats.dmgMulti; let count = state.stats.projCount;
                 if(this.timers.overdrive > 0 || state.stats.bloodthirstTimer > 0) count += 2;
                 this.shotCount++;
+                if (trainingMode === 'aim' && state.mode === 'training') trainingStats.shots++;
                 let isOvercharged = state.stats.overcharge && this.shotCount % 10 === 0;
                 if (isOvercharged) dmg *= 5;
 
@@ -2269,7 +2270,7 @@
 
 
         function spawnWave() {
-            if (state.mode === 'training') { if (entities.enemies.length < 5 && state.frame % 120 === 0) { entities.enemies.push(new Enemy((gameRng() * (canvas.width - 200)) + 100, (gameRng() * (canvas.height - 200)) + 100, 'dummy')); } return; }
+            if (state.mode === 'training') { updateManualTraining(); updateBossPractice(); if (trainingMode === 'dummies') { if (entities.enemies.length < 5 && state.frame % 120 === 0) { entities.enemies.push(new Enemy((gameRng() * (canvas.width - 200)) + 100, (gameRng() * (canvas.height - 200)) + 100, 'dummy')); } } return; }
             if (state.mode === 'boss_rush') { if (mpState.active && mpState.mode === 'coop' && !mpState.isHost) return; if (!activeBoss && !state.spawningBoss && state.bossesDefeated < 15) { state.spawningBoss = true; setTimeout(() => { activeBoss = new Boss(state.bossesDefeated); activeBoss.bossIdx = state.bossesDefeated; state.spawningBoss = false; }, 1500); } return; }
             // In co-op, only host spawns enemies — clients receive via enemy-sync
             if (mpState.active && mpState.mode === 'coop' && !mpState.isHost) return;
@@ -2298,7 +2299,12 @@
             }
             spawnParticles(activeBoss.x, activeBoss.y, activeBoss.color, 150, 5); shakeScreen(60); playSound('hit'); state.kills++; ui.kills.innerText = `KILLS: ${state.kills}`; state.score += 50000 * state.combo * (state.dailyScoreMulti || 1); addXp(2000); state.bossesDefeated++; triggerSlowMo(45); triggerChroma(8);
             let coinMult = (state.hardcore ? 5 : 1) * (state.stats.coinMulti || 1); state.runCoins += Math.floor((25000 + (state.currentStage * 5000)) * coinMult);
-            entities.enemies = []; entities.eBullets = []; 
+            entities.enemies = []; entities.eBullets = [];
+            if(state.mode === 'training') {
+                // Boss practice: just respawn boss
+                spawnText(canvas.width/2, canvas.height/2, 'BOSS DEFEATED! RESPAWNING...', '#00ff88', 24);
+                return;
+            }
             if(state.mode === 'mission') { 
                 let unlockedRaw = localStorage.getItem('neonVoidStage'); let unlocked = parseInt(unlockedRaw); if(isNaN(unlocked) || unlocked < 1) unlocked = 1; 
                 let targetStage = state.currentStage === 15 ? 15 : state.currentStage + 1; 
@@ -2433,8 +2439,12 @@
                                     } 
                                 } 
                             } 
-                            if(dead) { entities.bullets.splice(i,1); return true; } 
-                            return false; 
+                            // Aim trainer target collision
+                            if (!dead && trainingMode === 'aim') {
+                                if (checkAimTargetHit(b.x, b.y)) dead = true;
+                            }
+                            if(dead) { entities.bullets.splice(i,1); return true; }
+                            return false;
                         });
                         
                         let isCoopClient = mpState.active && mpState.mode === 'coop' && !mpState.isHost;
@@ -2512,6 +2522,7 @@
             }
 
             drawMuzzleFlashes(ctx);
+            if (state.mode === 'training') updateAimTrainer(ctx);
             drawChroma(ctx);
             updateDust(ctx);
             checkComboMilestone();
@@ -2530,7 +2541,7 @@
             if (state.frame % 30 === 0) checkScoreEggs();
             checkIdle();
             if (appSettings.autoFire && state.active && !state.paused) mouse.down = true;
-            ui.score.innerText = `SCORE: ${Math.floor(state.score)}`; ui.combo.innerText = `COMBO x${state.combo.toFixed(1)}`; ui.lvl.innerText = state.mode === 'training' ? 'TRAINING MODE' : (state.mode === 'boss_rush' ? `BOSS ${Math.min(state.bossesDefeated + 1, 15)}/15 | ${Math.floor(state.frame/3600)}:${(Math.floor(state.frame/60)%60).toString().padStart(2,'0')}` : `LVL: ${state.level}`); ui.coins.innerText = `COINS: ${totalCoins + state.runCoins}`; ui.hp.style.width = `${Math.max(0, (player.hp/state.stats.maxHp)*100)}%`; ui.shield.style.width = `${Math.min(100, player.shield)}%`; ui.xp.style.width = `${(state.xp / state.xpNeeded)*100}%`;
+            ui.score.innerText = `SCORE: ${Math.floor(state.score)}`; ui.combo.innerText = `COMBO x${state.combo.toFixed(1)}`; ui.lvl.innerText = state.mode === 'training' ? (trainingMode === 'aim' ? 'AIM TRAINER' : trainingMode === 'manual' ? 'MANUAL AIM' : trainingMode === 'boss_practice' ? 'BOSS PRACTICE' : 'FREE PRACTICE') : (state.mode === 'boss_rush' ? `BOSS ${Math.min(state.bossesDefeated + 1, 15)}/15 | ${Math.floor(state.frame/3600)}:${(Math.floor(state.frame/60)%60).toString().padStart(2,'0')}` : `LVL: ${state.level}`); ui.coins.innerText = `COINS: ${totalCoins + state.runCoins}`; ui.hp.style.width = `${Math.max(0, (player.hp/state.stats.maxHp)*100)}%`; ui.shield.style.width = `${Math.min(100, player.shield)}%`; ui.xp.style.width = `${(state.xp / state.xpNeeded)*100}%`;
             if (appSettings.render3D && is3DActive) update3D();
             requestAnimationFrame(update);
         }
@@ -3684,7 +3695,252 @@
                 let sysName = `SYSTEM: APOCALYPSE`; if (appSettings.hardcore) sysName += ' [NIGHTMARE]'; if (appSettings.hyper) sysName += ' [HYPER-DRIVE]'; ui.status.innerText = sysName; initGameBase();
             });
         }
-        function startTraining() { state = { active: true, paused: false, mode: 'training', frame: 0, score: 0, combo: 1, xp: 0, level: 1, xpNeeded: 100, runCoins: 0, kills: 0, shake: 0, currentStage: 1, bossesDefeated: 0, difficulty: 1, nextBossLevel: 999, spawningBoss: false, warping: false, warpFrames: 0, hardcore: false, hyper: false, stats: getBaseStats() }; ui.status.innerText = `SYSTEM: TRAINING SIMULATION`; initGameBase(); }
+        // ===== TRAINING CAMP =====
+        let trainingMode = 'dummies'; // 'dummies' | 'aim' | 'manual' | 'boss_practice'
+        let trainingStats = { shots: 0, hits: 0, targets: 0, targetsHit: 0, reactionTimes: [], bestStreak: 0, currentStreak: 0 };
+        let aimTargets = []; // For aim trainer mode
+        let trainingBossIdx = 0; // Which boss to practice
+        let savedAimMode = 'auto';
+
+        function showTrainingMenu() {
+            // Build training menu overlay
+            let overlay = document.getElementById('training-menu');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'training-menu';
+                overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.92);z-index:10000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(10px);';
+                document.body.appendChild(overlay);
+            }
+            overlay.style.display = 'flex';
+            overlay.innerHTML = `
+                <div style="text-align:center;max-width:700px;width:90%;">
+                    <div style="font-family:Orbitron,sans-serif;font-size:28px;color:#00ff88;letter-spacing:6px;margin-bottom:6px;text-shadow:0 0 30px rgba(0,255,136,0.5);">TRAINING CAMP</div>
+                    <div style="font-size:12px;color:#555;letter-spacing:4px;margin-bottom:30px;">SELECT A DRILL</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
+                        <div onclick="launchTraining('aim')" style="cursor:pointer;padding:22px 16px;border:1px solid rgba(255,204,0,0.3);border-radius:12px;background:rgba(255,204,0,0.04);transition:all 0.3s;" onmouseenter="this.style.borderColor='#ffcc00';this.style.background='rgba(255,204,0,0.1)'" onmouseleave="this.style.borderColor='rgba(255,204,0,0.3)';this.style.background='rgba(255,204,0,0.04)'">
+                            <div style="font-size:32px;margin-bottom:8px;">🎯</div>
+                            <div style="font-family:Orbitron,sans-serif;font-size:14px;color:#ffcc00;letter-spacing:2px;">AIM TRAINER</div>
+                            <div style="font-size:11px;color:#666;margin-top:6px;line-height:1.4;">Targets appear and vanish.<br>Track accuracy & reaction time.<br>Forces manual mouse aim.</div>
+                        </div>
+                        <div onclick="launchTraining('manual')" style="cursor:pointer;padding:22px 16px;border:1px solid rgba(255,136,0,0.3);border-radius:12px;background:rgba(255,136,0,0.04);transition:all 0.3s;" onmouseenter="this.style.borderColor='#ff8800';this.style.background='rgba(255,136,0,0.1)'" onmouseleave="this.style.borderColor='rgba(255,136,0,0.3)';this.style.background='rgba(255,136,0,0.04)'">
+                            <div style="font-size:32px;margin-bottom:8px;">🖱️</div>
+                            <div style="font-family:Orbitron,sans-serif;font-size:14px;color:#ff8800;letter-spacing:2px;">MANUAL AIM</div>
+                            <div style="font-size:11px;color:#666;margin-top:6px;line-height:1.4;">Moving enemies, no auto-aim.<br>Practice tracking & leading shots.<br>Invincible, infinite ammo.</div>
+                        </div>
+                        <div onclick="launchTraining('boss_practice')" style="cursor:pointer;padding:22px 16px;border:1px solid rgba(255,0,85,0.3);border-radius:12px;background:rgba(255,0,85,0.04);transition:all 0.3s;" onmouseenter="this.style.borderColor='#ff0055';this.style.background='rgba(255,0,85,0.1)'" onmouseleave="this.style.borderColor='rgba(255,0,85,0.3)';this.style.background='rgba(255,0,85,0.04)'">
+                            <div style="font-size:32px;margin-bottom:8px;">👹</div>
+                            <div style="font-family:Orbitron,sans-serif;font-size:14px;color:#ff0055;letter-spacing:2px;">BOSS PRACTICE</div>
+                            <div style="font-size:11px;color:#666;margin-top:6px;line-height:1.4;">Fight any boss, learn patterns.<br>You're invincible — focus on dodging.<br>Boss HP resets on death.</div>
+                            <select id="boss-select" onclick="event.stopPropagation()" style="margin-top:10px;padding:6px 10px;background:#111;border:1px solid rgba(255,0,85,0.3);color:#ff0055;font-family:'Share Tech Mono',monospace;font-size:11px;border-radius:6px;cursor:pointer;width:100%;">
+                                ${BOSSES.map((b, i) => '<option value="'+i+'" style="background:#111;">'+b.name+'</option>').join('')}
+                            </select>
+                        </div>
+                        <div onclick="launchTraining('dummies')" style="cursor:pointer;padding:22px 16px;border:1px solid rgba(0,255,136,0.3);border-radius:12px;background:rgba(0,255,136,0.04);transition:all 0.3s;" onmouseenter="this.style.borderColor='#00ff88';this.style.background='rgba(0,255,136,0.1)'" onmouseleave="this.style.borderColor='rgba(0,255,136,0.3)';this.style.background='rgba(0,255,136,0.04)'">
+                            <div style="font-size:32px;margin-bottom:8px;">🎪</div>
+                            <div style="font-family:Orbitron,sans-serif;font-size:14px;color:#00ff88;letter-spacing:2px;">FREE PRACTICE</div>
+                            <div style="font-size:11px;color:#666;margin-top:6px;line-height:1.4;">Classic training dummies.<br>Test weapons and upgrades.<br>No pressure, just vibes.</div>
+                        </div>
+                    </div>
+                    <div onclick="document.getElementById('training-menu').style.display='none'" style="cursor:pointer;font-size:12px;color:#444;letter-spacing:2px;padding:10px;">← BACK TO MENU</div>
+                </div>
+            `;
+        }
+
+        function launchTraining(mode) {
+            let tmenu = document.getElementById('training-menu');
+            if (mode === 'boss_practice') {
+                let sel = document.getElementById('boss-select');
+                trainingBossIdx = sel ? parseInt(sel.value) : 0;
+            }
+            if (tmenu) tmenu.style.display = 'none';
+            trainingMode = mode;
+            trainingStats = { shots: 0, hits: 0, targets: 0, targetsHit: 0, reactionTimes: [], bestStreak: 0, currentStreak: 0 };
+            aimTargets = [];
+            savedAimMode = aimMode;
+
+            state = { active: true, paused: false, mode: 'training', frame: 0, score: 0, combo: 1, xp: 0, level: 1, xpNeeded: 100, runCoins: 0, kills: 0, shake: 0, currentStage: 1, bossesDefeated: 0, difficulty: 1, nextBossLevel: 999, spawningBoss: false, warping: false, warpFrames: 0, hardcore: false, hyper: false, stats: getBaseStats() };
+
+            if (mode === 'aim' || mode === 'manual') {
+                aimMode = 'mouse';
+                ui.aimMode.innerText = '[C] AIM MODE: MANUAL MOUSE';
+                ui.aimMode.style.color = '#ff8800';
+            }
+            if (mode === 'aim') {
+                ui.status.innerText = 'TRAINING: AIM DRILL';
+            } else if (mode === 'manual') {
+                ui.status.innerText = 'TRAINING: MANUAL AIM';
+            } else if (mode === 'boss_practice') {
+                ui.status.innerText = 'TRAINING: BOSS PRACTICE — ' + BOSSES[trainingBossIdx].name;
+            } else {
+                ui.status.innerText = 'SYSTEM: TRAINING SIMULATION';
+            }
+            initGameBase();
+            // Spawn boss immediately for boss practice
+            if (mode === 'boss_practice') {
+                setTimeout(() => {
+                    activeBoss = new Boss(trainingBossIdx);
+                    activeBoss.bossIdx = trainingBossIdx;
+                    // Reduce boss HP for practice (25% of normal)
+                    activeBoss.maxHp = activeBoss.maxHp * 0.25;
+                    activeBoss.hp = activeBoss.maxHp;
+                }, 500);
+            }
+        }
+
+        function startTraining() { showTrainingMenu(); }
+
+        // Aim trainer target class
+        class AimTarget {
+            constructor() {
+                this.x = 100 + Math.random() * (canvas.width - 200);
+                this.y = 100 + Math.random() * (canvas.height - 200);
+                this.radius = 18 + Math.random() * 16; // 18-34px
+                this.spawnTime = performance.now();
+                this.lifetime = 1800 + Math.random() * 1200; // 1.8-3s
+                this.hit = false;
+                this.fadeOut = 0;
+                this.color = `hsl(${Math.random() * 360}, 100%, 60%)`;
+            }
+            draw(ctx) {
+                let age = performance.now() - this.spawnTime;
+                let alpha = this.fadeOut > 0 ? (1 - this.fadeOut / 10) : Math.min(1, age / 100);
+                let urgency = Math.max(0, 1 - age / this.lifetime);
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                // Outer ring (shrinks as time runs out)
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius + 12 * urgency, 0, Math.PI * 2);
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                // Fill
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.hit ? '#00ff00' : this.color;
+                ctx.globalAlpha = alpha * 0.3;
+                ctx.fill();
+                ctx.globalAlpha = alpha;
+                ctx.strokeStyle = this.hit ? '#00ff00' : '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                // Bullseye
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius * 0.4, 0, Math.PI * 2);
+                ctx.fillStyle = this.hit ? '#00ff00' : '#fff';
+                ctx.globalAlpha = alpha * 0.6;
+                ctx.fill();
+                // Center dot
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
+                ctx.fillStyle = '#fff';
+                ctx.globalAlpha = alpha;
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function updateAimTrainer(ctx) {
+            if (trainingMode !== 'aim') return;
+            // Spawn targets
+            if (aimTargets.length < 3 && state.frame % 40 === 0) {
+                aimTargets.push(new AimTarget());
+                trainingStats.targets++;
+            }
+            let now = performance.now();
+            // Update and draw targets
+            for (let i = aimTargets.length - 1; i >= 0; i--) {
+                let t = aimTargets[i];
+                if (t.fadeOut > 0) {
+                    t.fadeOut++;
+                    t.draw(ctx);
+                    if (t.fadeOut > 10) aimTargets.splice(i, 1);
+                    continue;
+                }
+                if (now - t.spawnTime > t.lifetime && !t.hit) {
+                    // Missed — expired
+                    trainingStats.currentStreak = 0;
+                    aimTargets.splice(i, 1);
+                    continue;
+                }
+                t.draw(ctx);
+            }
+            // Draw aim trainer HUD
+            let acc = trainingStats.shots > 0 ? Math.round((trainingStats.hits / trainingStats.shots) * 100) : 0;
+            let avgReact = trainingStats.reactionTimes.length > 0 ? Math.round(trainingStats.reactionTimes.reduce((a, b) => a + b, 0) / trainingStats.reactionTimes.length) : 0;
+            ctx.save();
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            ctx.fillRect(10, canvas.height - 70, 320, 60);
+            ctx.strokeStyle = 'rgba(255,204,0,0.3)';
+            ctx.strokeRect(10, canvas.height - 70, 320, 60);
+            ctx.font = '12px Orbitron, sans-serif';
+            ctx.fillStyle = '#ffcc00';
+            ctx.fillText('AIM TRAINER', 20, canvas.height - 52);
+            ctx.font = '11px "Share Tech Mono", monospace';
+            ctx.fillStyle = '#ccc';
+            ctx.fillText(`ACC: ${acc}%  |  HITS: ${trainingStats.targetsHit}/${trainingStats.targets}  |  STREAK: ${trainingStats.currentStreak} (BEST: ${trainingStats.bestStreak})`, 20, canvas.height - 35);
+            ctx.fillText(`AVG REACTION: ${avgReact}ms  |  SHOTS: ${trainingStats.shots}`, 20, canvas.height - 20);
+            ctx.restore();
+        }
+
+        function checkAimTargetHit(bx, by) {
+            if (trainingMode !== 'aim') return false;
+            for (let i = aimTargets.length - 1; i >= 0; i--) {
+                let t = aimTargets[i];
+                if (t.hit || t.fadeOut > 0) continue;
+                if (Math.hypot(bx - t.x, by - t.y) < t.radius + 8) {
+                    t.hit = true;
+                    t.fadeOut = 1;
+                    trainingStats.targetsHit++;
+                    trainingStats.hits++;
+                    trainingStats.currentStreak++;
+                    if (trainingStats.currentStreak > trainingStats.bestStreak) trainingStats.bestStreak = trainingStats.currentStreak;
+                    let react = performance.now() - t.spawnTime;
+                    trainingStats.reactionTimes.push(react);
+                    if (trainingStats.reactionTimes.length > 50) trainingStats.reactionTimes.shift();
+                    spawnText(t.x, t.y - 20, Math.round(react) + 'ms', react < 500 ? '#00ff00' : (react < 1000 ? '#ffcc00' : '#ff4444'), 16);
+                    spawnParticles(t.x, t.y, t.color, 12);
+                    playSound('hit');
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function updateManualTraining() {
+            if (trainingMode !== 'manual') return;
+            // Spawn mixed moving enemies
+            let maxE = 8;
+            let types = ['chaser', 'shooter', 'rammer', 'sniper', 'orbiter', 'splitter'];
+            if (entities.enemies.length < maxE && state.frame % 80 === 0) {
+                let t = types[Math.floor(Math.random() * types.length)];
+                let side = Math.floor(Math.random() * 4);
+                let x, y;
+                if (side === 0) { x = -50; y = Math.random() * canvas.height; }
+                else if (side === 1) { x = canvas.width + 50; y = Math.random() * canvas.height; }
+                else if (side === 2) { x = Math.random() * canvas.width; y = -50; }
+                else { x = Math.random() * canvas.width; y = canvas.height + 50; }
+                entities.enemies.push(new Enemy(x, y, t));
+            }
+        }
+
+        function updateBossPractice() {
+            if (trainingMode !== 'boss_practice') return;
+            // Respawn boss if defeated
+            if (activeBoss && activeBoss.isDead) {
+                activeBoss = null;
+                ui.boss.style.display = 'none';
+                // Respawn after a delay
+                setTimeout(() => {
+                    if (state.mode === 'training' && trainingMode === 'boss_practice') {
+                        activeBoss = new Boss(trainingBossIdx);
+                        activeBoss.bossIdx = trainingBossIdx;
+                        activeBoss.maxHp = activeBoss.maxHp * 0.25;
+                        activeBoss.hp = activeBoss.maxHp;
+                        spawnText(canvas.width / 2, canvas.height / 2, 'BOSS RESPAWNED — PRACTICE AGAIN!', '#ff0055', 20);
+                    }
+                }, 2000);
+            }
+        }
         
         function saveRunCoins() { totalCoins += state.runCoins; localStorage.setItem('neonVoidCoins', totalCoins); cloudSave(); }
         
