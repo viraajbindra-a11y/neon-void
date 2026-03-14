@@ -7716,14 +7716,79 @@
                     break;
                 }
                 case 'bullet': {
-                    let bGeo = new THREE.SphereGeometry(4, 6, 6);
-                    mat = new THREE.MeshBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.9 });
-                    mesh = new THREE.Mesh(bGeo, mat);
-                    // Add a small glow ring
-                    let bRingGeo = new THREE.RingGeometry(5, 7, 8);
-                    let bRingMat = new THREE.MeshBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
-                    let bRing = new THREE.Mesh(bRingGeo, bRingMat);
-                    mesh.add(bRing);
+                    // Weapon-specific 3D bullet meshes
+                    let wid = selectedWeapon ? selectedWeapon.id : 'standard';
+                    let wColor = selectedWeapon ? new THREE.Color(selectedWeapon.color) : new THREE.Color(0x00ffcc);
+                    if (wid === 'railgun') {
+                        // Long piercing beam bolt
+                        let bGeo = new THREE.CylinderGeometry(1.5, 1.5, 18, 6);
+                        bGeo.rotateZ(Math.PI/2);
+                        mat = new THREE.MeshBasicMaterial({ color: wColor, transparent: true, opacity: 0.95 });
+                        mesh = new THREE.Mesh(bGeo, mat);
+                        let coreGeo = new THREE.CylinderGeometry(3, 0.5, 22, 4);
+                        coreGeo.rotateZ(Math.PI/2);
+                        let coreMat = new THREE.MeshBasicMaterial({ color: wColor, transparent: true, opacity: 0.2, wireframe: true });
+                        mesh.add(new THREE.Mesh(coreGeo, coreMat));
+                    } else if (wid === 'shotgun') {
+                        // Small pellet cluster
+                        let bGeo = new THREE.IcosahedronGeometry(3, 0);
+                        mat = new THREE.MeshBasicMaterial({ color: wColor, transparent: true, opacity: 0.9 });
+                        mesh = new THREE.Mesh(bGeo, mat);
+                    } else if (wid === 'minigun') {
+                        // Tiny fast bullets
+                        let bGeo = new THREE.SphereGeometry(2.5, 4, 4);
+                        mat = new THREE.MeshBasicMaterial({ color: wColor, transparent: true, opacity: 0.85 });
+                        mesh = new THREE.Mesh(bGeo, mat);
+                        let trailGeo = new THREE.ConeGeometry(2, 8, 4);
+                        trailGeo.rotateZ(-Math.PI/2);
+                        trailGeo.translate(-5, 0, 0);
+                        let trailMat = new THREE.MeshBasicMaterial({ color: wColor, transparent: true, opacity: 0.25 });
+                        mesh.add(new THREE.Mesh(trailGeo, trailMat));
+                    } else if (wid === 'laser') {
+                        // Thin piercing laser beam
+                        let bGeo = new THREE.BoxGeometry(12, 1.5, 1.5);
+                        mat = new THREE.MeshBasicMaterial({ color: wColor, transparent: true, opacity: 0.9 });
+                        mesh = new THREE.Mesh(bGeo, mat);
+                        let glowGeo = new THREE.BoxGeometry(14, 4, 4);
+                        let glowMat = new THREE.MeshBasicMaterial({ color: wColor, transparent: true, opacity: 0.15 });
+                        mesh.add(new THREE.Mesh(glowGeo, glowMat));
+                    } else if (wid === 'seeker') {
+                        // Missile shape
+                        let bGeo = new THREE.ConeGeometry(2.5, 10, 4);
+                        bGeo.rotateZ(Math.PI/2);
+                        mat = new THREE.MeshBasicMaterial({ color: wColor, transparent: true, opacity: 0.9 });
+                        mesh = new THREE.Mesh(bGeo, mat);
+                        // Engine exhaust
+                        let exGeo = new THREE.SphereGeometry(2, 4, 4);
+                        let exMat = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.6 });
+                        let ex = new THREE.Mesh(exGeo, exMat);
+                        ex.position.x = -6;
+                        mesh.add(ex);
+                        // Fins
+                        let finGeo = new THREE.BoxGeometry(3, 5, 0.5);
+                        let finMat = new THREE.MeshBasicMaterial({ color: wColor, transparent: true, opacity: 0.5 });
+                        let fin1 = new THREE.Mesh(finGeo, finMat); fin1.position.set(-4, 0, 0);
+                        mesh.add(fin1);
+                    } else if (wid === 'plasma') {
+                        // Glowing plasma orb
+                        let bGeo = new THREE.SphereGeometry(5, 8, 8);
+                        mat = new THREE.MeshBasicMaterial({ color: wColor, transparent: true, opacity: 0.7 });
+                        mesh = new THREE.Mesh(bGeo, mat);
+                        let shellGeo = new THREE.SphereGeometry(7, 6, 6);
+                        let shellMat = new THREE.MeshBasicMaterial({ color: wColor, transparent: true, opacity: 0.15, wireframe: true });
+                        mesh.add(new THREE.Mesh(shellGeo, shellMat));
+                        let coreGeo = new THREE.SphereGeometry(2.5, 6, 6);
+                        let coreMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
+                        mesh.add(new THREE.Mesh(coreGeo, coreMat));
+                    } else {
+                        // Standard pulse blaster
+                        let bGeo = new THREE.SphereGeometry(4, 6, 6);
+                        mat = new THREE.MeshBasicMaterial({ color: wColor, transparent: true, opacity: 0.9 });
+                        mesh = new THREE.Mesh(bGeo, mat);
+                        let bRingGeo = new THREE.RingGeometry(5, 7, 8);
+                        let bRingMat = new THREE.MeshBasicMaterial({ color: wColor, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
+                        mesh.add(new THREE.Mesh(bRingGeo, bRingMat));
+                    }
                     break;
                 }
                 case 'eBullet': {
@@ -7733,6 +7798,33 @@
                     let ebRingGeo = new THREE.RingGeometry(6, 8, 8);
                     let ebRingMat = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
                     mesh.add(new THREE.Mesh(ebRingGeo, ebRingMat));
+                    break;
+                }
+                case 'remotePlayer': {
+                    // Remote player ship - similar to player but with custom color
+                    mesh = new THREE.Group();
+                    let rpGeo = new THREE.ConeGeometry(18, 36, 4);
+                    rpGeo.rotateZ(-Math.PI/2);
+                    mat = new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.4 });
+                    mesh.add(new THREE.Mesh(rpGeo, mat));
+                    let rpWire = new THREE.Mesh(new THREE.ConeGeometry(20, 38, 4), new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true, transparent: true, opacity: 0.3 }));
+                    rpWire.rotation.z = -Math.PI/2;
+                    mesh.add(rpWire);
+                    // Engine glow
+                    let rpEngine = new THREE.Mesh(new THREE.SphereGeometry(5, 6, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 }));
+                    rpEngine.position.set(-20, 0, 0);
+                    rpEngine.name = 'engine';
+                    mesh.add(rpEngine);
+                    break;
+                }
+                case 'remoteBullet': {
+                    // Remote player bullet - colored sphere
+                    let rbGeo = new THREE.SphereGeometry(4, 6, 6);
+                    mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 });
+                    mesh = new THREE.Mesh(rbGeo, mat);
+                    let rbRing = new THREE.RingGeometry(5, 7, 6);
+                    let rbRingMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.25, side: THREE.DoubleSide });
+                    mesh.add(new THREE.Mesh(rbRing, rbRingMat));
                     break;
                 }
                 case 'powerup': {
@@ -8147,13 +8239,21 @@
                 activeIds.add(eid);
             }
 
-            // -- Bullets --
+            // -- Bullets (weapon-specific) --
             entities.bullets.forEach((b, i) => {
                 if (!b) return;
                 let bid = 'bullet_' + i;
                 let bm = getMesh(bid, 'bullet');
                 bm.position.set(b.x, b.y, 0);
-                bm.rotation.z += 0.1;
+                // Orient bullet in direction of travel
+                let bAngle = Math.atan2(b.vy, b.vx);
+                bm.rotation.z = bAngle;
+                // Crit bullets glow red
+                if (b.isCrit) {
+                    bm.traverse(child => {
+                        if (child.material && !child.material.wireframe) child.material.color = new THREE.Color(0xff0000);
+                    });
+                }
                 activeIds.add(bid);
             });
 
@@ -8166,6 +8266,49 @@
                 bm.rotation.z -= 0.1;
                 activeIds.add(bid);
             });
+
+            // -- Remote Players (Multiplayer) --
+            if (mpState && mpState.active && mpState.players) {
+                for (const [pid, p] of Object.entries(mpState.players)) {
+                    if (pid === (peer ? peer.id : null)) continue; // Skip local player
+                    if (!p.alive) continue;
+                    let rpid = 'rplayer_' + pid;
+                    let rpm = getMesh(rpid, 'remotePlayer');
+                    let px = p.displayX || p.x || 0;
+                    let py = p.displayY || p.y || 0;
+                    let pa = p.displayAngle || p.angle || 0;
+                    rpm.position.set(px, py, 0);
+                    rpm.rotation.z = pa;
+                    // Update color to match remote player
+                    let rpColor = new THREE.Color(p.color || '#ffffff');
+                    rpm.traverse(child => {
+                        if (child.material && !child.material.wireframe) {
+                            child.material.color = rpColor;
+                            if (child.material.emissive) child.material.emissive = rpColor;
+                        }
+                    });
+                    // Pulse engine glow
+                    let eng = rpm.getObjectByName('engine');
+                    if (eng) eng.material.opacity = 0.4 + Math.sin(time * 6) * 0.3;
+                    activeIds.add(rpid);
+
+                    // Remote player bullets
+                    if (p.remoteBullets && p.remoteBullets.length > 0) {
+                        p.remoteBullets.forEach((rb, ri) => {
+                            let rbid = 'rbullet_' + pid + '_' + ri;
+                            let rbm = getMesh(rbid, 'remoteBullet');
+                            rbm.position.set(rb.x, rb.y, 0);
+                            rbm.rotation.z += 0.1;
+                            // Color match remote bullet
+                            let rbColor = new THREE.Color(rb.c || p.color || '#ffffff');
+                            rbm.traverse(child => {
+                                if (child.material) child.material.color = rbColor;
+                            });
+                            activeIds.add(rbid);
+                        });
+                    }
+                }
+            }
 
             // -- Powerups --
             entities.powerups.forEach((p, i) => {
