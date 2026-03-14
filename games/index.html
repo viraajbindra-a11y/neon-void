@@ -231,6 +231,102 @@
         color: #333; letter-spacing: 4px; padding: 16px 0 4px; border-bottom: 1px solid rgba(255,255,255,0.04);
         text-transform: uppercase; opacity: 1; animation: none;
     }
+    /* ========== MASSIVE VISUAL UPGRADE ========== */
+    /* 3D Card tilt on hover */
+    .game-card { perspective: 600px; transform-style: preserve-3d; }
+    .game-card:hover { transform: translateY(-5px) scale(1.01) rotateX(2deg); }
+    /* Favorite heart */
+    .fav-btn { position:absolute; top:8px; right:8px; z-index:5; background:none; border:none; font-size:18px; cursor:pointer; opacity:0.3; transition:all 0.3s; filter:grayscale(1); }
+    .fav-btn:hover, .fav-btn.active { opacity:1; filter:grayscale(0); transform:scale(1.3); }
+    .fav-btn.active { color:#ff0055; text-shadow:0 0 12px rgba(255,0,85,0.6); }
+    .game-card.featured .fav-btn { top:12px; right:auto; left:12px; }
+    /* Random Game button */
+    .random-btn {
+        position:absolute; right:12px; top:50%; transform:translateY(-50%);
+        background:linear-gradient(135deg, #ff0055, #aa00ff); border:none; color:#fff;
+        padding:8px 14px; border-radius:10px; cursor:pointer; font-family:'Orbitron',sans-serif;
+        font-size:10px; font-weight:700; letter-spacing:1px; transition:all 0.3s;
+        display:flex; align-items:center; gap:6px;
+    }
+    .random-btn:hover { transform:translateY(-50%) scale(1.05); box-shadow:0 0 25px rgba(255,0,85,0.4); }
+    .random-btn .dice { display:inline-block; animation:diceRoll 2s ease infinite; }
+    @keyframes diceRoll { 0%,80%,100%{transform:rotate(0deg)} 85%{transform:rotate(15deg)} 90%{transform:rotate(-15deg)} 95%{transform:rotate(10deg)} }
+    /* Sort & View controls */
+    .controls-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:10px; flex-wrap:wrap; }
+    .controls-left, .controls-right { display:flex; align-items:center; gap:8px; }
+    .sort-select {
+        background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08);
+        color:#888; padding:5px 10px; border-radius:8px; font-family:'Share Tech Mono',monospace;
+        font-size:11px; cursor:pointer; outline:none;
+    }
+    .sort-select:focus { border-color:rgba(0,255,204,0.4); }
+    .sort-select option { background:#111; color:#ccc; }
+    .grid-toggle { display:flex; gap:2px; }
+    .grid-toggle button {
+        background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08);
+        color:#555; padding:5px 8px; cursor:pointer; transition:all 0.2s; font-size:12px;
+    }
+    .grid-toggle button:first-child { border-radius:6px 0 0 6px; }
+    .grid-toggle button:last-child { border-radius:0 6px 6px 0; }
+    .grid-toggle button.active { background:rgba(0,255,204,0.1); border-color:rgba(0,255,204,0.3); color:#00ffcc; }
+    /* Grid size variations */
+    .games-grid.grid-sm { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+    .games-grid.grid-md { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+    .games-grid.grid-lg { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+    /* Game of the Day spotlight */
+    .gotd-section {
+        margin-bottom:20px; padding:16px 20px; border-radius:14px; position:relative; overflow:hidden;
+        background:linear-gradient(135deg, rgba(255,0,85,0.08), rgba(170,0,255,0.08), rgba(0,255,204,0.08));
+        border:1px solid rgba(255,255,255,0.06);
+    }
+    .gotd-section::before {
+        content:''; position:absolute; inset:0;
+        background:radial-gradient(circle at 20% 50%, rgba(0,255,204,0.12), transparent 60%),
+                   radial-gradient(circle at 80% 50%, rgba(255,0,85,0.1), transparent 60%);
+        animation:spotlightPulse 4s ease infinite;
+    }
+    @keyframes spotlightPulse {
+        0%,100%{opacity:0.6} 50%{opacity:1}
+    }
+    .gotd-label { font-family:'Orbitron',sans-serif; font-size:10px; color:#ff0055; letter-spacing:4px; margin-bottom:8px; position:relative; }
+    .gotd-content { display:flex; align-items:center; gap:16px; position:relative; }
+    .gotd-icon { font-size:48px; filter:drop-shadow(0 0 20px var(--accent)); }
+    .gotd-info { flex:1; }
+    .gotd-title { font-family:'Orbitron',sans-serif; font-size:20px; font-weight:700; color:#fff; letter-spacing:1px; }
+    .gotd-desc { font-size:12px; color:#777; margin-top:4px; }
+    .gotd-play {
+        padding:10px 24px; background:linear-gradient(135deg,#00ffcc,#00aa88); border:none;
+        border-radius:8px; color:#000; font-family:'Orbitron',sans-serif; font-size:12px;
+        font-weight:700; letter-spacing:2px; cursor:pointer; transition:all 0.3s;
+    }
+    .gotd-play:hover { transform:scale(1.05); box-shadow:0 0 30px rgba(0,255,204,0.4); }
+    /* Recently Played section */
+    .recent-section { margin-bottom:18px; }
+    .recent-label { font-family:'Orbitron',sans-serif; font-size:10px; color:#555; letter-spacing:3px; margin-bottom:8px; }
+    .recent-row { display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; scrollbar-width:thin; scrollbar-color:#222 transparent; }
+    .recent-chip {
+        flex-shrink:0; padding:6px 14px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06);
+        border-radius:8px; cursor:pointer; transition:all 0.2s; font-size:11px; color:#888; white-space:nowrap;
+        display:flex; align-items:center; gap:6px;
+    }
+    .recent-chip:hover { border-color:rgba(0,255,204,0.3); color:#ccc; }
+    .recent-chip .rc-icon { font-size:14px; }
+    /* Stats bar */
+    .stats-bar { display:flex; justify-content:center; gap:30px; padding:20px 0 10px; flex-wrap:wrap; }
+    .stat-item { text-align:center; }
+    .stat-num { font-family:'Orbitron',sans-serif; font-size:22px; font-weight:700; color:#00ffcc; }
+    .stat-label { font-size:9px; color:#444; letter-spacing:2px; margin-top:2px; }
+    /* Scroll reveal */
+    .game-card.reveal-hidden { opacity:0; transform:translateY(20px); }
+    .game-card.reveal-visible { opacity:1; transform:translateY(0); transition:opacity 0.4s, transform 0.4s; }
+    /* Tag glow on hover */
+    .tag:hover { box-shadow:0 0 12px rgba(0,255,204,0.15); }
+    .tag.tag-fav { border-color:rgba(255,0,85,0.4); color:#ff0055; }
+    .tag.tag-fav:hover { border-color:rgba(255,0,85,0.6); color:#ff4488; }
+    .tag.tag-fav.active { border-color:#ff0055; color:#ff0055; background:rgba(255,0,85,0.1); box-shadow:0 0 12px rgba(255,0,85,0.2); }
+    .tag.tag-recent { border-color:rgba(170,0,255,0.4); color:#aa00ff; }
+    .tag.tag-recent:hover { border-color:rgba(170,0,255,0.6); color:#cc44ff; }
+    .tag.tag-recent.active { border-color:#aa00ff; color:#aa00ff; background:rgba(170,0,255,0.1); box-shadow:0 0 12px rgba(170,0,255,0.2); }
 </style>
 </head>
 <body>
@@ -244,9 +340,30 @@
     <div class="search-bar">
         <span class="search-icon">&#128269;</span>
         <input type="text" id="search" placeholder="Search 250+ games..." autocomplete="off">
+        <button class="random-btn" id="randomBtn" title="Random Game"><span class="dice">🎲</span> RANDOM</button>
     </div>
     <div class="tags" id="tags"></div>
-    <div class="games-grid" id="grid"></div>
+    <div id="gotd-container"></div>
+    <div id="recent-container"></div>
+    <div class="controls-bar">
+        <div class="controls-left">
+            <select class="sort-select" id="sortSelect">
+                <option value="default">Default Order</option>
+                <option value="az">A → Z</option>
+                <option value="za">Z → A</option>
+                <option value="featured">Featured First</option>
+                <option value="noads">No Ads First</option>
+            </select>
+        </div>
+        <div class="controls-right">
+            <div class="grid-toggle" id="gridToggle">
+                <button data-size="sm" title="Small">▪▪▪</button>
+                <button data-size="md" class="active" title="Medium">▪▪</button>
+                <button data-size="lg" title="Large">▪</button>
+            </div>
+        </div>
+    </div>
+    <div class="games-grid grid-md" id="grid"></div>
     <div class="no-results" id="no-results">No games found. Try a different search.</div>
     <footer>
         VOID ARCADE &copy; 2026 &mdash; Play anywhere, no downloads
@@ -583,8 +700,8 @@ const GAMES = [
 ];
 
 // ===== TAG CONFIG =====
-const TAG_ORDER = ['all','no-ads','shooter','io','strategy','platformer','puzzle','racing','arcade','sports','multiplayer','fighting','horror','idle','music','simulation'];
-const TAG_LABELS = { all:'All', 'no-ads':'No Ads ✅', shooter:'Shooter', io:'IO Games', strategy:'Strategy', platformer:'Platformer', puzzle:'Puzzle', racing:'Racing', arcade:'Arcade', sports:'Sports', multiplayer:'Multiplayer', fighting:'Fighting', horror:'Horror', idle:'Idle', music:'Music', simulation:'Simulation' };
+const TAG_ORDER = ['all','favorites','recent','no-ads','shooter','io','strategy','platformer','puzzle','racing','arcade','sports','multiplayer','fighting','horror','idle','music','simulation'];
+const TAG_LABELS = { all:'All', favorites:'Favorites ❤️', recent:'Recent 🕐', 'no-ads':'No Ads ✅', shooter:'Shooter', io:'IO Games', strategy:'Strategy', platformer:'Platformer', puzzle:'Puzzle', racing:'Racing', arcade:'Arcade', sports:'Sports', multiplayer:'Multiplayer', fighting:'Fighting', horror:'Horror', idle:'Idle', music:'Music', simulation:'Simulation' };
 
 const grid = document.getElementById('grid');
 const search = document.getElementById('search');
@@ -595,18 +712,80 @@ const gameFrame = document.getElementById('game-frame');
 const tagsEl = document.getElementById('tags');
 let activeTag = 'all';
 let currentGameUrl = '';
+let currentSort = 'default';
+let currentGridSize = 'md';
+
+// ===== FAVORITES SYSTEM =====
+let favorites = JSON.parse(localStorage.getItem('va_favorites') || '[]');
+function toggleFavorite(title, e) {
+    e.stopPropagation(); e.preventDefault();
+    const idx = favorites.indexOf(title);
+    if (idx >= 0) favorites.splice(idx, 1); else favorites.push(title);
+    localStorage.setItem('va_favorites', JSON.stringify(favorites));
+    buildTags();
+    renderGames(search.value.toLowerCase(), activeTag);
+}
+
+// ===== RECENTLY PLAYED =====
+let recentlyPlayed = JSON.parse(localStorage.getItem('va_recent') || '[]');
+function addRecent(title) {
+    recentlyPlayed = recentlyPlayed.filter(t => t !== title);
+    recentlyPlayed.unshift(title);
+    if (recentlyPlayed.length > 10) recentlyPlayed.pop();
+    localStorage.setItem('va_recent', JSON.stringify(recentlyPlayed));
+    renderRecent();
+}
+function renderRecent() {
+    const el = document.getElementById('recent-container');
+    if (!recentlyPlayed.length) { el.innerHTML = ''; return; }
+    const chips = recentlyPlayed.map(t => {
+        const g = GAMES.find(g => g.title === t);
+        if (!g) return '';
+        return `<div class="recent-chip" onclick="playGame(GAMES.find(g=>g.title==='${t.replace(/'/g,"\\'")}'))"><span class="rc-icon">${g.icon}</span>${g.title}</div>`;
+    }).join('');
+    el.innerHTML = `<div class="recent-section"><div class="recent-label">RECENTLY PLAYED</div><div class="recent-row">${chips}</div></div>`;
+}
+
+// ===== GAME OF THE DAY =====
+function renderGOTD() {
+    const dayIndex = Math.floor(Date.now() / 86400000) % GAMES.length;
+    const g = GAMES[dayIndex];
+    const el = document.getElementById('gotd-container');
+    el.innerHTML = `<div class="gotd-section" style="--accent:${g.accent}">
+        <div class="gotd-label">⭐ GAME OF THE DAY</div>
+        <div class="gotd-content">
+            <div class="gotd-icon">${g.icon}</div>
+            <div class="gotd-info"><div class="gotd-title">${g.title}</div><div class="gotd-desc">${g.desc}</div></div>
+            <button class="gotd-play" onclick="playGame(GAMES[${dayIndex}])">PLAY NOW</button>
+        </div>
+    </div>`;
+}
+function playGame(g) {
+    if (!g) return;
+    addRecent(g.title);
+    if (g.href) window.location.href = g.href;
+    else if (g.embed && g.direct) window.open(g.embed, '_blank');
+    else if (g.embed) openGame(g.embed, g.title);
+}
 
 // Build tags with counts
 function buildTags() {
     const counts = {};
     GAMES.forEach(g => (g.tags||[]).forEach(t => counts[t] = (counts[t]||0)+1));
     counts['no-ads'] = GAMES.filter(g => g.noAds).length;
+    counts['favorites'] = favorites.length;
+    counts['recent'] = recentlyPlayed.length;
     tagsEl.innerHTML = TAG_ORDER.map(t => {
         const label = TAG_LABELS[t] || t;
         const count = t === 'all' ? GAMES.length : (counts[t]||0);
-        return `<span class="tag${t==='all'?' active':''}${t==='no-ads'?' tag-no-ads':''}" data-tag="${t}">${label}<span class="tag-count">${count}</span></span>`;
+        const cls = t==='all'?' active':'';
+        const special = t==='no-ads'?' tag-no-ads': t==='favorites'?' tag-fav': t==='recent'?' tag-recent':'';
+        if ((t==='favorites' && !favorites.length) || (t==='recent' && !recentlyPlayed.length)) return '';
+        return `<span class="tag${cls}${special}" data-tag="${t}">${label}<span class="tag-count">${count}</span></span>`;
     }).join('');
 }
+renderGOTD();
+renderRecent();
 buildTags();
 
 function openGame(url, title) {
@@ -627,26 +806,40 @@ function openFullscreen() {
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeGame(); });
 
+function sortGames(arr) {
+    if (currentSort === 'az') return [...arr].sort((a,b) => a.title.localeCompare(b.title));
+    if (currentSort === 'za') return [...arr].sort((a,b) => b.title.localeCompare(a.title));
+    if (currentSort === 'featured') return [...arr].sort((a,b) => (b.featured?1:0)-(a.featured?1:0) || (b.noAds?1:0)-(a.noAds?1:0));
+    if (currentSort === 'noads') return [...arr].sort((a,b) => (b.noAds?1:0)-(a.noAds?1:0));
+    return arr;
+}
+
 function renderGames(filter = '', tag = 'all') {
     grid.innerHTML = '';
-    const filtered = GAMES.filter(g => {
+    let filtered = GAMES.filter(g => {
         const matchSearch = !filter || g.title.toLowerCase().includes(filter) || g.desc.toLowerCase().includes(filter) || (g.tags && g.tags.some(t => t.includes(filter)));
-        const matchTag = tag === 'all' || (tag === 'no-ads' ? g.noAds : (g.tags && g.tags.includes(tag)));
+        let matchTag = true;
+        if (tag === 'no-ads') matchTag = g.noAds;
+        else if (tag === 'favorites') matchTag = favorites.includes(g.title);
+        else if (tag === 'recent') matchTag = recentlyPlayed.includes(g.title);
+        else if (tag !== 'all') matchTag = g.tags && g.tags.includes(tag);
         return matchSearch && matchTag;
     });
+    filtered = sortGames(filtered);
     noResults.style.display = filtered.length === 0 ? 'block' : 'none';
     countEl.textContent = filtered.length + ' GAME' + (filtered.length !== 1 ? 'S' : '') + ' AVAILABLE';
 
     filtered.forEach((g, i) => {
         const card = document.createElement(g.embed ? 'div' : 'a');
-        if (g.href) card.href = g.href;
+        if (g.href) { card.href = g.href; card.onclick = () => addRecent(g.title); }
         card.className = 'game-card' + (g.featured ? ' featured' : '');
         card.style.setProperty('--accent', g.accent);
         card.style.setProperty('--bg', g.bg);
         card.style.animationDelay = Math.min(i * 0.015, 0.4) + 's';
-        if (g.embed && g.direct) card.onclick = () => window.open(g.embed, '_blank');
-        else if (g.embed) card.onclick = () => openGame(g.embed, g.title);
+        if (g.embed && g.direct) card.onclick = () => { addRecent(g.title); window.open(g.embed, '_blank'); };
+        else if (g.embed) card.onclick = () => { addRecent(g.title); openGame(g.embed, g.title); };
 
+        const isFav = favorites.includes(g.title);
         card.innerHTML = `
             <div class="card-banner" style="background:${g.bg}">
                 <div class="shimmer-overlay"></div>
@@ -655,6 +848,7 @@ function renderGames(filter = '', tag = 'all') {
                 ${g.noAds ? `<span class="no-ads-badge${g.isNew ? ' shifted' : ''}">NO ADS</span>` : ''}
                 <span class="card-icon">${g.icon}</span>
             </div>
+            <button class="fav-btn${isFav?' active':''}" onclick="toggleFavorite('${g.title.replace(/'/g,"\\'")}', event)">${isFav?'❤️':'🤍'}</button>
             <div class="card-body">
                 <div class="card-title">${g.title}</div>
                 <div class="card-desc">${g.desc}</div>
@@ -666,6 +860,7 @@ function renderGames(filter = '', tag = 'all') {
     });
 }
 
+// ===== EVENT LISTENERS =====
 search.addEventListener('input', e => renderGames(e.target.value.toLowerCase(), activeTag));
 tagsEl.addEventListener('click', e => {
     if (e.target.closest('.tag')) {
@@ -674,8 +869,66 @@ tagsEl.addEventListener('click', e => {
         tag.classList.add('active');
         activeTag = tag.dataset.tag;
         renderGames(search.value.toLowerCase(), activeTag);
+        window.scrollTo({ top: document.getElementById('grid').offsetTop - 80, behavior: 'smooth' });
     }
 });
+
+// Sort select
+document.getElementById('sortSelect').addEventListener('change', e => {
+    currentSort = e.target.value;
+    renderGames(search.value.toLowerCase(), activeTag);
+});
+
+// Grid size toggle
+document.getElementById('gridToggle').addEventListener('click', e => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    document.querySelectorAll('.grid-toggle button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentGridSize = btn.dataset.size;
+    grid.className = 'games-grid grid-' + currentGridSize;
+});
+
+// Random game button
+document.getElementById('randomBtn').addEventListener('click', () => {
+    const g = GAMES[Math.floor(Math.random() * GAMES.length)];
+    playGame(g);
+});
+
+// Keyboard shortcut: / to focus search
+document.addEventListener('keydown', e => {
+    if (e.key === '/' && document.activeElement !== search) { e.preventDefault(); search.focus(); }
+});
+
+// Animated game count on load
+(function animateCount() {
+    let target = GAMES.length, current = 0;
+    const el = countEl;
+    function step() {
+        current += Math.ceil((target - current) / 8);
+        if (current >= target) { current = target; el.textContent = current + ' GAMES AVAILABLE'; return; }
+        el.textContent = current + ' GAMES AVAILABLE';
+        requestAnimationFrame(step);
+    }
+    step();
+})();
+
+// Stats footer
+(function renderStats() {
+    const noAdsCount = GAMES.filter(g => g.noAds).length;
+    const categories = new Set(); GAMES.forEach(g => (g.tags||[]).forEach(t => categories.add(t)));
+    const footer = document.querySelector('footer');
+    footer.innerHTML = `
+        <div class="stats-bar">
+            <div class="stat-item"><div class="stat-num">${GAMES.length}</div><div class="stat-label">TOTAL GAMES</div></div>
+            <div class="stat-item"><div class="stat-num">${noAdsCount}</div><div class="stat-label">AD-FREE</div></div>
+            <div class="stat-item"><div class="stat-num">${categories.size}</div><div class="stat-label">CATEGORIES</div></div>
+        </div>
+        <div style="margin-top:12px;">VOID ARCADE &copy; 2026</div>
+        <div style="margin-top:6px;font-size:10px;color:#333;letter-spacing:1px;">TIP: Press / to search &bull; Use uBlock Origin for external games</div>
+    `;
+})();
+
 renderGames();
 </script>
 </body>

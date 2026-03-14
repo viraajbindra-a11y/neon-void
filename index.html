@@ -2254,9 +2254,10 @@
                 if (mpState.active) broadcast({ type: 'enemy-killed', enemyId: e.id, enemyType: e.type, ex: e.x, ey: e.y });
 
                 spawnParticles(e.x, e.y, e.color, 25, 1.5);
+                if (is3DActive && scene3d) spawnExplosion3d(e.x, e.y, e.color);
                 playSound('hit');
                 registerKill();
-                if (appSettings.graphics === 'high' && e.xp >= 40) deathRingEffect(e.x, e.y, e.color); 
+                if (appSettings.graphics === 'high' && e.xp >= 40) deathRingEffect(e.x, e.y, e.color);
                 
                 state.score += e.xp * 10 * state.combo * (state.dailyScoreMulti || 1);
                 state.combo = Math.min(10.0, state.combo + 0.1); resetComboDecay(); 
@@ -2395,7 +2396,7 @@
             if (mpState.active && mpState.mode === 'coop' && mpState.isHost) {
                 broadcast({ type: 'boss-death', bx: activeBoss.x, by: activeBoss.y, color: activeBoss.color });
             }
-            spawnParticles(activeBoss.x, activeBoss.y, activeBoss.color, 150, 5); shakeScreen(60); playSound('hit'); state.kills++; ui.kills.innerText = `KILLS: ${state.kills}`; state.score += 50000 * state.combo * (state.dailyScoreMulti || 1); addXp(2000); state.bossesDefeated++; triggerSlowMo(45); triggerChroma(8);
+            spawnParticles(activeBoss.x, activeBoss.y, activeBoss.color, 150, 5); if (is3DActive && scene3d) { spawnExplosion3d(activeBoss.x, activeBoss.y, activeBoss.color); spawnExplosion3d(activeBoss.x + 30, activeBoss.y - 20, '#ffffff'); spawnExplosion3d(activeBoss.x - 30, activeBoss.y + 20, activeBoss.color); } shakeScreen(60); playSound('hit'); state.kills++; ui.kills.innerText = `KILLS: ${state.kills}`; state.score += 50000 * state.combo * (state.dailyScoreMulti || 1); addXp(2000); state.bossesDefeated++; triggerSlowMo(45); triggerChroma(8);
             let coinMult = (state.hardcore ? 5 : 1) * (state.stats.coinMulti || 1); state.runCoins += Math.floor((25000 + (state.currentStage * 5000)) * coinMult);
             entities.enemies = []; entities.eBullets = [];
             if(state.mode === 'training') {
@@ -7492,72 +7493,449 @@
         };
 
         // ==================== 3D RENDERING MODE ====================
-        let scene3d, camera3d, renderer3d, meshPool = {}, starField3d;
+        let scene3d, camera3d, renderer3d, meshPool = {}, starField3d, gridFloor3d;
         let is3DActive = false;
+        let cam3dSmooth = { x: 0, y: 0, z: 800, tiltX: 0, tiltY: 0 };
+        let trailParticles3d = [];
+        let explosions3d = [];
+        const MAX_TRAIL_PARTICLES = 60;
+        const MAX_EXPLOSIONS = 10;
 
         function init3D() {
             if (!window.THREE) return;
             scene3d = new THREE.Scene();
-            scene3d.fog = new THREE.FogExp2(0x000011, 0.0008);
-            camera3d = new THREE.PerspectiveCamera(60, canvas.width / canvas.height, 1, 5000);
-            camera3d.position.set(canvas.width/2, -400, 800);
-            camera3d.lookAt(canvas.width/2, canvas.height/2, 0);
+            scene3d.fog = new THREE.FogExp2(0x000011, 0.0006);
+
+            camera3d = new THREE.PerspectiveCamera(60, canvas.width / canvas.height, 1, 8000);
+            cam3dSmooth.x = canvas.width / 2;
+            cam3dSmooth.y = -400;
+            cam3dSmooth.z = 800;
+            camera3d.position.set(cam3dSmooth.x, cam3dSmooth.y, cam3dSmooth.z);
+            camera3d.lookAt(canvas.width / 2, canvas.height / 2, 0);
+
             renderer3d = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer3d.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer3d.setSize(canvas.width, canvas.height);
+            renderer3d.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer3d.toneMappingExposure = 1.2;
             renderer3d.domElement.style.position = 'fixed';
             renderer3d.domElement.style.top = '0';
             renderer3d.domElement.style.left = '0';
             renderer3d.domElement.style.zIndex = '5';
             renderer3d.domElement.style.pointerEvents = 'none';
+            renderer3d.domElement.style.transition = 'opacity 0.5s ease';
+            renderer3d.domElement.style.opacity = '0';
             renderer3d.domElement.id = 'three-canvas';
             document.body.appendChild(renderer3d.domElement);
-            scene3d.add(new THREE.AmbientLight(0x222244, 0.5));
-            let pLight = new THREE.PointLight(0x00ffcc, 2, 600);
+            // Fade in the 3D canvas
+            requestAnimationFrame(() => { renderer3d.domElement.style.opacity = '1'; });
+
+            // Lighting
+            scene3d.add(new THREE.AmbientLight(0x222244, 0.6));
+            let pLight = new THREE.PointLight(0x00ffcc, 3, 800);
             pLight.name = 'playerLight';
             scene3d.add(pLight);
+            // Secondary fill light from above
+            let fillLight = new THREE.DirectionalLight(0x4444ff, 0.3);
+            fillLight.position.set(0, -500, 600);
+            fillLight.name = 'fillLight';
+            scene3d.add(fillLight);
+            // Rim light for drama
+            let rimLight = new THREE.PointLight(0xff0055, 1.5, 1200);
+            rimLight.position.set(canvas.width, 0, 400);
+            rimLight.name = 'rimLight';
+            scene3d.add(rimLight);
+
+            // Star field
             let starGeo = new THREE.BufferGeometry();
             let starPos = [];
-            for (let i = 0; i < 2000; i++) { starPos.push(Math.random() * 3000 - 500, Math.random() * 3000 - 500, Math.random() * -1500); }
+            let starColors = [];
+            for (let i = 0; i < 3000; i++) {
+                starPos.push(Math.random() * 4000 - 500, Math.random() * 4000 - 500, Math.random() * -2000 - 100);
+                let brightness = 0.5 + Math.random() * 0.5;
+                let r = brightness * (0.8 + Math.random() * 0.2);
+                let g = brightness * (0.8 + Math.random() * 0.2);
+                let b = brightness;
+                starColors.push(r, g, b);
+            }
             starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
-            let starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 2, transparent: true, opacity: 0.6 });
+            starGeo.setAttribute('color', new THREE.Float32BufferAttribute(starColors, 3));
+            let starMat = new THREE.PointsMaterial({ size: 2.5, transparent: true, opacity: 0.7, vertexColors: true, sizeAttenuation: true });
             starField3d = new THREE.Points(starGeo, starMat);
             scene3d.add(starField3d);
+
+            // Neon grid floor
+            createGridFloor();
+
             is3DActive = true;
         }
 
+        function createGridFloor() {
+            let gridGroup = new THREE.Group();
+            gridGroup.name = 'gridFloor';
+            let gridZ = -50;
+            let gridSize = 4000;
+            let gridDivisions = 40;
+            let step = gridSize / gridDivisions;
+
+            // Main grid lines
+            let lineMat = new THREE.LineBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.15 });
+            for (let i = -gridSize / 2; i <= gridSize / 2; i += step) {
+                // Lines along X
+                let geoX = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(i, -gridSize / 2, gridZ),
+                    new THREE.Vector3(i, gridSize / 2, gridZ)
+                ]);
+                gridGroup.add(new THREE.Line(geoX, lineMat));
+                // Lines along Y
+                let geoY = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(-gridSize / 2, i, gridZ),
+                    new THREE.Vector3(gridSize / 2, i, gridZ)
+                ]);
+                gridGroup.add(new THREE.Line(geoY, lineMat));
+            }
+
+            // Brighter center cross lines
+            let brightMat = new THREE.LineBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.4 });
+            let cX = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(canvas.width / 2, -gridSize / 2, gridZ),
+                new THREE.Vector3(canvas.width / 2, gridSize / 2, gridZ)
+            ]);
+            gridGroup.add(new THREE.Line(cX, brightMat));
+            let cY = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(-gridSize / 2, canvas.height / 2, gridZ),
+                new THREE.Vector3(gridSize / 2, canvas.height / 2, gridZ)
+            ]);
+            gridGroup.add(new THREE.Line(cY, brightMat));
+
+            // Glowing ground plane
+            let planeGeo = new THREE.PlaneGeometry(gridSize, gridSize);
+            let planeMat = new THREE.MeshBasicMaterial({
+                color: 0x000822, transparent: true, opacity: 0.5, side: THREE.DoubleSide
+            });
+            let plane = new THREE.Mesh(planeGeo, planeMat);
+            plane.position.set(canvas.width / 2, canvas.height / 2, gridZ - 1);
+            gridGroup.add(plane);
+
+            // Edge glow lines (border of play area)
+            let borderMat = new THREE.LineBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.6 });
+            let borderGeo = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(0, 0, gridZ + 5),
+                new THREE.Vector3(canvas.width, 0, gridZ + 5),
+                new THREE.Vector3(canvas.width, canvas.height, gridZ + 5),
+                new THREE.Vector3(0, canvas.height, gridZ + 5),
+                new THREE.Vector3(0, 0, gridZ + 5)
+            ]);
+            gridGroup.add(new THREE.Line(borderGeo, borderMat));
+
+            scene3d.add(gridGroup);
+            gridFloor3d = gridGroup;
+        }
+
         function destroy3D() {
-            if (renderer3d) { renderer3d.domElement.remove(); renderer3d.dispose(); }
-            scene3d = camera3d = renderer3d = null;
+            if (renderer3d) {
+                renderer3d.domElement.remove();
+                renderer3d.dispose();
+            }
+            // Clean up all meshes properly
+            for (let id in meshPool) {
+                let m = meshPool[id];
+                if (m) {
+                    m.traverse(child => {
+                        if (child.geometry) child.geometry.dispose();
+                        if (child.material) {
+                            if (Array.isArray(child.material)) child.material.forEach(mat => mat.dispose());
+                            else child.material.dispose();
+                        }
+                    });
+                }
+            }
+            trailParticles3d = [];
+            explosions3d = [];
+            scene3d = camera3d = renderer3d = gridFloor3d = starField3d = null;
             meshPool = {};
             is3DActive = false;
         }
 
         function toggle3D(enable) {
-            if (enable && !is3DActive) init3D();
-            else if (!enable && is3DActive) destroy3D();
+            if (enable && !is3DActive) {
+                init3D();
+                // Smooth transition: fade out 2D canvas
+                canvas.style.transition = 'opacity 0.5s ease';
+                canvas.style.opacity = '0';
+            } else if (!enable && is3DActive) {
+                // Smooth transition: fade in 2D canvas, fade out 3D
+                canvas.style.transition = 'opacity 0.5s ease';
+                canvas.style.opacity = '1';
+                if (renderer3d) {
+                    renderer3d.domElement.style.transition = 'opacity 0.5s ease';
+                    renderer3d.domElement.style.opacity = '0';
+                    setTimeout(() => { destroy3D(); }, 500);
+                } else {
+                    destroy3D();
+                }
+            }
             appSettings.render3D = enable;
             saveSettings();
-            if (enable && renderer3d) { canvas.style.opacity = '0'; } else { canvas.style.opacity = '1'; }
+            // Update button text
+            let btn = document.getElementById('btn-toggle-3d');
+            if (btn) btn.innerText = '3D MODE: ' + (enable ? 'ON' : 'OFF');
         }
 
         function getMesh(id, type) {
             if (meshPool[id]) return meshPool[id];
             let mesh, mat;
             switch(type) {
-                case 'player': { let shipGeo = new THREE.ConeGeometry(20, 40, 4); mat = new THREE.MeshPhongMaterial({ color: 0x00ffcc, emissive: 0x00ffcc, emissiveIntensity: 0.4, wireframe: false, transparent: true, opacity: 0.9 }); mesh = new THREE.Mesh(shipGeo, mat); let wireGeo = new THREE.ConeGeometry(21, 41, 4); let wireMat = new THREE.MeshBasicMaterial({ color: 0x00ffcc, wireframe: true, transparent: true, opacity: 0.5 }); mesh.add(new THREE.Mesh(wireGeo, wireMat)); break; }
-                case 'bullet': { let bGeo = new THREE.SphereGeometry(4, 6, 6); mat = new THREE.MeshBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.9 }); mesh = new THREE.Mesh(bGeo, mat); break; }
-                case 'eBullet': { let ebGeo = new THREE.SphereGeometry(5, 6, 6); mat = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.9 }); mesh = new THREE.Mesh(ebGeo, mat); break; }
-                case 'powerup': { let puGeo = new THREE.OctahedronGeometry(12); mat = new THREE.MeshPhongMaterial({ color: 0xffcc00, emissive: 0xffcc00, emissiveIntensity: 0.5, wireframe: true }); mesh = new THREE.Mesh(puGeo, mat); break; }
-                case 'tank': case 'horde': case 'bad': { let cubeGeo = new THREE.BoxGeometry(22, 22, 22); mat = new THREE.MeshPhongMaterial({ color: 0xff0055, emissive: 0xff0055, emissiveIntensity: 0.3, wireframe: false }); mesh = new THREE.Mesh(cubeGeo, mat); let wCube = new THREE.Mesh(new THREE.BoxGeometry(23, 23, 23), new THREE.MeshBasicMaterial({ color: 0xff0055, wireframe: true, transparent: true, opacity: 0.4 })); mesh.add(wCube); break; }
-                case 'sniper': { let triGeo = new THREE.ConeGeometry(14, 30, 3); mat = new THREE.MeshPhongMaterial({ color: 0xffcc00, emissive: 0xffcc00, emissiveIntensity: 0.3 }); mesh = new THREE.Mesh(triGeo, mat); break; }
-                case 'speed': case 'dasher': { let speedGeo = new THREE.ConeGeometry(10, 25, 4); mat = new THREE.MeshPhongMaterial({ color: 0x00ff88, emissive: 0x00ff88, emissiveIntensity: 0.4 }); mesh = new THREE.Mesh(speedGeo, mat); break; }
-                case 'ghost': { let ghostGeo = new THREE.SphereGeometry(14, 8, 8); mat = new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.2, transparent: true, opacity: 0.3 }); mesh = new THREE.Mesh(ghostGeo, mat); break; }
-                case 'teleporter': { let teleGeo = new THREE.TorusGeometry(12, 5, 8, 16); mat = new THREE.MeshPhongMaterial({ color: 0xaa00ff, emissive: 0xaa00ff, emissiveIntensity: 0.5 }); mesh = new THREE.Mesh(teleGeo, mat); break; }
-                case 'orbiter': { let orbGeo = new THREE.TorusKnotGeometry(10, 3, 32, 8); mat = new THREE.MeshPhongMaterial({ color: 0xff00ff, emissive: 0xff00ff, emissiveIntensity: 0.4 }); mesh = new THREE.Mesh(orbGeo, mat); break; }
-                case 'mine': { let mineGeo = new THREE.IcosahedronGeometry(10); mat = new THREE.MeshPhongMaterial({ color: 0xff4400, emissive: 0xff4400, emissiveIntensity: 0.5 }); mesh = new THREE.Mesh(mineGeo, mat); break; }
-                case 'splitter': { let splitGeo = new THREE.DodecahedronGeometry(16); mat = new THREE.MeshPhongMaterial({ color: 0x00ccff, emissive: 0x00ccff, emissiveIntensity: 0.3 }); mesh = new THREE.Mesh(splitGeo, mat); break; }
-                case 'boss': { let bossGeo = new THREE.IcosahedronGeometry(40); mat = new THREE.MeshPhongMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 0.4, wireframe: false }); mesh = new THREE.Mesh(bossGeo, mat); let wBoss = new THREE.Mesh(new THREE.IcosahedronGeometry(42), new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true, transparent: true, opacity: 0.3 })); mesh.add(wBoss); break; }
-                default: { let defGeo = new THREE.BoxGeometry(18, 18, 18); mat = new THREE.MeshPhongMaterial({ color: 0xff0055, emissive: 0xff0055, emissiveIntensity: 0.3 }); mesh = new THREE.Mesh(defGeo, mat); break; }
+                case 'player': {
+                    mesh = new THREE.Group();
+                    // Main hull
+                    let shipGeo = new THREE.ConeGeometry(20, 40, 4);
+                    mat = new THREE.MeshPhongMaterial({ color: 0x00ffcc, emissive: 0x00ffcc, emissiveIntensity: 0.6, transparent: true, opacity: 0.9 });
+                    let hull = new THREE.Mesh(shipGeo, mat);
+                    mesh.add(hull);
+                    // Wireframe overlay
+                    let wireGeo = new THREE.ConeGeometry(21, 41, 4);
+                    let wireMat = new THREE.MeshBasicMaterial({ color: 0x00ffcc, wireframe: true, transparent: true, opacity: 0.5 });
+                    mesh.add(new THREE.Mesh(wireGeo, wireMat));
+                    // Engine glow (small sphere at back)
+                    let engineGeo = new THREE.SphereGeometry(6, 8, 8);
+                    let engineMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.8 });
+                    let engine = new THREE.Mesh(engineGeo, engineMat);
+                    engine.position.set(0, -20, 0);
+                    engine.name = 'engineGlow';
+                    mesh.add(engine);
+                    // Wing tips
+                    let wingGeo = new THREE.BoxGeometry(3, 12, 2);
+                    let wingMat = new THREE.MeshPhongMaterial({ color: 0x00ffcc, emissive: 0x00ffcc, emissiveIntensity: 0.8 });
+                    let wingL = new THREE.Mesh(wingGeo, wingMat);
+                    wingL.position.set(-15, -10, 0);
+                    mesh.add(wingL);
+                    let wingR = new THREE.Mesh(wingGeo, wingMat);
+                    wingR.position.set(15, -10, 0);
+                    mesh.add(wingR);
+                    break;
+                }
+                case 'bullet': {
+                    let bGeo = new THREE.SphereGeometry(4, 6, 6);
+                    mat = new THREE.MeshBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.9 });
+                    mesh = new THREE.Mesh(bGeo, mat);
+                    // Add a small glow ring
+                    let bRingGeo = new THREE.RingGeometry(5, 7, 8);
+                    let bRingMat = new THREE.MeshBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
+                    let bRing = new THREE.Mesh(bRingGeo, bRingMat);
+                    mesh.add(bRing);
+                    break;
+                }
+                case 'eBullet': {
+                    let ebGeo = new THREE.SphereGeometry(5, 6, 6);
+                    mat = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.9 });
+                    mesh = new THREE.Mesh(ebGeo, mat);
+                    let ebRingGeo = new THREE.RingGeometry(6, 8, 8);
+                    let ebRingMat = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
+                    mesh.add(new THREE.Mesh(ebRingGeo, ebRingMat));
+                    break;
+                }
+                case 'powerup': {
+                    mesh = new THREE.Group();
+                    let puGeo = new THREE.OctahedronGeometry(12);
+                    mat = new THREE.MeshPhongMaterial({ color: 0xffcc00, emissive: 0xffcc00, emissiveIntensity: 0.7, wireframe: true });
+                    mesh.add(new THREE.Mesh(puGeo, mat));
+                    // Inner solid core
+                    let puCore = new THREE.Mesh(new THREE.OctahedronGeometry(8), new THREE.MeshPhongMaterial({ color: 0xffcc00, emissive: 0xffcc00, emissiveIntensity: 0.5 }));
+                    mesh.add(puCore);
+                    break;
+                }
+                case 'tank': case 'horde': case 'bad': {
+                    mesh = new THREE.Group();
+                    let cubeGeo = new THREE.BoxGeometry(22, 22, 22);
+                    mat = new THREE.MeshPhongMaterial({ color: 0xff0055, emissive: 0xff0055, emissiveIntensity: 0.4 });
+                    mesh.add(new THREE.Mesh(cubeGeo, mat));
+                    let wCube = new THREE.Mesh(new THREE.BoxGeometry(24, 24, 24), new THREE.MeshBasicMaterial({ color: 0xff0055, wireframe: true, transparent: true, opacity: 0.4 }));
+                    mesh.add(wCube);
+                    break;
+                }
+                case 'sniper': {
+                    mesh = new THREE.Group();
+                    let triGeo = new THREE.ConeGeometry(14, 30, 3);
+                    mat = new THREE.MeshPhongMaterial({ color: 0xffcc00, emissive: 0xffcc00, emissiveIntensity: 0.5 });
+                    mesh.add(new THREE.Mesh(triGeo, mat));
+                    // Scope ring
+                    let scopeGeo = new THREE.TorusGeometry(8, 1, 8, 16);
+                    let scopeMat = new THREE.MeshBasicMaterial({ color: 0xffcc00, transparent: true, opacity: 0.6 });
+                    let scope = new THREE.Mesh(scopeGeo, scopeMat);
+                    scope.position.set(0, 15, 0);
+                    mesh.add(scope);
+                    break;
+                }
+                case 'speed': case 'dasher': {
+                    let speedGeo = new THREE.ConeGeometry(10, 25, 4);
+                    mat = new THREE.MeshPhongMaterial({ color: 0x00ff88, emissive: 0x00ff88, emissiveIntensity: 0.5 });
+                    mesh = new THREE.Mesh(speedGeo, mat);
+                    break;
+                }
+                case 'ghost': case 'cloaked': {
+                    let ghostGeo = new THREE.SphereGeometry(14, 8, 8);
+                    mat = new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.3, transparent: true, opacity: 0.3 });
+                    mesh = new THREE.Mesh(ghostGeo, mat);
+                    break;
+                }
+                case 'teleporter': {
+                    mesh = new THREE.Group();
+                    let teleGeo = new THREE.TorusGeometry(12, 5, 8, 16);
+                    mat = new THREE.MeshPhongMaterial({ color: 0xaa00ff, emissive: 0xaa00ff, emissiveIntensity: 0.6 });
+                    mesh.add(new THREE.Mesh(teleGeo, mat));
+                    // Inner ring
+                    let innerTele = new THREE.Mesh(new THREE.TorusGeometry(7, 2, 8, 16), new THREE.MeshBasicMaterial({ color: 0xdd66ff, transparent: true, opacity: 0.5 }));
+                    mesh.add(innerTele);
+                    break;
+                }
+                case 'orbiter': {
+                    let orbGeo = new THREE.TorusKnotGeometry(10, 3, 32, 8);
+                    mat = new THREE.MeshPhongMaterial({ color: 0xff00ff, emissive: 0xff00ff, emissiveIntensity: 0.5 });
+                    mesh = new THREE.Mesh(orbGeo, mat);
+                    break;
+                }
+                case 'mine': {
+                    mesh = new THREE.Group();
+                    let mineGeo = new THREE.IcosahedronGeometry(10);
+                    mat = new THREE.MeshPhongMaterial({ color: 0xff4400, emissive: 0xff4400, emissiveIntensity: 0.6 });
+                    mesh.add(new THREE.Mesh(mineGeo, mat));
+                    // Spikes
+                    for (let i = 0; i < 6; i++) {
+                        let spike = new THREE.Mesh(new THREE.ConeGeometry(2, 8, 4), new THREE.MeshBasicMaterial({ color: 0xff6600 }));
+                        spike.position.set(Math.cos(i * Math.PI / 3) * 12, Math.sin(i * Math.PI / 3) * 12, 0);
+                        spike.lookAt(0, 0, 0);
+                        mesh.add(spike);
+                    }
+                    break;
+                }
+                case 'splitter': {
+                    mesh = new THREE.Group();
+                    let splitGeo = new THREE.DodecahedronGeometry(16);
+                    mat = new THREE.MeshPhongMaterial({ color: 0x00ccff, emissive: 0x00ccff, emissiveIntensity: 0.4 });
+                    mesh.add(new THREE.Mesh(splitGeo, mat));
+                    let splitWire = new THREE.Mesh(new THREE.DodecahedronGeometry(17), new THREE.MeshBasicMaterial({ color: 0x00ccff, wireframe: true, transparent: true, opacity: 0.3 }));
+                    mesh.add(splitWire);
+                    break;
+                }
+                case 'bomber': {
+                    mesh = new THREE.Group();
+                    let bombGeo = new THREE.SphereGeometry(14, 8, 8);
+                    mat = new THREE.MeshPhongMaterial({ color: 0xff6600, emissive: 0xff6600, emissiveIntensity: 0.5, transparent: true, opacity: 0.8 });
+                    mesh.add(new THREE.Mesh(bombGeo, mat));
+                    // Fuse ring
+                    let fuseGeo = new THREE.TorusGeometry(16, 1.5, 6, 12);
+                    let fuseMat = new THREE.MeshBasicMaterial({ color: 0xff8800, transparent: true, opacity: 0.6 });
+                    mesh.add(new THREE.Mesh(fuseGeo, fuseMat));
+                    break;
+                }
+                case 'healer': {
+                    mesh = new THREE.Group();
+                    // Cross shape for healer
+                    let crossH = new THREE.Mesh(new THREE.BoxGeometry(6, 20, 6), new THREE.MeshPhongMaterial({ color: 0x00ff44, emissive: 0x00ff44, emissiveIntensity: 0.6 }));
+                    let crossV = new THREE.Mesh(new THREE.BoxGeometry(20, 6, 6), new THREE.MeshPhongMaterial({ color: 0x00ff44, emissive: 0x00ff44, emissiveIntensity: 0.6 }));
+                    mesh.add(crossH);
+                    mesh.add(crossV);
+                    // Healing aura ring
+                    let auraGeo = new THREE.TorusGeometry(18, 1, 8, 24);
+                    let auraMat = new THREE.MeshBasicMaterial({ color: 0x00ff44, transparent: true, opacity: 0.3 });
+                    mesh.add(new THREE.Mesh(auraGeo, auraMat));
+                    break;
+                }
+                case 'shielder': {
+                    mesh = new THREE.Group();
+                    let shieldCore = new THREE.Mesh(new THREE.BoxGeometry(18, 18, 18), new THREE.MeshPhongMaterial({ color: 0x4488ff, emissive: 0x4488ff, emissiveIntensity: 0.4 }));
+                    mesh.add(shieldCore);
+                    // Shield bubble
+                    let shieldBubble = new THREE.Mesh(new THREE.SphereGeometry(24, 16, 16), new THREE.MeshPhongMaterial({ color: 0x88bbff, emissive: 0x88bbff, emissiveIntensity: 0.2, transparent: true, opacity: 0.2, wireframe: true }));
+                    shieldBubble.name = 'shieldBubble';
+                    mesh.add(shieldBubble);
+                    break;
+                }
+                case 'rammer': {
+                    let ramGeo = new THREE.ConeGeometry(12, 30, 3);
+                    mat = new THREE.MeshPhongMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 0.5 });
+                    mesh = new THREE.Mesh(ramGeo, mat);
+                    break;
+                }
+                case 'heavy_shooter': {
+                    mesh = new THREE.Group();
+                    // Hexagonal shape
+                    let hexGeo = new THREE.CylinderGeometry(18, 18, 10, 6);
+                    mat = new THREE.MeshPhongMaterial({ color: 0xff8800, emissive: 0xff8800, emissiveIntensity: 0.4 });
+                    let hex = new THREE.Mesh(hexGeo, mat);
+                    hex.rotation.x = Math.PI / 2;
+                    mesh.add(hex);
+                    // Gun barrels
+                    for (let i = -1; i <= 1; i++) {
+                        let barrel = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 15, 6), new THREE.MeshBasicMaterial({ color: 0xff8800 }));
+                        barrel.position.set(i * 8, 15, 0);
+                        mesh.add(barrel);
+                    }
+                    break;
+                }
+                case 'avatar': {
+                    mesh = new THREE.Group();
+                    let avatarGeo = new THREE.SphereGeometry(16, 12, 12);
+                    mat = new THREE.MeshPhongMaterial({ color: 0xffcc00, emissive: 0xffcc00, emissiveIntensity: 0.6, transparent: true, opacity: 0.7 });
+                    mesh.add(new THREE.Mesh(avatarGeo, mat));
+                    let avatarRing = new THREE.Mesh(new THREE.TorusGeometry(22, 2, 8, 24), new THREE.MeshBasicMaterial({ color: 0xffdd44, transparent: true, opacity: 0.5 }));
+                    mesh.add(avatarRing);
+                    break;
+                }
+                case 'dark_avatar': {
+                    mesh = new THREE.Group();
+                    let darkGeo = new THREE.SphereGeometry(18, 12, 12);
+                    mat = new THREE.MeshPhongMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 0.7, transparent: true, opacity: 0.7 });
+                    mesh.add(new THREE.Mesh(darkGeo, mat));
+                    let darkRing1 = new THREE.Mesh(new THREE.TorusGeometry(24, 2, 8, 24), new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.5 }));
+                    mesh.add(darkRing1);
+                    let darkRing2 = new THREE.Mesh(new THREE.TorusGeometry(28, 1.5, 8, 24), new THREE.MeshBasicMaterial({ color: 0xff4400, transparent: true, opacity: 0.3 }));
+                    darkRing2.rotation.x = Math.PI / 3;
+                    mesh.add(darkRing2);
+                    break;
+                }
+                case 'boss': {
+                    mesh = new THREE.Group();
+                    // Core
+                    let bossGeo = new THREE.IcosahedronGeometry(40);
+                    mat = new THREE.MeshPhongMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 0.5 });
+                    mesh.add(new THREE.Mesh(bossGeo, mat));
+                    // Wireframe shell
+                    let wBoss = new THREE.Mesh(new THREE.IcosahedronGeometry(43), new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true, transparent: true, opacity: 0.3 }));
+                    mesh.add(wBoss);
+                    // Spinning ring 1 (horizontal)
+                    let ring1 = new THREE.Mesh(new THREE.TorusGeometry(55, 2, 8, 32), new THREE.MeshPhongMaterial({ color: 0xff0000, emissive: 0xff4400, emissiveIntensity: 0.6, transparent: true, opacity: 0.7 }));
+                    ring1.name = 'bossRing1';
+                    mesh.add(ring1);
+                    // Spinning ring 2 (tilted)
+                    let ring2 = new THREE.Mesh(new THREE.TorusGeometry(60, 1.5, 8, 32), new THREE.MeshPhongMaterial({ color: 0xff4400, emissive: 0xff6600, emissiveIntensity: 0.5, transparent: true, opacity: 0.5 }));
+                    ring2.rotation.x = Math.PI / 3;
+                    ring2.name = 'bossRing2';
+                    mesh.add(ring2);
+                    // Spinning ring 3 (perpendicular)
+                    let ring3 = new THREE.Mesh(new THREE.TorusGeometry(50, 1, 8, 32), new THREE.MeshBasicMaterial({ color: 0xff2200, transparent: true, opacity: 0.4 }));
+                    ring3.rotation.y = Math.PI / 2;
+                    ring3.name = 'bossRing3';
+                    mesh.add(ring3);
+                    // Crown spikes
+                    for (let i = 0; i < 8; i++) {
+                        let spikeGeo = new THREE.ConeGeometry(4, 20, 4);
+                        let spikeMat = new THREE.MeshPhongMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 0.4 });
+                        let spike = new THREE.Mesh(spikeGeo, spikeMat);
+                        let ang = (i / 8) * Math.PI * 2;
+                        spike.position.set(Math.cos(ang) * 45, Math.sin(ang) * 45, 0);
+                        spike.lookAt(0, 0, 0);
+                        mesh.add(spike);
+                    }
+                    break;
+                }
+                default: {
+                    let defGeo = new THREE.BoxGeometry(18, 18, 18);
+                    mat = new THREE.MeshPhongMaterial({ color: 0xff0055, emissive: 0xff0055, emissiveIntensity: 0.4 });
+                    mesh = new THREE.Mesh(defGeo, mat);
+                    break;
+                }
             }
             scene3d.add(mesh);
             meshPool[id] = mesh;
@@ -7566,22 +7944,178 @@
 
         function removeMesh(id) {
             let m = meshPool[id];
-            if (m) { scene3d.remove(m); if (m.geometry) m.geometry.dispose(); if (m.material) m.material.dispose(); delete meshPool[id]; }
+            if (m) {
+                scene3d.remove(m);
+                m.traverse(child => {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) {
+                        if (Array.isArray(child.material)) child.material.forEach(mat => mat.dispose());
+                        else child.material.dispose();
+                    }
+                });
+                delete meshPool[id];
+            }
+        }
+
+        // 3D particle trail system
+        function spawnTrailParticle3d(x, y) {
+            if (!scene3d) return;
+            if (trailParticles3d.length >= MAX_TRAIL_PARTICLES) {
+                let old = trailParticles3d.shift();
+                scene3d.remove(old.mesh);
+                old.mesh.geometry.dispose();
+                old.mesh.material.dispose();
+            }
+            let geo = new THREE.SphereGeometry(2 + Math.random() * 3, 4, 4);
+            let mat = new THREE.MeshBasicMaterial({
+                color: new THREE.Color().setHSL(0.5 + Math.random() * 0.1, 1, 0.5),
+                transparent: true, opacity: 0.8
+            });
+            let mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(x + (Math.random() - 0.5) * 8, y + (Math.random() - 0.5) * 8, (Math.random() - 0.5) * 10);
+            scene3d.add(mesh);
+            trailParticles3d.push({ mesh: mesh, life: 1.0, vx: (Math.random() - 0.5) * 2, vy: -1 - Math.random() * 2, vz: (Math.random() - 0.5) * 2 });
+        }
+
+        function updateTrailParticles3d() {
+            for (let i = trailParticles3d.length - 1; i >= 0; i--) {
+                let p = trailParticles3d[i];
+                p.life -= 0.03;
+                if (p.life <= 0) {
+                    scene3d.remove(p.mesh);
+                    p.mesh.geometry.dispose();
+                    p.mesh.material.dispose();
+                    trailParticles3d.splice(i, 1);
+                    continue;
+                }
+                p.mesh.position.x += p.vx;
+                p.mesh.position.y += p.vy;
+                p.mesh.position.z += p.vz;
+                p.mesh.material.opacity = p.life * 0.8;
+                let s = p.life * 0.8 + 0.2;
+                p.mesh.scale.set(s, s, s);
+            }
+        }
+
+        // 3D explosion system
+        function spawnExplosion3d(x, y, color) {
+            if (!scene3d) return;
+            // Cap active explosions
+            if (explosions3d.length >= MAX_EXPLOSIONS) {
+                let oldest = explosions3d.shift();
+                oldest.particles.forEach(p => {
+                    scene3d.remove(p.mesh);
+                    p.mesh.geometry.dispose();
+                    p.mesh.material.dispose();
+                });
+            }
+            let col = new THREE.Color(color || '#ff0055');
+            let particles = [];
+            let count = 12 + Math.floor(Math.random() * 8);
+            for (let i = 0; i < count; i++) {
+                let size = 3 + Math.random() * 5;
+                let geo = new THREE.SphereGeometry(size, 4, 4);
+                let mat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 1.0 });
+                let mesh = new THREE.Mesh(geo, mat);
+                mesh.position.set(x, y, (Math.random() - 0.5) * 20);
+                scene3d.add(mesh);
+                let speed = 3 + Math.random() * 6;
+                let angle = Math.random() * Math.PI * 2;
+                let elevation = (Math.random() - 0.5) * Math.PI;
+                particles.push({
+                    mesh: mesh,
+                    vx: Math.cos(angle) * Math.cos(elevation) * speed,
+                    vy: Math.sin(angle) * Math.cos(elevation) * speed,
+                    vz: Math.sin(elevation) * speed,
+                    life: 1.0
+                });
+            }
+            // Flash sphere
+            let flashGeo = new THREE.SphereGeometry(20, 8, 8);
+            let flashMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 });
+            let flash = new THREE.Mesh(flashGeo, flashMat);
+            flash.position.set(x, y, 0);
+            scene3d.add(flash);
+            particles.push({ mesh: flash, vx: 0, vy: 0, vz: 0, life: 1.0, isFlash: true });
+            explosions3d.push({ particles: particles });
+        }
+
+        function updateExplosions3d() {
+            for (let i = explosions3d.length - 1; i >= 0; i--) {
+                let exp = explosions3d[i];
+                let allDead = true;
+                for (let j = exp.particles.length - 1; j >= 0; j--) {
+                    let p = exp.particles[j];
+                    p.life -= p.isFlash ? 0.1 : 0.025;
+                    if (p.life <= 0) {
+                        scene3d.remove(p.mesh);
+                        p.mesh.geometry.dispose();
+                        p.mesh.material.dispose();
+                        exp.particles.splice(j, 1);
+                        continue;
+                    }
+                    allDead = false;
+                    p.mesh.position.x += p.vx;
+                    p.mesh.position.y += p.vy;
+                    p.mesh.position.z += p.vz;
+                    p.vx *= 0.96;
+                    p.vy *= 0.96;
+                    p.vz *= 0.96;
+                    p.mesh.material.opacity = p.life;
+                    if (p.isFlash) {
+                        let fs = 1 + (1 - p.life) * 3;
+                        p.mesh.scale.set(fs, fs, fs);
+                    } else {
+                        let s = p.life;
+                        p.mesh.scale.set(s, s, s);
+                    }
+                }
+                if (allDead || exp.particles.length === 0) {
+                    explosions3d.splice(i, 1);
+                }
+            }
         }
 
         function update3D() {
-            if (!is3DActive || !scene3d || !state.active) { if (renderer3d) renderer3d.domElement.style.display = 'none'; return; }
+            if (!is3DActive || !scene3d) {
+                if (renderer3d) renderer3d.domElement.style.display = 'none';
+                return;
+            }
+            if (!state.active) {
+                if (renderer3d) renderer3d.domElement.style.display = 'none';
+                return;
+            }
             renderer3d.domElement.style.display = 'block';
             let activeIds = new Set();
+            let time = performance.now() * 0.001;
+
+            // -- Player --
             if (player && player.hp > 0) {
                 let pm = getMesh('player', 'player');
                 pm.position.set(player.x, player.y, 0);
-                pm.rotation.z = player.angle - Math.PI/2;
+                pm.rotation.z = player.angle - Math.PI / 2;
                 pm.rotation.x = -0.3;
                 activeIds.add('player');
                 let pLight = scene3d.getObjectByName('playerLight');
-                if (pLight) pLight.position.set(player.x, player.y, 100);
+                if (pLight) {
+                    pLight.position.set(player.x, player.y, 100);
+                    pLight.intensity = 2.5 + Math.sin(time * 3) * 0.5;
+                }
+                // Engine glow pulse
+                let engineGlow = pm.getObjectByName ? pm.getObjectByName('engineGlow') : null;
+                if (engineGlow) {
+                    let s = 0.8 + Math.sin(time * 8) * 0.3;
+                    engineGlow.scale.set(s, s, s);
+                }
+                // Spawn trail particles behind ship
+                if (state.frame % 2 === 0) {
+                    let trailX = player.x - Math.cos(player.angle) * 25;
+                    let trailY = player.y - Math.sin(player.angle) * 25;
+                    spawnTrailParticle3d(trailX, trailY);
+                }
             }
+
+            // -- Enemies --
             for (let e of entities.enemies) {
                 if (!e) continue;
                 let eid = 'enemy_' + e.id;
@@ -7589,35 +8123,167 @@
                 em.position.set(e.x, e.y, 0);
                 em.rotation.z = e.angle || 0;
                 em.rotation.y += 0.02;
-                if (e.type === 'ghost' && em.material) em.material.opacity = e.alpha || 0.3;
+                // Ghost / cloaked transparency
+                if ((e.type === 'ghost' || e.type === 'cloaked') && em.material) {
+                    em.material.opacity = e.alpha || 0.3;
+                } else if (e.type === 'ghost' || e.type === 'cloaked') {
+                    // If it's a group, traverse for materials
+                    em.traverse(child => {
+                        if (child.material && child.material.transparent) {
+                            child.material.opacity = e.alpha || 0.3;
+                        }
+                    });
+                }
+                // Shielder bubble visibility
+                if (e.type === 'shielder' && em.getObjectByName) {
+                    let bubble = em.getObjectByName('shieldBubble');
+                    if (bubble) {
+                        bubble.visible = e.shieldHp > 0;
+                        if (e.shieldHp > 0) {
+                            bubble.material.opacity = 0.15 + Math.sin(time * 4) * 0.05;
+                        }
+                    }
+                }
                 activeIds.add(eid);
             }
-            entities.bullets.forEach((b, i) => { if (!b) return; let bid = 'bullet_' + i; let bm = getMesh(bid, 'bullet'); bm.position.set(b.x, b.y, 0); activeIds.add(bid); });
-            entities.eBullets.forEach((b, i) => { if (!b) return; let bid = 'ebullet_' + i; let bm = getMesh(bid, 'eBullet'); bm.position.set(b.x, b.y, 0); activeIds.add(bid); });
-            entities.powerups.forEach((p, i) => { if (!p) return; let pid = 'powerup_' + i; let pm = getMesh(pid, 'powerup'); pm.position.set(p.x, p.y, 0); pm.rotation.y += 0.05; pm.rotation.x += 0.03; activeIds.add(pid); });
+
+            // -- Bullets --
+            entities.bullets.forEach((b, i) => {
+                if (!b) return;
+                let bid = 'bullet_' + i;
+                let bm = getMesh(bid, 'bullet');
+                bm.position.set(b.x, b.y, 0);
+                bm.rotation.z += 0.1;
+                activeIds.add(bid);
+            });
+
+            // -- Enemy bullets --
+            entities.eBullets.forEach((b, i) => {
+                if (!b) return;
+                let bid = 'ebullet_' + i;
+                let bm = getMesh(bid, 'eBullet');
+                bm.position.set(b.x, b.y, 0);
+                bm.rotation.z -= 0.1;
+                activeIds.add(bid);
+            });
+
+            // -- Powerups --
+            entities.powerups.forEach((p, i) => {
+                if (!p) return;
+                let pid = 'powerup_' + i;
+                let pm = getMesh(pid, 'powerup');
+                pm.position.set(p.x, p.y, Math.sin(time * 2 + i) * 5);
+                pm.rotation.y += 0.05;
+                pm.rotation.x += 0.03;
+                activeIds.add(pid);
+            });
+
+            // -- Boss --
             if (activeBoss && !activeBoss.isDead) {
                 let bm = getMesh('boss', 'boss');
                 bm.position.set(activeBoss.x, activeBoss.y, 0);
-                bm.rotation.y += 0.01;
                 let scale = activeBoss.radius / 40;
                 bm.scale.set(scale, scale, scale);
-                if (bm.material) { let col = new THREE.Color(activeBoss.color); bm.material.color = col; bm.material.emissive = col; }
+                // Spin boss rings
+                let ring1 = bm.getObjectByName ? bm.getObjectByName('bossRing1') : null;
+                let ring2 = bm.getObjectByName ? bm.getObjectByName('bossRing2') : null;
+                let ring3 = bm.getObjectByName ? bm.getObjectByName('bossRing3') : null;
+                if (ring1) ring1.rotation.z += 0.02;
+                if (ring2) ring2.rotation.y += 0.015;
+                if (ring3) ring3.rotation.x += 0.025;
+                // Update boss color
+                bm.traverse(child => {
+                    if (child.material && !child.material.wireframe && activeBoss.color) {
+                        try {
+                            let col = new THREE.Color(activeBoss.color);
+                            if (child.material.color) child.material.color = col;
+                            if (child.material.emissive) child.material.emissive = col;
+                        } catch(e) {}
+                    }
+                });
                 activeIds.add('boss');
             }
-            for (let id in meshPool) { if (!activeIds.has(id)) removeMesh(id); }
+
+            // -- Cleanup stale meshes --
+            let staleIds = [];
+            for (let id in meshPool) {
+                if (!activeIds.has(id)) staleIds.push(id);
+            }
+            for (let id of staleIds) removeMesh(id);
+
+            // -- Update particle systems --
+            updateTrailParticles3d();
+            updateExplosions3d();
+
+            // -- Smooth camera with tilt --
             if (player) {
                 let targetX = player.x;
-                let targetY = player.y - 200;
-                camera3d.position.x += (targetX - camera3d.position.x) * 0.05;
-                camera3d.position.y += (targetY - camera3d.position.y) * 0.05;
-                camera3d.lookAt(camera3d.position.x, camera3d.position.y + 300, 0);
+                let targetY = player.y - 250;
+                let targetZ = 800;
+                // Smooth interpolation (lerp factor)
+                let lerpFactor = 0.04;
+                cam3dSmooth.x += (targetX - cam3dSmooth.x) * lerpFactor;
+                cam3dSmooth.y += (targetY - cam3dSmooth.y) * lerpFactor;
+                cam3dSmooth.z += (targetZ - cam3dSmooth.z) * lerpFactor;
+
+                // Tilt based on player velocity / movement direction
+                let dx = targetX - camera3d.position.x;
+                let dy = targetY - camera3d.position.y;
+                let targetTiltY = Math.max(-0.15, Math.min(0.15, dx * 0.0003));
+                let targetTiltX = Math.max(-0.08, Math.min(0.08, dy * 0.0001));
+                cam3dSmooth.tiltX += (targetTiltX - cam3dSmooth.tiltX) * 0.03;
+                cam3dSmooth.tiltY += (targetTiltY - cam3dSmooth.tiltY) * 0.03;
+
+                camera3d.position.set(cam3dSmooth.x, cam3dSmooth.y, cam3dSmooth.z);
+                camera3d.lookAt(cam3dSmooth.x, cam3dSmooth.y + 350, 0);
+                camera3d.rotation.z = cam3dSmooth.tiltY;
             }
-            if (state.shake > 0) { camera3d.position.x += (Math.random() - 0.5) * state.shake * 2; camera3d.position.y += (Math.random() - 0.5) * state.shake * 2; }
-            if (starField3d) starField3d.rotation.z += 0.0001;
+
+            // -- Screen shake --
+            if (state.shake > 0) {
+                camera3d.position.x += (Math.random() - 0.5) * state.shake * 2;
+                camera3d.position.y += (Math.random() - 0.5) * state.shake * 2;
+            }
+
+            // -- Star field subtle rotation --
+            if (starField3d) {
+                starField3d.rotation.z += 0.00015;
+                starField3d.rotation.x += 0.00005;
+                // Shift star field to follow camera loosely
+                starField3d.position.x += (cam3dSmooth.x - 500 - starField3d.position.x) * 0.01;
+                starField3d.position.y += (cam3dSmooth.y - 500 - starField3d.position.y) * 0.01;
+            }
+
+            // -- Grid floor pulse effect --
+            if (gridFloor3d) {
+                gridFloor3d.position.x = 0;
+                gridFloor3d.position.y = 0;
+            }
+
+            // -- Dynamic rim light follows action --
+            let rimLight = scene3d.getObjectByName('rimLight');
+            if (rimLight && player) {
+                rimLight.position.x = player.x + 400;
+                rimLight.position.y = player.y - 200;
+                rimLight.intensity = 1.2 + Math.sin(time * 1.5) * 0.3;
+            }
+
             renderer3d.render(scene3d, camera3d);
         }
 
-        window.addEventListener('resize', () => { if (renderer3d && camera3d) { renderer3d.setSize(canvas.width, canvas.height); camera3d.aspect = canvas.width / canvas.height; camera3d.updateProjectionMatrix(); } });
+        // Proper resize handler for 3D
+        window.addEventListener('resize', () => {
+            if (renderer3d && camera3d) {
+                // Use a short delay to get final canvas size after 2D canvas resizes
+                setTimeout(() => {
+                    if (!renderer3d || !camera3d) return;
+                    renderer3d.setSize(canvas.width, canvas.height);
+                    renderer3d.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                    camera3d.aspect = canvas.width / canvas.height;
+                    camera3d.updateProjectionMatrix();
+                }, 50);
+            }
+        });
 
         applySettings();
         checkLogin();
