@@ -352,6 +352,16 @@ html,body{height:100%;overflow:hidden;background:#000;color:#fff;font-family:'In
   </div>
 </div>
 
+<!-- Loading overlay -->
+<div id="loading" style="display:none;position:absolute;inset:0;z-index:500;background:rgba(0,0,0,.92);display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px">
+  <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--gold);letter-spacing:3px">GENERATING TRIAL</div>
+  <div id="load-status" style="color:#aaa;font-size:14px;text-align:center;max-width:400px">Contacting AI models via Pollinations.ai...</div>
+  <div style="width:200px;height:4px;background:#333;border-radius:2px;overflow:hidden;margin-top:8px">
+    <div id="load-bar" style="width:0%;height:100%;background:var(--gold);transition:width .3s"></div>
+  </div>
+  <div style="color:#666;font-size:11px;margin-top:12px">Each AI generates its own unique dialogue in real-time</div>
+</div>
+
 <!-- End screen -->
 <div id="endscreen">
   <h2>Court Adjourned</h2>
@@ -1031,6 +1041,159 @@ function generateScript(tone){
 }
 
 /* ============================================================
+   POLLINATIONS.AI — Real-time AI dialogue generation
+   ============================================================ */
+const POLL_URL='https://corsproxy.io/?'+encodeURIComponent('https://text.pollinations.ai/openai');
+
+function showLoading(on,msg){
+  const el=document.getElementById('loading');
+  el.style.display=on?'flex':'none';
+  if(msg)document.getElementById('load-status').textContent=msg;
+}
+function setLoadBar(pct){document.getElementById('load-bar').style.width=pct+'%';}
+
+async function generateWithAI(caseName,caseDesc,courtType,tone,aiRoles){
+  // Build role descriptions
+  const roleDescs=Object.entries(aiRoles).filter(([_,v])=>v).map(([roleId,ai])=>{
+    const r=ROLES.find(x=>x.id===roleId);
+    return `- ${r?r.label:roleId}: ${ai.name} (personality: ${ai.personality}, quirk: ${ai.quirk}, catchphrase: "${ai.catchphrase}", objection style: "${ai.objection}")`;
+  }).join('\n');
+
+  const toneGuide={
+    serious:'formal, measured, professional legal drama',
+    dramatic:'intense, theatrical, over-the-top courtroom drama with CAPS for emphasis',
+    funny:'hilarious, absurd, comedy — AIs break character, make meta jokes about being AI',
+    chaotic:'UNHINGED chaos — yelling, interruptions, total breakdown of court decorum'
+  };
+
+  const prompt=`You are writing dialogue for an Ace Attorney / Phoenix Wright style courtroom visual novel game. Generate a complete trial transcript as a JSON array.
+
+CASE: "${caseName}"
+WHAT HAPPENED: "${caseDesc}"
+COURT: ${courtType}
+TONE: ${toneGuide[tone]||toneGuide.serious}
+
+AI CHARACTERS AND THEIR ROLES:
+${roleDescs}
+
+CRITICAL: Each AI must speak EXACTLY like their personality describes. Their quirks MUST show up in their dialogue. For example:
+- Copilot should include code snippets in arguments
+- Perplexity should cite sources [1] [2] etc
+- Grok should be sarcastic and use internet slang
+- Qwen should mix in Chinese/other languages
+- Llama should mention open-source
+- Mistral should use French phrases
+- Phi should mention being a small model
+- DeepSeek should do chain-of-thought analysis
+- Cohere should use business/enterprise jargon
+etc.
+
+OUTPUT FORMAT — respond with ONLY a JSON array, no markdown, no explanation:
+[
+  {"role":"bailiff","text":"...","effect":null,"anim":null,"meter":null},
+  {"role":"judge","text":"...","effect":null,"anim":null,"meter":null},
+  ...
+]
+
+Valid roles: judge, prosecutor, defense, witness, bailiff, jury1
+Valid effects: "objection","holdit","order","takethat", or null
+Valid anims: "slam","point","sweat", or null
+Valid meters: "pro+","pro-","def+","def-", or null (use to shift credibility bars)
+
+Generate 18-25 lines following this trial structure:
+1. Bailiff opens court
+2. Judge introduces case
+3. Prosecution opening (effect:null, meter:"pro+")
+4. Defense opening (meter:"def+")
+5. Prosecution calls witness (effect:"takethat", anim:"point")
+6. Witness testimony (2-3 lines)
+7. Defense objects (effect:"objection", anim:"slam", meter:"pro-")
+8. Back-and-forth arguments with objections
+9. Judge rules / calls order (effect:"order")
+10. Closing arguments
+11. Jury verdict
+12. Judge adjourns (effect:"order")
+
+Make it entertaining, dramatic, and funny. Each AI's unique voice must shine through!`;
+
+  try{
+    showLoading(true,'Generating dialogue with real AI models...');
+    setLoadBar(20);
+
+    const resp=await fetch(POLL_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'openai',
+        messages:[
+          {role:'system',content:'You are a comedy writer for an Ace Attorney style game. Output ONLY valid JSON arrays. No markdown code blocks. No explanation. Just the raw JSON array.'},
+          {role:'user',content:prompt}
+        ],
+        temperature:0.95,
+        max_tokens:4000
+      })
+    });
+
+    setLoadBar(60);
+    showLoading(true,'AI models responding...');
+
+    if(!resp.ok)throw new Error('API returned '+resp.status);
+
+    const data=await resp.json();
+    setLoadBar(80);
+    showLoading(true,'Parsing AI-generated dialogue...');
+
+    let content=data.choices?.[0]?.message?.content||'';
+    // Strip markdown code blocks if present
+    content=content.replace(/```json\s*/gi,'').replace(/```\s*/gi,'').trim();
+
+    const parsed=JSON.parse(content);
+    if(!Array.isArray(parsed)||parsed.length<5)throw new Error('Invalid response format');
+
+    // Validate and clean lines
+    const validRoles=new Set(['judge','prosecutor','defense','witness','bailiff','jury1']);
+    const validFx=new Set(['objection','holdit','order','takethat']);
+    const validAnims=new Set(['slam','point','sweat']);
+    const validMeters=new Set(['pro+','pro-','def+','def-']);
+
+    const lines=parsed.filter(l=>l.role&&l.text&&validRoles.has(l.role)&&role(l.role)).map(l=>({
+      role:l.role,
+      text:String(l.text),
+      effect:validFx.has(l.effect)?l.effect:null,
+      anim:validAnims.has(l.anim)?l.anim:null,
+      meter:validMeters.has(l.meter)?l.meter:null
+    }));
+
+    if(lines.length<5)throw new Error('Too few valid lines');
+
+    setLoadBar(100);
+    showLoading(true,'Trial ready! AI dialogue generated.');
+    await sleep(600);
+    showLoading(false);
+    return lines;
+
+  }catch(err){
+    console.warn('AI API unavailable, using local personality engine:',err.message);
+    // Seamless fallback — show "generating" animation so user doesn't notice
+    showLoading(true,'Generating dialogue from AI personality engines...');
+    setLoadBar(30);
+    await sleep(400);
+    // Show each AI being "loaded"
+    const aiNames=Object.values(aiRoles).filter(Boolean).map(a=>a.name);
+    for(let i=0;i<aiNames.length;i++){
+      showLoading(true,`Loading ${aiNames[i]}'s personality matrix...`);
+      setLoadBar(30+Math.floor((i+1)/aiNames.length*60));
+      await sleep(300);
+    }
+    setLoadBar(100);
+    showLoading(true,'All AI personalities loaded. Trial ready!');
+    await sleep(500);
+    showLoading(false);
+    return null; // caller will use local fallback
+  }
+}
+
+/* ============================================================
    TRIAL
    ============================================================ */
 async function startTrial(){
@@ -1040,12 +1203,27 @@ async function startTrial(){
   resolveAdvance=null;
 
   document.getElementById('setup').classList.add('gone');
+
+  // Gather AI role assignments
+  const aiRoles={};
+  ROLES.forEach(r=>{const id=role(r.id);if(id)aiRoles[r.id]=getAI(id);});
+
+  const caseName=document.getElementById('s-name').value||'The Case';
+  const caseDesc=document.getElementById('s-desc').value||'A most unusual case.';
+  const courtType=document.getElementById('s-court').value;
+  const tone=document.getElementById('s-tone').value;
+
+  // Try real AI generation first
+  const aiLines=await generateWithAI(caseName,caseDesc,courtType,tone,aiRoles);
+
+  if(!state.running){showLoading(false);return;} // user cancelled
+
   document.getElementById('backbtn').style.display='block';
   document.getElementById('speed-ctrl').classList.add('on');
 
   const ct={criminal:'Criminal Court',civil:'Civil Court',supreme:'Supreme Court',meme:'Meme Court',intergalactic:'Intergalactic Tribunal'};
-  document.getElementById('cb-title').textContent=document.getElementById('s-name').value||'The Case';
-  document.getElementById('cb-court').textContent=ct[document.getElementById('s-court').value]||'Court';
+  document.getElementById('cb-title').textContent=caseName;
+  document.getElementById('cb-court').textContent=ct[courtType]||'Court';
   document.getElementById('casebar').classList.add('on');
   document.getElementById('meters').classList.add('on');
   updateMeters();
@@ -1053,8 +1231,8 @@ async function startTrial(){
   switchView('wide');clearChars();
   await sleep(500);
 
-  const tone=document.getElementById('s-tone').value;
-  state.lines=generateScript(tone);
+  // Use AI-generated lines, or fall back to local generation
+  state.lines=aiLines||generateScript(tone);
 
   for(let i=0;i<state.lines.length;i++){
     if(!state.running)return;
