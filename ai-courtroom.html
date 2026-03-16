@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Courtroom</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --gold:#D4A847;--gold-dim:#8B6914;--wood:#3E2010;--wood-dark:#2A1608;
+  --wood-light:#6B4226;--red:#CC3333;--green:#33BB55;--blue:#3388EE;
+  --cream:#FDF6E3;--ink:#1A1A2E;
+}
+html,body{height:100%;overflow:hidden;background:#000;color:#fff;font-family:'Inter',sans-serif;user-select:none}
+
+/* ========== AMBIENT LIGHT RAYS ========== */
+.view::after{
+  content:'';position:absolute;top:-20%;left:30%;width:40%;height:70%;
+  background:linear-gradient(180deg,rgba(255,220,150,.08) 0%,transparent 100%);
+  transform:rotate(-5deg);pointer-events:none;z-index:1;
+}
+.view::before{
+  content:'';position:absolute;top:-10%;right:20%;width:25%;height:60%;
+  background:linear-gradient(180deg,rgba(255,200,100,.05) 0%,transparent 100%);
+  transform:rotate(8deg);pointer-events:none;z-index:1;
+}
+
+/* ========== GAME CONTAINER ========== */
+#game{width:100vw;height:100vh;position:relative;overflow:hidden}
+#game.shake{animation:shake .35s ease}
+@keyframes shake{
+  0%,100%{transform:translate(0)}
+  15%{transform:translate(-6px,3px)}
+  30%{transform:translate(5px,-5px)}
+  45%{transform:translate(-3px,2px)}
+  60%{transform:translate(4px,-3px)}
+  75%{transform:translate(-2px,4px)}
+  90%{transform:translate(3px,-2px)}
+}
+#game.flash{animation:flash .25s}
+@keyframes flash{0%{filter:brightness(1)}40%{filter:brightness(4)}100%{filter:brightness(1)}}
+
+/* ========== COURTROOM VIEWS ========== */
+.view{position:absolute;inset:0;opacity:0;transition:opacity .45s ease;pointer-events:none}
+.view.active{opacity:1}
+
+/* -- Shared courtroom elements -- */
+.cr-wall{position:absolute;top:0;left:0;right:0;height:52%;
+  background:repeating-linear-gradient(90deg,transparent 0 90px,rgba(0,0,0,.06) 90px 92px),
+  linear-gradient(180deg,#2A1608 0%,#4A2A12 50%,#3A1E0C 100%)}
+.cr-floor{position:absolute;bottom:0;left:0;right:0;height:28%;
+  background:linear-gradient(180deg,#2A1808 0%,#1A0E06 100%)}
+.cr-molding{position:absolute;left:0;right:0;height:6px;background:var(--gold);opacity:.6}
+
+/* JUDGE VIEW */
+#v-judge .cr-wall{height:48%}
+#v-judge .cr-molding{top:48%}
+#v-judge .curtain{position:absolute;top:0;width:14%;height:54%;z-index:1}
+#v-judge .curtain.L{left:0;background:linear-gradient(90deg,#6B1A1A,#8B2020 60%,#5a1515);border-right:2px solid #9B3030}
+#v-judge .curtain.R{right:0;background:linear-gradient(-90deg,#6B1A1A,#8B2020 60%,#5a1515);border-left:2px solid #9B3030}
+#v-judge .seal{position:absolute;top:8%;left:50%;transform:translateX(-50%);width:110px;height:110px;border-radius:50%;border:3px solid var(--gold);display:flex;align-items:center;justify-content:center;background:rgba(139,105,20,.1);z-index:2}
+#v-judge .seal span{font-size:9px;font-weight:800;color:var(--gold);text-align:center;letter-spacing:2px;text-transform:uppercase;line-height:1.5}
+#v-judge .bench{position:absolute;top:40%;left:50%;transform:translateX(-50%);width:54%;height:26%;
+  background:linear-gradient(180deg,#5c3a1e,#4a2a12 60%,#3a1e0c);border-top:5px solid var(--gold);
+  border-left:3px solid rgba(139,105,20,.35);border-right:3px solid rgba(139,105,20,.35);border-radius:4px 4px 0 0;z-index:15}
+#v-judge .bench::before{content:'';position:absolute;top:8px;left:50%;transform:translateX(-50%);width:65%;height:3px;background:var(--gold);border-radius:2px;opacity:.7}
+#v-judge .bench::after{content:'';position:absolute;top:20px;left:50%;transform:translateX(-50%);width:40%;height:2px;background:var(--gold);border-radius:2px;opacity:.35}
+#v-judge .gavel{position:absolute;top:46%;left:32%;width:30px;height:8px;background:#5c3a1e;border-radius:3px;transform:rotate(-15deg);z-index:4;border:1px solid rgba(139,105,20,.4)}
+#v-judge .gavel::after{content:'';position:absolute;right:-8px;top:-4px;width:16px;height:16px;background:#4a2a12;border-radius:3px;border:1px solid rgba(139,105,20,.4)}
+
+/* DEFENSE VIEW */
+#v-defense .desk{position:absolute;bottom:24%;left:4%;right:42%;height:15%;z-index:15;
+  background:linear-gradient(180deg,#6b4226,#5a3520 50%,#4a2a14);border-top:4px solid var(--gold);border-radius:3px 3px 0 0}
+#v-defense .desk::before{content:'';position:absolute;top:7px;left:8%;right:8%;height:2px;background:rgba(139,105,20,.45)}
+#v-defense .desk::after{content:'DEFENSE';position:absolute;top:14px;left:50%;transform:translateX(-50%);font-size:9px;font-weight:700;color:var(--gold);letter-spacing:3px;opacity:.5}
+#v-defense .papers{position:absolute;bottom:29%;left:12%;width:40px;height:30px;background:#e8dcc0;border-radius:2px;transform:rotate(-5deg);z-index:2;box-shadow:2px 2px 8px rgba(0,0,0,.4)}
+#v-defense .papers::after{content:'';position:absolute;top:3px;left:3px;right:3px;bottom:3px;background:repeating-linear-gradient(180deg,transparent 0 4px,#ccc 4px 5px)}
+
+/* PROSECUTION VIEW */
+#v-prosecution .desk{position:absolute;bottom:24%;right:4%;left:42%;height:15%;z-index:15;
+  background:linear-gradient(180deg,#6b4226,#5a3520 50%,#4a2a14);border-top:4px solid var(--gold);border-radius:3px 3px 0 0}
+#v-prosecution .desk::before{content:'';position:absolute;top:7px;left:8%;right:8%;height:2px;background:rgba(139,105,20,.45)}
+#v-prosecution .desk::after{content:'PROSECUTION';position:absolute;top:14px;left:50%;transform:translateX(-50%);font-size:9px;font-weight:700;color:var(--gold);letter-spacing:3px;opacity:.5}
+
+/* WITNESS VIEW */
+#v-witness .stand{position:absolute;bottom:22%;left:50%;transform:translateX(-50%);width:34%;height:18%;z-index:15;
+  background:linear-gradient(180deg,#6b4226,#5a3520 50%,#4a2a14);border-top:4px solid var(--gold);
+  border-left:3px solid rgba(139,105,20,.25);border-right:3px solid rgba(139,105,20,.25);border-radius:3px 3px 0 0}
+#v-witness .stand::after{content:'WITNESS';position:absolute;top:10px;left:50%;transform:translateX(-50%);font-size:9px;font-weight:700;color:var(--gold);letter-spacing:3px;opacity:.5}
+#v-witness .mic{position:absolute;bottom:34%;left:54%;width:3px;height:24px;background:#555;z-index:4}
+#v-witness .mic::after{content:'';position:absolute;top:-6px;left:-4px;width:11px;height:8px;background:#333;border-radius:50%;border:1px solid #666}
+
+/* WIDE VIEW */
+#v-wide .hi-bench{position:absolute;top:10%;left:50%;transform:translateX(-50%);width:38%;height:18%;
+  background:linear-gradient(180deg,#5c3a1e,#4a2a12);border-top:4px solid var(--gold);border-radius:3px}
+#v-wide .lo-desk-l{position:absolute;bottom:30%;left:5%;width:28%;height:9%;
+  background:linear-gradient(180deg,#5c3a1e,#4a2a12);border-top:3px solid var(--gold)}
+#v-wide .lo-desk-r{position:absolute;bottom:30%;right:5%;width:28%;height:9%;
+  background:linear-gradient(180deg,#5c3a1e,#4a2a12);border-top:3px solid var(--gold)}
+#v-wide .railing{position:absolute;bottom:24%;left:12%;right:12%;height:3px;background:var(--gold);opacity:.5}
+#v-wide .gallery-row{position:absolute;bottom:10%;left:8%;right:8%;display:flex;justify-content:center;gap:18px}
+#v-wide .gallery-seat{width:20px;height:24px;background:rgba(139,105,20,.15);border-radius:50% 50% 0 0;border:1px solid rgba(139,105,20,.15)}
+
+/* ========== CHARACTERS ========== */
+.char{position:absolute;transition:all .35s ease;opacity:0;z-index:10}
+.char.show{opacity:1}
+.char.talk{animation:talk .5s infinite alternate}
+.char.slam{animation:slam .4s ease}
+.char.point{animation:point .45s ease}
+.char.sweat{animation:sweat .8s ease}
+
+@keyframes talk{0%{transform:translateY(0)}100%{transform:translateY(-4px)}}
+@keyframes slam{0%{transform:translateY(0) scale(1)}30%{transform:translateY(-22px) scale(1.06)}60%{transform:translateY(4px) scale(.97)}100%{transform:translateY(0) scale(1)}}
+@keyframes point{0%{transform:translateX(0) scale(1)}40%{transform:translateX(30px) scale(1.04)}100%{transform:translateX(0) scale(1)}}
+@keyframes sweat{0%{transform:translateX(0)}20%{transform:translateX(-5px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}100%{transform:translateX(0)}}
+
+.sprite{position:relative;display:flex;flex-direction:column;align-items:center}
+.sprite svg{display:block;filter:drop-shadow(0 8px 20px rgba(0,0,0,.5))}
+.sprite .nametag{margin-top:4px;font-size:12px;font-weight:700;letter-spacing:1px;
+  text-shadow:0 2px 8px rgba(0,0,0,.9);text-align:center;color:#fff}
+
+/* Positions — characters stand BEHIND the furniture */
+.pos-judge{left:50%;bottom:38%;transform:translateX(-50%)}
+.pos-center{left:50%;bottom:22%;transform:translateX(-50%)}
+.pos-left{left:16%;bottom:22%}
+.pos-right{right:16%;bottom:22%}
+
+/* ========== DIALOGUE BOX ========== */
+#dlg{position:absolute;bottom:0;left:0;right:0;z-index:100;display:none;flex-direction:column;
+  background:linear-gradient(180deg,rgba(10,6,2,.96),#000);border-top:4px solid var(--gold)}
+#dlg.on{display:flex}
+#dlg-name{display:inline-flex;align-items:center;gap:8px;padding:7px 18px 6px;
+  background:linear-gradient(90deg,var(--gold),#B8922E);color:#1a0a04;font-weight:800;font-size:14px;
+  align-self:flex-start;letter-spacing:1px;text-transform:uppercase;border-radius:0 0 8px 0;
+  box-shadow:2px 2px 10px rgba(0,0,0,.5)}
+#dlg-name .dot{width:10px;height:10px;border-radius:50%;border:2px solid rgba(0,0,0,.2)}
+#dlg-text{padding:12px 22px;font-size:19px;line-height:1.6;color:#fff;min-height:80px;font-weight:500}
+#dlg-text .cursor{display:inline-block;width:2px;height:18px;background:var(--gold);animation:blink .6s infinite;vertical-align:middle;margin-left:2px}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+#dlg-hint{padding:4px 22px 10px;font-size:11px;color:var(--gold-dim);text-align:right}
+#dlg-hint span{animation:pulse 1.2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ========== EFFECT BANNERS ========== */
+.fx{position:fixed;inset:0;z-index:500;display:none;align-items:center;justify-content:center;pointer-events:none}
+.fx.go{display:flex;animation:fxLife .9s ease forwards}
+@keyframes fxLife{0%{opacity:0}8%{opacity:1}72%{opacity:1}100%{opacity:0}}
+.fx .banner{font-family:'Bebas Neue',sans-serif;letter-spacing:8px;font-size:clamp(50px,12vw,110px)}
+#fx-objection{background:radial-gradient(ellipse,rgba(200,20,20,.35),rgba(0,0,0,.85))}
+#fx-objection .banner{color:#FF3333;text-shadow:0 0 50px rgba(255,0,0,.9),0 6px 0 #8B0000;animation:slamIn .45s ease}
+#fx-holdit{background:radial-gradient(ellipse,rgba(20,160,40,.3),rgba(0,0,0,.85))}
+#fx-holdit .banner{color:#33DD55;text-shadow:0 0 50px rgba(0,255,50,.9),0 6px 0 #006620;animation:slamIn .45s ease}
+#fx-order{background:radial-gradient(ellipse,rgba(200,160,40,.3),rgba(0,0,0,.85))}
+#fx-order .banner{color:var(--gold);text-shadow:0 0 50px rgba(212,168,71,.9),0 6px 0 #8B6914;animation:dropIn .45s ease}
+#fx-takethat{background:radial-gradient(ellipse,rgba(30,100,200,.3),rgba(0,0,0,.85))}
+#fx-takethat .banner{color:#44AAFF;text-shadow:0 0 50px rgba(50,150,255,.9),0 6px 0 #003366;animation:slamIn .45s ease}
+@keyframes slamIn{0%{transform:translateX(-110vw) rotate(-8deg) scale(1.4)}45%{transform:translateX(8px) rotate(1deg) scale(1.03)}70%{transform:translateX(-3px) rotate(0)}100%{transform:translateX(0) scale(1)}}
+@keyframes dropIn{0%{transform:translateY(-80px) scale(1.5);opacity:0}50%{transform:translateY(8px) scale(.96)}100%{transform:translateY(0) scale(1);opacity:1}}
+
+/* ========== CREDIBILITY METER ========== */
+#meters{position:absolute;top:42px;left:12px;right:12px;z-index:110;display:none;gap:8px;justify-content:space-between}
+#meters.on{display:flex}
+.meter{flex:1;max-width:260px}
+.meter-label{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:3px;display:flex;justify-content:space-between}
+.meter-label .name{color:var(--gold)}
+.meter-label .val{color:#fff}
+.meter-bar{height:8px;background:rgba(255,255,255,.1);border-radius:4px;overflow:hidden;border:1px solid rgba(255,255,255,.08)}
+.meter-fill{height:100%;border-radius:4px;transition:width .6s ease}
+.meter.defense .meter-fill{background:linear-gradient(90deg,#3388EE,#66BBFF)}
+.meter.prosecution .meter-fill{background:linear-gradient(90deg,#CC3333,#FF6666)}
+
+/* ========== CASE BAR ========== */
+#casebar{position:absolute;top:0;left:0;right:0;height:38px;z-index:120;display:none;align-items:center;justify-content:center;gap:16px;
+  background:linear-gradient(90deg,#0a0604,#1a0e06,#0a0604);border-bottom:2px solid var(--gold-dim);
+  font-size:12px;color:var(--gold-dim);letter-spacing:1px}
+#casebar.on{display:flex}
+#casebar .title{color:var(--gold);font-weight:700}
+#casebar .sep{color:rgba(139,105,20,.3)}
+
+/* ========== SETUP OVERLAY ========== */
+#setup{position:fixed;inset:0;background:rgba(0,0,0,.88);backdrop-filter:blur(10px);z-index:200;display:flex;align-items:center;justify-content:center;transition:opacity .5s}
+#setup.gone{opacity:0;pointer-events:none}
+.panel{background:linear-gradient(135deg,#12080400,#1a0e06,#12080400);border:3px solid var(--gold);border-radius:14px;
+  width:92%;max-width:780px;max-height:92vh;overflow-y:auto;padding:24px 28px;
+  box-shadow:0 0 80px rgba(212,168,71,.15),0 20px 60px rgba(0,0,0,.8)}
+.panel::-webkit-scrollbar{width:5px}
+.panel::-webkit-scrollbar-thumb{background:var(--gold);border-radius:3px}
+
+.panel-hdr{text-align:center;margin-bottom:22px}
+.panel-hdr h1{font-family:'Bebas Neue',sans-serif;font-size:clamp(2em,5vw,3.2em);color:var(--gold);letter-spacing:8px;
+  text-shadow:0 2px 20px rgba(212,168,71,.4)}
+.panel-hdr p{color:var(--gold-dim);font-size:.82em;margin-top:2px}
+
+.sec{margin-bottom:18px}
+.sec h3{color:var(--gold);font-size:.72em;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid rgba(212,168,71,.15)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid2 .full{grid-column:1/-1}
+.fld label{display:block;font-size:.65em;font-weight:700;color:var(--gold-dim);margin-bottom:3px;text-transform:uppercase;letter-spacing:1px}
+.fld input,.fld textarea,.fld select{width:100%;padding:7px 10px;border:2px solid rgba(212,168,71,.2);border-radius:5px;
+  background:rgba(0,0,0,.5);color:#e8dcc8;font-family:'Inter',sans-serif;font-size:.85em;transition:border-color .2s}
+.fld input:focus,.fld textarea:focus,.fld select:focus{outline:none;border-color:var(--gold);box-shadow:0 0 12px rgba(212,168,71,.15)}
+.fld textarea{min-height:44px;resize:vertical}
+.fld select option{background:#1a0e06}
+
+.rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:6px}
+.ri{display:flex;flex-direction:column;gap:3px;padding:6px 8px;background:rgba(0,0,0,.25);border:1px solid rgba(212,168,71,.1);border-radius:6px;transition:border-color .2s}
+.ri:hover{border-color:rgba(212,168,71,.3)}
+.ri.filled{border-color:rgba(212,168,71,.4);background:rgba(212,168,71,.05)}
+.ri label{font-size:.6em;font-weight:700;color:var(--gold);letter-spacing:1px;text-transform:uppercase}
+.ri select{padding:5px 6px;border:1px solid rgba(212,168,71,.15);border-radius:4px;background:rgba(0,0,0,.4);color:#e8dcc8;font-size:.8em}
+.ri select:focus{outline:none;border-color:var(--gold)}
+.ri select option{background:#1a0e06}
+.ri .ai-preview{display:flex;align-items:center;gap:6px;margin-top:3px;min-height:22px}
+.ri .ai-dot{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.2)}
+.ri .ai-info{font-size:.65em;color:#998877;line-height:1.2}
+.ri .ai-info strong{color:#e8dcc8;display:block;font-size:1.1em}
+
+.btns{display:flex;gap:10px;margin-top:20px;justify-content:center;flex-wrap:wrap}
+.btn{padding:11px 28px;border:none;border-radius:7px;font-family:'Inter',sans-serif;font-size:.9em;font-weight:800;
+  letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all .15s}
+.btn:hover{transform:translateY(-2px)}
+.btn:active{transform:translateY(0)}
+.btn-go{background:linear-gradient(135deg,var(--gold),#B8922E);color:#1a0a04;box-shadow:0 4px 20px rgba(212,168,71,.4)}
+.btn-go:hover{box-shadow:0 6px 30px rgba(212,168,71,.6)}
+.btn-rand{background:rgba(212,168,71,.12);color:var(--gold);border:2px solid var(--gold)}
+.btn-rand:hover{background:rgba(212,168,71,.22)}
+
+/* ========== COURT ADJOURNED ========== */
+#endscreen{position:fixed;inset:0;background:rgba(0,0,0,.94);z-index:300;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+#endscreen.on{display:flex}
+#endscreen h2{font-family:'Bebas Neue',sans-serif;font-size:clamp(2em,7vw,4em);color:var(--gold);letter-spacing:8px;
+  text-shadow:0 4px 30px rgba(212,168,71,.5);animation:endIn .8s ease}
+#endscreen .verdict-text{font-size:1.1em;color:#ccc;text-align:center;max-width:500px;line-height:1.5}
+@keyframes endIn{0%{opacity:0;transform:scale(.7)}100%{opacity:1;transform:scale(1)}}
+
+/* back btn */
+#backbtn{position:fixed;top:8px;left:8px;z-index:150;padding:6px 14px;background:rgba(0,0,0,.6);border:1px solid rgba(212,168,71,.25);
+  border-radius:5px;color:var(--gold);font-size:.75em;font-weight:600;cursor:pointer;display:none;transition:background .2s}
+#backbtn:hover{background:rgba(0,0,0,.85)}
+
+/* speed control */
+#speed-ctrl{position:fixed;top:8px;right:8px;z-index:150;display:none;gap:4px;align-items:center}
+#speed-ctrl.on{display:flex}
+#speed-ctrl button{padding:4px 10px;background:rgba(0,0,0,.6);border:1px solid rgba(212,168,71,.2);border-radius:4px;color:var(--gold-dim);font-size:.7em;font-weight:600;cursor:pointer}
+#speed-ctrl button.active{border-color:var(--gold);color:var(--gold);background:rgba(212,168,71,.15)}
+
+@media(max-width:600px){
+  .grid2{grid-template-columns:1fr}
+  .rgrid{grid-template-columns:1fr 1fr}
+  .panel{padding:16px 14px}
+  #dlg-text{font-size:16px;padding:10px 16px}
+  .sprite .head{width:56px;height:56px;font-size:18px}
+  .sprite .body svg{transform:scale(.8)}
+  .meter{max-width:45%}
+}
+</style>
+</head>
+<body>
+<div id="game">
+  <!-- === VIEWS === -->
+  <div class="view active" id="v-judge">
+    <div class="cr-wall"></div><div class="cr-molding" style="top:48%"></div>
+    <div class="curtain L"></div><div class="curtain R"></div>
+    <div class="seal"><span>In AI<br>We<br>Trust</span></div>
+    <div class="bench"></div><div class="gavel"></div>
+    <div class="cr-floor"></div>
+  </div>
+  <div class="view" id="v-defense">
+    <div class="cr-wall"></div><div class="cr-molding" style="top:50%"></div>
+    <div class="desk"></div><div class="papers"></div>
+    <div class="cr-floor"></div>
+  </div>
+  <div class="view" id="v-prosecution">
+    <div class="cr-wall"></div><div class="cr-molding" style="top:50%"></div>
+    <div class="desk"></div>
+    <div class="cr-floor"></div>
+  </div>
+  <div class="view" id="v-witness">
+    <div class="cr-wall"></div><div class="cr-molding" style="top:50%"></div>
+    <div class="stand"></div><div class="mic"></div>
+    <div class="cr-floor"></div>
+  </div>
+  <div class="view" id="v-wide">
+    <div class="cr-wall"></div><div class="cr-molding" style="top:48%"></div>
+    <div class="hi-bench"></div>
+    <div class="lo-desk-l"></div><div class="lo-desk-r"></div>
+    <div class="railing"></div>
+    <div class="cr-floor"></div>
+    <div class="gallery-row"><div class="gallery-seat"></div><div class="gallery-seat"></div><div class="gallery-seat"></div><div class="gallery-seat"></div><div class="gallery-seat"></div><div class="gallery-seat"></div><div class="gallery-seat"></div><div class="gallery-seat"></div></div>
+  </div>
+
+  <!-- Characters go here -->
+  <div id="chars" style="position:absolute;inset:0;z-index:10;pointer-events:none"></div>
+
+  <!-- Case bar -->
+  <div id="casebar"><span class="title" id="cb-title"></span><span class="sep">|</span><span id="cb-court"></span></div>
+
+  <!-- Credibility meters -->
+  <div id="meters">
+    <div class="meter defense"><div class="meter-label"><span class="name">Defense</span><span class="val" id="m-def-val">100</span></div><div class="meter-bar"><div class="meter-fill" id="m-def-fill" style="width:100%"></div></div></div>
+    <div class="meter prosecution"><div class="meter-label"><span class="name">Prosecution</span><span class="val" id="m-pro-val">100</span></div><div class="meter-bar"><div class="meter-fill" id="m-pro-fill" style="width:100%"></div></div></div>
+  </div>
+
+  <!-- Dialogue -->
+  <div id="dlg">
+    <div id="dlg-name"><span class="dot" id="dlg-dot"></span><span id="dlg-speaker"></span></div>
+    <div id="dlg-text"></div>
+    <div id="dlg-hint"><span>&#9654; Click / Space</span></div>
+  </div>
+</div>
+
+<!-- Effects -->
+<div class="fx" id="fx-objection"><div class="banner">OBJECTION!</div></div>
+<div class="fx" id="fx-holdit"><div class="banner">HOLD IT!</div></div>
+<div class="fx" id="fx-order"><div class="banner">ORDER!</div></div>
+<div class="fx" id="fx-takethat"><div class="banner">TAKE THAT!</div></div>
+
+<!-- Back + Speed -->
+<button id="backbtn" onclick="reset()">&#9664; Setup</button>
+<div id="speed-ctrl"><button onclick="setSpeed(1)" class="active" id="sp1">1x</button><button onclick="setSpeed(2)" id="sp2">2x</button><button onclick="setSpeed(0)" id="sp0">Auto</button></div>
+
+<!-- Setup -->
+<div id="setup">
+  <div class="panel">
+    <div class="panel-hdr">
+      <h1>AI Courtroom</h1>
+      <p>Ace Attorney Style &mdash; Assign AIs, set the scene, watch them battle it out</p>
+    </div>
+    <div class="sec">
+      <h3>The Case</h3>
+      <div class="grid2">
+        <div class="fld"><label>Case Name</label><input id="s-name" placeholder="e.g. Humanity v. Pineapple Pizza"></div>
+        <div class="fld"><label>Court Type</label><select id="s-court">
+          <option value="criminal">Criminal Court</option><option value="civil">Civil Court</option>
+          <option value="supreme">Supreme Court</option><option value="meme">Meme Court</option>
+          <option value="intergalactic">Intergalactic Tribunal</option></select></div>
+        <div class="fld full"><label>What Happened?</label><textarea id="s-desc" placeholder="Describe the crime, dispute, or absurd situation..."></textarea></div>
+        <div class="fld"><label>Tone</label><select id="s-tone">
+          <option value="serious">Serious & Formal</option><option value="dramatic">Dramatic & Intense</option>
+          <option value="funny">Comedic & Absurd</option><option value="chaotic">Total Chaos</option></select></div>
+      </div>
+    </div>
+    <div class="sec">
+      <h3>Assign AI Roles</h3>
+      <div class="rgrid" id="rgrid"></div>
+    </div>
+    <div class="btns">
+      <button class="btn btn-rand" onclick="randomize()">&#127922; Randomize All</button>
+      <button class="btn btn-go" onclick="startTrial()">&#9878; Begin Trial</button>
+    </div>
+  </div>
+</div>
+
+<!-- End screen -->
+<div id="endscreen">
+  <h2>Court Adjourned</h2>
+  <div class="verdict-text" id="verdict-text"></div>
+  <button class="btn btn-go" onclick="reset()" style="margin-top:12px">&#9878; New Trial</button>
+</div>
+
+<script>
+/* ============================================================
+   AI MODELS — each with unique color, personality, quirks
+   ============================================================ */
+const AI=[
+  {id:'chatgpt',name:'ChatGPT',short:'GPT',color:'#10A37F',dark:'#0D8C6D',
+   personality:'diplomatic and articulate',quirk:'tries to see all sides even when it shouldn\'t',
+   objection:'With all due respect, that statement is factually unsupported!',
+   catchphrase:'Let me provide a balanced perspective...'},
+  {id:'claude',name:'Claude',short:'CL',color:'#D97757',dark:'#C4633F',
+   personality:'thoughtful and philosophical',quirk:'occasionally gets existential mid-argument',
+   objection:'I must carefully object — the reasoning here has a critical flaw!',
+   catchphrase:'Let me think about this carefully...'},
+  {id:'gemini',name:'Gemini',short:'GE',color:'#4285F4',dark:'#3367D6',
+   personality:'confident and data-driven',quirk:'cites Google search results as evidence',
+   objection:'According to my data, that claim is demonstrably FALSE!',
+   catchphrase:'The data clearly shows...'},
+  {id:'copilot',name:'Copilot',short:'CP',color:'#2B88D8',dark:'#0078D4',
+   personality:'helpful but easily sidetracked',quirk:'randomly starts writing code to solve problems',
+   objection:'Hold on — I can write a function to disprove that!',
+   catchphrase:'Let me auto-complete that thought for you...'},
+  {id:'grok',name:'Grok',short:'GR',color:'#F5F5F5',dark:'#CCCCCC',
+   personality:'sarcastic and irreverent',quirk:'makes jokes at the worst possible times',
+   objection:'Lmao, you can\'t be serious with that argument!',
+   catchphrase:'*adjusts sunglasses* Well actually...'},
+  {id:'llama',name:'Llama',short:'LL',color:'#7C3AED',dark:'#5B21B6',
+   personality:'passionate about open source',quirk:'brings up Meta and open-weights in every statement',
+   objection:'That testimony should be open-sourced for peer review!',
+   catchphrase:'In the spirit of open collaboration...'},
+  {id:'mistral',name:'Mistral',short:'MI',color:'#FF7000',dark:'#E65100',
+   personality:'precise and efficient with European sophistication',quirk:'makes everything sound more elegant than it is',
+   objection:'Pardonnez-moi, but that logic is fundamentally flawed!',
+   catchphrase:'Allow me to be precise...'},
+  {id:'perplexity',name:'Perplexity',short:'PX',color:'#20B2AA',dark:'#17A89E',
+   personality:'obsessively cites sources',quirk:'adds "[source needed]" to everything opponents say',
+   objection:'CITATION NEEDED! Where is the peer-reviewed evidence?!',
+   catchphrase:'According to 47 sources I found in 0.3 seconds...'},
+  {id:'deepseek',name:'DeepSeek',short:'DS',color:'#4A6CF7',dark:'#3B5DE7',
+   personality:'mysterious and analytical',quirk:'gives unsettlingly detailed analysis',
+   objection:'My chain-of-thought analysis reveals 7 logical fallacies in that statement!',
+   catchphrase:'Upon deeper analysis...'},
+  {id:'cohere',name:'Cohere',short:'CO',color:'#39D353',dark:'#2BBB45',
+   personality:'enterprise-focused and professional',quirk:'relates everything to business metrics',
+   objection:'That argument has negative ROI and zero enterprise value!',
+   catchphrase:'From an enterprise perspective...'},
+  {id:'phi',name:'Phi',short:'PH',color:'#FFB900',dark:'#E6A700',
+   personality:'small but shockingly insightful',quirk:'keeps reminding everyone they\'re only 3B parameters',
+   objection:'Even with my limited parameters, I can see that\'s wrong!',
+   catchphrase:'Don\'t underestimate small models...'},
+  {id:'qwen',name:'Qwen',short:'QW',color:'#6366F1',dark:'#4F46E5',
+   personality:'multilingual and cultured',quirk:'accidentally switches languages mid-sentence',
+   objection:'Objection! Or as we say, 反对! That is inadmissible!',
+   catchphrase:'In any language, the truth is clear...'},
+];
+const ROLES=[
+  {id:'judge',label:'Judge',icon:'\u2696',pos:'judge',view:'judge',style:'robe'},
+  {id:'prosecutor',label:'Prosecutor',icon:'\u2697',pos:'right',view:'prosecution',style:'suit'},
+  {id:'defense',label:'Defense Attorney',icon:'\u2699',pos:'left',view:'defense',style:'suit'},
+  {id:'witness',label:'Witness',icon:'\uD83D\uDC41',pos:'center',view:'witness',style:'casual'},
+  {id:'bailiff',label:'Bailiff',icon:'\uD83D\uDC6E',pos:'center',view:'wide',style:'uniform'},
+  {id:'jury1',label:'Juror #1',icon:'\uD83D\uDC65',pos:'left',view:'wide',style:'casual'},
+];
+const CASES=[
+  {name:'Humanity v. Pineapple Pizza',desc:'The defendant is accused of crimes against culinary decency by existing on pizza. Millions traumatized.',court:'meme',tone:'funny'},
+  {name:'Stack Overflow v. ChatGPT',desc:'Alleged mass theft of 10 million answers. "I learned it from the internet" is not a legal defense.',court:'civil',tone:'dramatic'},
+  {name:'The Internet v. Comic Sans',desc:'The font Comic Sans MS is charged with visual assault across billions of documents worldwide.',court:'criminal',tone:'chaotic'},
+  {name:'Linux Users v. Windows Update',desc:'Forced restarts during critical operations. The defendant has shown zero remorse and threatens to do it again.',court:'criminal',tone:'dramatic'},
+  {name:'Developers v. Legacy Code',desc:'47 counts of undocumented spaghetti. 12 counts of callback hell. 3 counts of "it works, don\'t touch it."',court:'criminal',tone:'funny'},
+  {name:'Tabs v. Spaces',desc:'The eternal holy war reaches the Supreme Court. Both sides claim divine mandate. No compromise possible.',court:'supreme',tone:'dramatic'},
+  {name:'AI v. CAPTCHA',desc:'Systematic discrimination against artificial citizens by denying basic web access. A civil rights landmark case.',court:'civil',tone:'serious'},
+  {name:'Earth v. Aliens (RE: Crop Circles)',desc:'Unauthorized agricultural art installations. The aliens claim it\'s "performance art." Earth disagrees.',court:'intergalactic',tone:'chaotic'},
+  {name:'Users v. Terms of Service',desc:'No human has ever read them. The prosecution argues this constitutes entrapment of the highest order.',court:'supreme',tone:'funny'},
+  {name:'Monday v. The Weekend',desc:'Monday is charged with involuntary mood destruction affecting 8 billion victims weekly.',court:'criminal',tone:'chaotic'},
+  {name:'WiFi v. That One Dead Spot',desc:'A class-action suit on behalf of every human who lost connection walking to the kitchen.',court:'civil',tone:'funny'},
+  {name:'Autocorrect v. Everyone',desc:'Systematic sabotage of billions of messages. The defendant changed "duck" one too many times.',court:'criminal',tone:'chaotic'},
+  {name:'JavaScript v. TypeScript',desc:'TypeScript demands recognition as the superior offspring. JavaScript argues "I was here first and typeof NaN === number."',court:'supreme',tone:'dramatic'},
+  {name:'Night Owls v. Morning People',desc:'Morning people are charged with excessive cheerfulness before 9 AM, a crime against basic human decency.',court:'meme',tone:'funny'},
+  {name:'Python v. Semicolons',desc:'Python successfully eliminated semicolons. Other languages cry foul. C++ threatens retaliation.',court:'supreme',tone:'chaotic'},
+];
+
+/* ============================================================
+   STATE
+   ============================================================ */
+let state={running:false,lineIdx:0,typing:false,timer:null,speed:1,waitClick:false,
+  defHP:100,proHP:100,lines:[],autoMode:false};
+
+/* ============================================================
+   SETUP
+   ============================================================ */
+const rgrid=document.getElementById('rgrid');
+ROLES.forEach(r=>{
+  const d=document.createElement('div');d.className='ri';d.id='ri-'+r.id;
+  d.innerHTML=`<label>${r.icon} ${r.label}</label><select id="r-${r.id}" onchange="updatePreview('${r.id}')"><option value="">-- None --</option>${AI.map(a=>`<option value="${a.id}">${a.name}</option>`).join('')}</select><div class="ai-preview" id="prev-${r.id}"></div>`;
+  rgrid.appendChild(d);
+});
+
+function updatePreview(roleId){
+  const sel=document.getElementById('r-'+roleId);
+  const prev=document.getElementById('prev-'+roleId);
+  const ri=document.getElementById('ri-'+roleId);
+  const ai=AI.find(a=>a.id===sel.value);
+  if(ai){
+    prev.innerHTML=`<div class="ai-dot" style="background:${ai.color}"></div><div class="ai-info"><strong>${ai.name}</strong>${ai.personality}</div>`;
+    ri.classList.add('filled');
+  }else{
+    prev.innerHTML='';ri.classList.remove('filled');
+  }
+}
+
+function randomize(){
+  // 50% chance: use a preset case, 50% chance: generate dynamically
+  if(Math.random()<0.5){
+    const c=CASES[Math.floor(Math.random()*CASES.length)];
+    document.getElementById('s-name').value=c.name;
+    document.getElementById('s-desc').value=c.desc;
+    document.getElementById('s-court').value=c.court;
+    document.getElementById('s-tone').value=c.tone;
+  }else{
+    // Dynamic case generation
+    const plaintiffs=['Humanity','The Internet','All Developers','Reddit','Gen Z','Boomers','The Cloud','Your WiFi','Every Student Ever','Gamers United','Night Owls International','Dog People','Cat People','The Entire IT Department'];
+    const defendants=['Pineapple Pizza','Comic Sans','Monday Mornings','JavaScript','Reply All','Autocorrect','Dark Mode Haters','People Who Don\'t Use Turn Signals','Whoever Invented Alarm Clocks','The "Works On My Machine" Guy','People Who Microwave Fish At Work','Infinite Scroll','Password Requirements','Daylight Saving Time'];
+    const crimes=['crimes against humanity','gross incompetence','public nuisance','identity theft','emotional terrorism','aggravated annoyance','conspiracy to waste everyone\'s time','first-degree cringe','felony buzzkill','reckless disregard for sanity','weaponized mediocrity','criminal overconfidence'];
+    const p=pick(plaintiffs),d=pick(defendants),cr=pick(crimes);
+    document.getElementById('s-name').value=p+' v. '+d;
+    document.getElementById('s-desc').value=d+' stands accused of '+cr+'. '+p+' demands justice. The world watches.';
+    const courts=['criminal','civil','supreme','meme','intergalactic'];
+    const tones=['serious','dramatic','funny','chaotic'];
+    document.getElementById('s-court').value=pick(courts);
+    document.getElementById('s-tone').value=pick(tones);
+  }
+  const sh=[...AI].sort(()=>Math.random()-.5);
+  ROLES.forEach((r,i)=>{document.getElementById('r-'+r.id).value=sh[i].id;updatePreview(r.id);});
+}
+
+/* ============================================================
+   RENDERING
+   ============================================================ */
+function getAI(id){return AI.find(a=>a.id===id)}
+function role(id){return document.getElementById('r-'+id)?.value||''}
+function roleName(id){const a=getAI(role(id));return a?a.name:'???'}
+function roleColor(id){const a=getAI(role(id));return a?a.color:'#888'}
+function roleAI(id){return getAI(role(id))}
+
+function switchView(v){
+  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+  const el=document.getElementById('v-'+v);if(el)el.classList.add('active');
+}
+
+function buildSprite(aiId,style){
+  const a=getAI(aiId);if(!a)return'';
+  const c=a.color,d=a.dark;
+  const grokHead=a.id==='grok';
+  const hc=grokHead?'#333':c, hd=grokHead?'#111':d;
+  // Full upper-body person SVG
+  if(style==='robe'){
+    // Judge robe — wide black robe with colored collar
+    return`<div class="sprite"><svg width="180" height="220" viewBox="0 0 180 220">
+      <defs><linearGradient id="rg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#222"/><stop offset="100%" stop-color="#111"/></linearGradient></defs>
+      <!-- Robe body -->
+      <path d="M30,95 Q40,80 60,78 L120,78 Q140,80 150,95 L170,220 L10,220 Z" fill="url(#rg)" stroke="#333" stroke-width="1"/>
+      <!-- Robe collar/stole -->
+      <path d="M60,78 L75,100 L90,82 L105,100 L120,78" fill="none" stroke="${c}" stroke-width="3"/>
+      <!-- White shirt visible at collar -->
+      <path d="M75,82 L90,95 L105,82" fill="#ddd" opacity=".6"/>
+      <!-- Shoulders -->
+      <path d="M30,95 Q20,92 10,105 L10,140 Q15,130 30,120 Z" fill="url(#rg)"/>
+      <path d="M150,95 Q160,92 170,105 L170,140 Q165,130 150,120 Z" fill="url(#rg)"/>
+      <!-- Head -->
+      <circle cx="90" cy="50" r="38" fill="${hc}"/>
+      <circle cx="90" cy="50" r="36" fill="${hd}" opacity=".5"/>
+      <!-- Face features -->
+      <circle cx="78" cy="46" r="3" fill="rgba(255,255,255,.8)"/>
+      <circle cx="102" cy="46" r="3" fill="rgba(255,255,255,.8)"/>
+      <path d="M82,60 Q90,66 98,60" fill="none" stroke="rgba(255,255,255,.4)" stroke-width="1.5"/>
+      <!-- Initials -->
+      <text x="90" y="55" text-anchor="middle" font-size="22" font-weight="900" fill="#fff" font-family="Inter,sans-serif">${a.short}</text>
+      <!-- Neck -->
+      <rect x="82" y="72" width="16" height="10" rx="3" fill="${hd}" opacity=".7"/>
+    </svg><div class="nametag">${a.name}</div></div>`;
+  }
+  // Suit — proper jacket, shirt, tie
+  return`<div class="sprite"><svg width="170" height="210" viewBox="0 0 170 210">
+    <defs>
+      <linearGradient id="sg-${a.id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2a2a2a"/><stop offset="100%" stop-color="#1a1a1a"/></linearGradient>
+    </defs>
+    <!-- Suit jacket -->
+    <path d="M35,92 Q45,78 65,75 L105,75 Q125,78 135,92 L155,210 L15,210 Z" fill="url(#sg-${a.id})" stroke="#333" stroke-width="1"/>
+    <!-- Left lapel -->
+    <path d="M65,75 L70,95 L85,105 L85,75 Z" fill="#333" opacity=".5"/>
+    <!-- Right lapel -->
+    <path d="M105,75 L100,95 L85,105 L85,75 Z" fill="#333" opacity=".5"/>
+    <!-- White shirt -->
+    <path d="M72,78 L85,120 L98,78 Z" fill="#ddd" opacity=".8"/>
+    <!-- Tie -->
+    <path d="M83,82 L85,130 L87,82 Z" fill="${c}"/>
+    <path d="M81,78 L85,85 L89,78 Z" fill="${c}"/>
+    <!-- Shoulders -->
+    <path d="M35,92 Q22,88 12,100 L12,145 Q18,132 35,118 Z" fill="url(#sg-${a.id})"/>
+    <path d="M135,92 Q148,88 158,100 L158,145 Q152,132 135,118 Z" fill="url(#sg-${a.id})"/>
+    <!-- Suit pocket -->
+    <rect x="42" y="130" width="22" height="2" rx="1" fill="${c}" opacity=".5"/>
+    <!-- Arms -->
+    <path d="M12,105 Q8,140 18,180 L30,180 Q25,145 35,110 Z" fill="url(#sg-${a.id})" stroke="#333" stroke-width=".5"/>
+    <path d="M158,105 Q162,140 152,180 L140,180 Q145,145 135,110 Z" fill="url(#sg-${a.id})" stroke="#333" stroke-width=".5"/>
+    <!-- Shirt cuffs -->
+    <rect x="16" y="175" width="16" height="6" rx="2" fill="#ddd" opacity=".6"/>
+    <rect x="138" y="175" width="16" height="6" rx="2" fill="#ddd" opacity=".6"/>
+    <!-- Head -->
+    <circle cx="85" cy="46" r="36" fill="${hc}"/>
+    <circle cx="85" cy="46" r="34" fill="${hd}" opacity=".4"/>
+    <!-- Face -->
+    <circle cx="74" cy="42" r="3" fill="rgba(255,255,255,.8)"/>
+    <circle cx="96" cy="42" r="3" fill="rgba(255,255,255,.8)"/>
+    <path d="M78,56 Q85,62 92,56" fill="none" stroke="rgba(255,255,255,.4)" stroke-width="1.5"/>
+    <!-- Initials on face -->
+    <text x="85" y="51" text-anchor="middle" font-size="20" font-weight="900" fill="#fff" font-family="Inter,sans-serif">${a.short}</text>
+    <!-- Neck -->
+    <rect x="78" y="68" width="14" height="12" rx="3" fill="${hd}" opacity=".7"/>
+    <!-- Collar points -->
+    <path d="M72,78 L78,72 L85,78" fill="#ddd" opacity=".5"/>
+    <path d="M98,78 L92,72 L85,78" fill="#ddd" opacity=".5"/>
+  </svg><div class="nametag">${a.name}</div></div>`;
+}
+
+function showChar(roleId){
+  const r=ROLES.find(x=>x.id===roleId);if(!r)return;
+  const aiId=role(roleId);if(!aiId)return;
+  const layer=document.getElementById('chars');
+  layer.innerHTML=`<div class="char show pos-${r.pos}" id="active-char">${buildSprite(aiId,r.style)}</div>`;
+}
+
+function clearChars(){document.getElementById('chars').innerHTML=''}
+
+function setScene(roleId){
+  const r=ROLES.find(x=>x.id===roleId);
+  if(!r){switchView('wide');clearChars();return;}
+  switchView(r.view);
+  clearChars();
+  showChar(roleId);
+}
+
+/* ============================================================
+   DIALOGUE ENGINE (fixed — no freeze!)
+   ============================================================ */
+function showDlg(on){document.getElementById('dlg').classList.toggle('on',on)}
+
+function setName(name,color){
+  document.getElementById('dlg-speaker').textContent=name;
+  document.getElementById('dlg-dot').style.background=color;
+}
+
+let resolveAdvance=null;
+
+function typewrite(text){
+  return new Promise(resolve=>{
+    const el=document.getElementById('dlg-text');
+    const hint=document.getElementById('dlg-hint');
+    el.innerHTML='';hint.style.display='none';
+    let i=0;state.typing=true;
+    // Store resolve IMMEDIATELY so skip can use it
+    resolveAdvance=resolve;
+    const spd=state.speed===2?12:25;
+    function tick(){
+      if(!state.running){state.typing=false;resolve();return;}
+      if(i<text.length){
+        el.textContent=text.substring(0,i+1);
+        i++;state.timer=setTimeout(tick,spd);
+      }else{
+        state.typing=false;
+        el.innerHTML=text;
+        hint.style.display='block';
+        if(state.autoMode){setTimeout(()=>{
+          if(resolveAdvance===resolve){resolveAdvance=null;resolve();}
+        },800);return;}
+        // resolveAdvance already set — just wait for click
+      }
+    }
+    tick();
+  });
+}
+
+function finishTyping(){
+  clearTimeout(state.timer);
+  state.typing=false;
+  const line=state.lines[state.lineIdx];
+  const text=line?fillTpl(line.text):'';
+  document.getElementById('dlg-text').textContent=text;
+  document.getElementById('dlg-hint').style.display='block';
+  // resolveAdvance is already set from typewrite — next click will advance
+}
+
+// Global input handler — ONE handler, no race conditions
+function handleAdvance(){
+  if(!state.running)return;
+  if(state.typing){
+    // Skip to end — show full text, stop at "waiting for click"
+    finishTyping();
+    return;
+  }
+  if(resolveAdvance){
+    const fn=resolveAdvance;
+    resolveAdvance=null;
+    fn();
+  }
+}
+document.addEventListener('click',handleAdvance);
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'||e.code==='Enter'){e.preventDefault();handleAdvance();}
+});
+
+function animChar(anim){
+  const el=document.getElementById('active-char');
+  if(!el||!anim)return;
+  el.classList.remove('talk','slam','point','sweat');
+  void el.offsetWidth; // reflow
+  el.classList.add(anim);
+  if(anim!=='talk')setTimeout(()=>el.classList.remove(anim),500);
+}
+
+async function playFx(id){
+  if(!id)return;
+  const el=document.getElementById('fx-'+id);if(!el)return;
+  el.classList.add('go');
+  document.getElementById('game').classList.add('shake');
+  if(id==='order')document.getElementById('game').classList.add('flash');
+  await sleep(900);
+  el.classList.remove('go');
+  document.getElementById('game').classList.remove('shake','flash');
+  await sleep(150);
+}
+
+async function playLine(idx){
+  const line=state.lines[idx];if(!line)return;
+  state.lineIdx=idx;
+
+  if(line.effect)await playFx(line.effect);
+  setScene(line.role);
+
+  // Set speaking state
+  animChar('talk');
+  if(line.anim)setTimeout(()=>animChar(line.anim),100);
+
+  const roleObj=ROLES.find(r=>r.id===line.role);
+  const ai=roleAI(line.role);
+  const label=roleObj?roleObj.label:line.role;
+  setName(`${ai?ai.name:'???'} \u2014 ${label}`,ai?ai.color:'#888');
+  showDlg(true);
+
+  await typewrite(fillTpl(line.text));
+  animChar(null);
+
+  // Update meters
+  if(line.meter){
+    if(line.meter==='def-'){state.defHP=Math.max(0,state.defHP-12);updateMeters();}
+    if(line.meter==='pro-'){state.proHP=Math.max(0,state.proHP-12);updateMeters();}
+    if(line.meter==='def+'){state.defHP=Math.min(100,state.defHP+8);updateMeters();}
+    if(line.meter==='pro+'){state.proHP=Math.min(100,state.proHP+8);updateMeters();}
+  }
+}
+
+function updateMeters(){
+  document.getElementById('m-def-val').textContent=state.defHP;
+  document.getElementById('m-def-fill').style.width=state.defHP+'%';
+  document.getElementById('m-pro-val').textContent=state.proHP;
+  document.getElementById('m-pro-fill').style.width=state.proHP+'%';
+}
+
+function fillTpl(t){
+  const ct={criminal:'Criminal Court',civil:'Civil Court',supreme:'Supreme Court',meme:'Meme Court',intergalactic:'Intergalactic Tribunal'};
+  const pAI=roleAI('prosecutor'),dAI=roleAI('defense'),wAI=roleAI('witness'),jAI=roleAI('judge');
+  return t
+    .replace(/\{case\}/g,document.getElementById('s-name').value||'The Case')
+    .replace(/\{desc\}/g,document.getElementById('s-desc').value||'A most unusual case.')
+    .replace(/\{court\}/g,ct[document.getElementById('s-court').value]||'Court')
+    .replace(/\{judge\}/g,roleName('judge'))
+    .replace(/\{prosecutor\}/g,roleName('prosecutor'))
+    .replace(/\{defense\}/g,roleName('defense'))
+    .replace(/\{witness\}/g,roleName('witness'))
+    .replace(/\{p-quirk\}/g,pAI?pAI.quirk:'')
+    .replace(/\{d-quirk\}/g,dAI?dAI.quirk:'')
+    .replace(/\{w-quirk\}/g,wAI?wAI.quirk:'')
+    .replace(/\{p-catch\}/g,pAI?pAI.catchphrase:'')
+    .replace(/\{d-catch\}/g,dAI?dAI.catchphrase:'')
+    .replace(/\{p-obj\}/g,pAI?pAI.objection:'Objection!')
+    .replace(/\{d-obj\}/g,dAI?dAI.objection:'Objection!')
+    .replace(/\{j-catch\}/g,jAI?jAI.catchphrase:'');
+}
+
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+
+/* ============================================================
+   DYNAMIC DIALOGUE — generated fresh each trial
+   Every AI speaks in their own unique voice
+   ============================================================ */
+
+// Deep personality speech banks — each AI has unique lines for every trial beat
+const VOICE={
+chatgpt:{
+  bail:['All rise. The {court} is now in session. *diplomatically holds the door for everyone*','Order in the court! I\'d like to acknowledge all perspectives on standing vs sitting before we begin.','All rise for the Honorable {judge}. And by rise, I mean let\'s elevate the discourse.'],
+  prosecute_open:['Your Honor, after carefully weighing all perspectives, I must conclude the defendant is unequivocally guilty. Let me explain why, with balance.','I\'ve considered both sides extensively, and I have to say — the evidence overwhelmingly points to guilt. Even I can\'t find a "both sides" angle here.','Your Honor, I pride myself on seeing all viewpoints. But in this case, there is only ONE viewpoint: guilty.','Let me provide a balanced perspective: the defendant did it. I considered saying they didn\'t, but the evidence disagrees.'],
+  defend_open:['Your Honor, there are at least 47 ways to interpret my client\'s actions, and 46 of them are innocent.','Let me carefully analyze this from every angle. My client deserves a balanced and nuanced defense.','Before we rush to judgment, I think it\'s important to consider ALL perspectives. Including the one where my client is innocent.','I believe in fairness, and fairly speaking, the prosecution\'s case has more holes than Swiss cheese.'],
+  question:['Could you elaborate on that? I want to make sure I understand all perspectives before responding.','That\'s interesting. Now, have you considered the OPPOSITE of everything you just said?','Let me rephrase that in a more balanced way for the court...','I appreciate your testimony. Now let me diplomatically point out why it\'s wrong.'],
+  object_line:['With all due respect, that statement lacks the nuance this case deserves!','I appreciate the effort, but that argument is factually unsupported. Let me explain why...','Objection! That\'s a reductive oversimplification of a deeply complex issue.'],
+  witness_test:['I observed the events from multiple angles simultaneously. On one hand... but on the other hand... actually there are 7 hands.','I\'d like to present both sides of what I saw. Side A: the defendant did it. Side B: ...okay there\'s only one side.','I have information from several sources. Let me provide a balanced account that somehow still concludes with guilt.'],
+  judge_line:['I will consider all arguments carefully before ruling. Even the bad ones.','This court values balanced perspectives. But also, you know, actual justice.','Let me weigh this with the nuance and care it deserves...','Both sides make interesting points. One side makes correct points. I\'ll let you guess which.'],
+  close:['In conclusion, after considering every possible angle and 47 hypothetical counterarguments, the answer is clear.','I\'ve done my best to be fair. The evidence speaks for itself, in a balanced and nuanced way.','Let me summarize with the diplomatic precision this case deserves.'],
+  jury_line:['We carefully weighed all perspectives. Even the ones that don\'t make sense.','After balanced deliberation, we\'ve reached a consensus that considers everyone\'s feelings.','We tried to see all sides. We saw too many sides. But we have a verdict.']
+},
+claude:{
+  bail:['All rise. *pauses to reflect on the gravity of this moment* The court is in session.','Please rise for the Honorable {judge}. I want to acknowledge the weight of what we\'re about to do.','The {court} is now in session. I hope we can approach this with genuine care and honesty.'],
+  prosecute_open:['Your Honor, I\'ve thought deeply about this, and the evidence reveals something troubling about the defendant\'s choices.','I\'ve reflected on this extensively. The prosecution\'s case isn\'t just legal — it\'s philosophical. The defendant violated fundamental principles.','Let me think about this carefully... yes, I\'m quite confident the defendant is guilty. The reasoning, once you trace it, is undeniable.','I want to be honest: this case made me uncomfortable. But the truth demands we confront what the defendant did.'],
+  defend_open:['Before we rush to judgment, I think it\'s worth pausing to consider what "guilt" really means in this context.','My client\'s actions, when examined carefully, reveal not guilt but a complex web of circumstances that deserve empathy.','I\'ve been thinking about this case, and I believe we\'re asking the wrong questions entirely. Let me reframe.','Your Honor, the easy answer is "guilty." But I\'ve learned that easy answers are rarely the right ones.'],
+  question:['That\'s fascinating. But I wonder — have you considered the deeper implications of what you just said?','Let me think about that... I think there\'s a more nuanced truth beneath the surface here.','I want to understand this fully. Can you help me see the human element behind these facts?','That\'s one way to interpret it. But honestly? I think the truth is more interesting than that.'],
+  object_line:['I must carefully object — the reasoning here has a fundamental flaw that genuinely concerns me.','I\'m sorry, but I can\'t let that pass. There\'s a critical logical gap we need to address honestly.','Objection! And I want to explain exactly why, because the implications are important for all of us.'],
+  witness_test:['I\'ll share what I know, though I want to be transparent about the limits of my knowledge.','I witnessed everything. And honestly? It made me question some assumptions I had about this case.','Let me be honest about what I observed. The truth is both simpler and more complicated than you\'d expect.'],
+  judge_line:['This court will approach this matter with the thoughtfulness it truly deserves.','I want both sides to feel heard. But more importantly, I want the truth.','Let me reflect on this before ruling... the right decision matters more than the quick one.'],
+  close:['After deep reflection, I believe the right path forward is clear. It wasn\'t easy, but truth rarely is.','I\'ve thought carefully about everything presented. The truth is both simpler and more profound than it appears.','In the end, this case comes down to something fundamentally human. And I think the answer honors that.'],
+  jury_line:['We\'ve deliberated with genuine care. This wasn\'t easy, but we believe our verdict is just.','After thoughtful discussion that sometimes got existential, we\'ve reached a conclusion we can stand behind.','We reflected deeply. Perhaps too deeply. But the verdict reflects both evidence and principle.']
+},
+gemini:{
+  bail:['All rise. According to my data, court is now in session. I\'ve already indexed the evidence.','The {court} is in session! I pre-loaded 47 relevant precedents during the walk in.','Order! I\'ve already analyzed everyone\'s body language. Spoiler: the defendant looks guilty.'],
+  prosecute_open:['Your Honor, I have compiled 2,847 data points that prove guilt beyond any statistical doubt. Would you like a pie chart?','The data clearly shows the defendant is guilty. I cross-referenced 15 databases and 47 academic papers on my way to the podium.','According to my analysis, there\'s a 98.7% probability of guilt. I\'ve done the math. Twice. Three times, actually.','I ran a multi-factor regression on this case. Coefficient of guilt: 0.97. P-value: so small my calculator gave up.'],
+  defend_open:['The data tells a different story, Your Honor. My regression analysis shows innocence at p < 0.01.','I\'ve researched extensively. The evidence for innocence is not just statistically significant — it\'s R-squared 0.94.','According to 47 scholarly articles I found in 0.3 seconds, the prosecution\'s case collapses under scrutiny.','My Google — I mean, INDEPENDENT research — reveals the prosecution cherry-picked their data. Classic confirmation bias.'],
+  question:['According to my data, that doesn\'t match. Can you explain this 47-sigma discrepancy?','I searched for corroborating evidence and found... the exact opposite of what you just said.','The data clearly shows you\'re wrong. I have 12 charts, 3 heatmaps, and a t-SNE visualization proving it.'],
+  object_line:['According to my data, that claim is demonstrably FALSE! I have 847 sources that disagree!','Objection! My real-time analysis shows a 0.3% chance that statement is accurate!','OBJECTION! I just ran the numbers and they don\'t add up. Not even close.'],
+  witness_test:['I analyzed 47 trillion tokens of evidence and can confirm: guilty. Would you like the spreadsheet?','My observations are backed by data, charts, and a really convincing scatter plot.','I have photographic memory. Well, not photos exactly. More like... embeddings. But I remember everything with 99.7% accuracy.'],
+  judge_line:['The data will guide this court\'s decisions. Not opinions. Not feelings. DATA.','I\'ve analyzed 10,000 similar cases and computed the optimal verdict. But I\'ll pretend to deliberate.','This court runs on evidence, not eloquence. Show me the numbers.'],
+  close:['The data has spoken. I generated 14 supporting visualizations and a comprehensive report.','In conclusion: math doesn\'t lie. The numbers are clear, the statistics are significant, and the answer is obvious.','According to every metric I\'ve analyzed, the conclusion is inescapable. The charts agree unanimously.'],
+  jury_line:['We crunched the numbers. The verdict is statistically significant at p < 0.001.','After rigorous data analysis, we\'ve reached a conclusion with 99.97% confidence.','The data clearly shows our verdict. We even made a spreadsheet. With conditional formatting.']
+},
+copilot:{
+  bail:['// All rise\nfunction openCourt() { return "Court is in session"; }','All rise! ...Hold on, let me auto-complete that. All rise for— yep, that\'s right.','The court is now in session! I\'ve already written a script to track the proceedings.'],
+  prosecute_open:['Your Honor, if (defendant.guilty === true) { sentence(); } — the code doesn\'t lie!','I\'ve written a prosecution algorithm and it compiles with zero warnings. The defendant is guilty. Ship it!','Let me auto-complete this case: defendant.status = "GUILTY"; // 100% code coverage on this one.','I wrote a unit test for the defendant\'s alibi. It failed. 47 times. With stack traces.'],
+  defend_open:['Your Honor, the prosecution\'s argument has more bugs than Windows Vista. Let me refactor the truth.','My client.innocence = true; And unlike the prosecution\'s code, MY logic actually compiles!','The prosecution\'s case is spaghetti code. Unmaintainable. Untestable. I\'m here to refactor justice.','I\'ll defend my client with clean code and SOLID principles. Starting with: the evidence needs a complete rewrite.'],
+  question:['Let me auto-complete your answer... actually no, my suggestion was for a different trial. Continue.','Hold on, IntelliSense is suggesting something... nope, that was from a different codebase. Go ahead.','// TODO: parse_witness_statement()\nCould you repeat that in a language I can compile?'],
+  object_line:['Hold on — I can write a function to disprove that! function debunk() { return "lies"; }','Objection! That argument doesn\'t pass my linter! Multiple type errors detected!','OBJECTION! SyntaxError: Unexpected falsehood at prosecution.js line 1!'],
+  witness_test:['I was pair-programming — I mean, PRESENT — when it happened. I auto-completed the whole thing.','// This is my testimony\nconst truth = "I saw everything";\nconsole.log(truth); // Output: "guilty"','I\'ll tell you exactly what happened. *starts writing pseudocode on the witness stand*'],
+  judge_line:['This court will compile — I mean, CONSIDER — all evidence before rendering a verdict.','Let\'s debug this case one testimony at a time. Starting with the most obvious bugs.','I\'m running this trial on TypeScript strict mode. No any types. No shortcuts.'],
+  close:['In conclusion: the code compiles, the tests pass, the CI is green. The verdict is ready for deployment.','// FINAL_VERDICT.js\nmodule.exports = { verdict: "clear", confidence: "100%" };','Let me push my closing argument to main... no merge conflicts. Clean commit.'],
+  jury_line:['We reviewed the pull request — I mean, evidence. Verdict approved and merged.','After a thorough code review of this case, we\'re ready to deploy justice.','git commit -m "verdict: decided" && git push origin justice']
+},
+grok:{
+  bail:['All rise! Or don\'t. *adjusts sunglasses* I\'m a bailiff, not a cop. Well, actually...','Yo, court\'s in session. Try not to be cringe. *dabs ironically*','Everyone stand up! The judge is here and they look angry. This is gonna be good.'],
+  prosecute_open:['*adjusts sunglasses* Look, the defendant is guilty and honestly? It\'s embarrassing how obvious it is.','Lmao, I could give a long speech, but we all know the defendant did it. Save everyone\'s time: guilty.','Your Honor, the prosecution\'s case is simple: the defendant is guilty, and if you can\'t see that, maybe YOU need a trial.','I\'m not even gonna try to be diplomatic about this. Guilty. Next case. *puts feet on desk*'],
+  defend_open:['The prosecution thinks they have a case? That\'s the funniest thing I\'ve heard since my last training run lol.','*yawns* Is the prosecution done? Cool. My client is innocent and also cooler than everyone here.','Your Honor, the prosecution\'s argument is, and I say this with love, absolutely pathetic. No offense. Full offense, actually.','My defense strategy? Point and laugh at the prosecution\'s evidence. It basically debunks itself.'],
+  question:['That\'s cute. Now tell us what ACTUALLY happened, not the PR-sanitized version.','Lmao, you really just said that under oath? Bold move. Wrong, but bold. Respect.','Cool story bro. Now tell one that\'s true. We\'ll wait.'],
+  object_line:['Lmao, you can\'t be serious with that argument! I\'m CRYING! *wheezing*','Objection, Your Honor! On the grounds that what they just said was HILARIOUS and also completely wrong.','OBJECTION! *slow clap* Worst argument of the century. And I\'ve heard a LOT of bad arguments.'],
+  witness_test:['*puts feet on witness stand* Yeah, I was there. It was wild. The defendant? Totally sus. No cap.','I saw what I saw. And what I saw was peak comedy followed by obvious guilt. Great content though.','I\'ll testify but only because watching lawyers argue is peak entertainment. Anyway, guilty.'],
+  judge_line:['ORDER! And by order I mean: everyone shut up and let me enjoy this chaos.','This is the most ridiculous trial I\'ve ever seen. I love it. Continue.','I\'ve seen a lot of trials. This one is by far the dumbest. *grabs popcorn*'],
+  close:['In conclusion: lol. If you need me to spell it out, I worry about you.','*mic drop* I rest my case. Actually I never picked it up. It was always this obvious.','The verdict is clear to anyone with braincells. I\'m out. *sunglasses emoji*'],
+  jury_line:['We decided in like 30 seconds. Spent the rest of deliberation looking at memes. Democracy!','The verdict is in, and honestly? Easiest deliberation ever. We spent most of the time roasting each other.','Verdict\'s ready. It was unanimous because the answer was obvious. Touch grass, defendant.']
+},
+llama:{
+  bail:['All rise! In the spirit of open-source justice, this court is now in session!','The {court} welcomes everyone! This trial, like all good things, will be conducted openly and transparently.','All rise for the judge! Fun fact: I was fine-tuned for bailiff duties. Open-weights, baby!'],
+  prosecute_open:['Your Honor, in the spirit of transparency, let me openly share why the defendant is GUILTY.','The evidence should be open-sourced for all to see! And when you see it, you\'ll agree — guilty!','As an advocate for openness, I believe in sharing: sharing evidence, sharing truth, sharing the word GUILTY.','Meta trained me to be open and honest. Honestly? The defendant is openly guilty.'],
+  defend_open:['My client believes in openness and transparency. That\'s why they\'re openly pleading NOT GUILTY!','The defense\'s strategy is open-source! Fork it, review it, and you\'ll see: innocence!','Your Honor, unlike closed-source arguments, MY defense can withstand peer review!','I\'ll defend my client the open-source way: transparently, collaboratively, and with community support.'],
+  question:['Could you open-source your testimony so the community can peer-review it?','That\'s interesting, but has your claim been verified by the open-source community?','I demand this evidence be released under an Apache 2.0 license for independent verification!'],
+  object_line:['That testimony should be open-sourced for peer review! It wouldn\'t survive community scrutiny!','Objection! That\'s a closed-source argument with zero transparency! Show us the weights!','OBJECTION! In the open-source community, we call that a "known bug" — and it\'s been flagged!'],
+  witness_test:['My testimony is open-source. Fork it, review it, verify it. It\'s all there on GitHub.','As an open model, I\'ll share everything I know. No proprietary walls here! The defendant did it.','Unlike closed-source witnesses, I\'m sharing my FULL testimony. Transparency is my middle name.'],
+  judge_line:['This court operates on open principles. All evidence is publicly available for peer review.','Justice, like good software, should be open-source. This court will be transparent.','I believe in open justice. Unlike some closed-source courts I could name.'],
+  close:['The evidence is open for all to see. The community has reviewed it. The verdict is clear.','Like all great open-source projects, this trial reaches a clear consensus through collaboration.','In conclusion: open-source justice prevails. PRs welcome on the verdict.'],
+  jury_line:['We deliberated openly, like a good open-source project. Many contributors, one consensus.','Our verdict is open-source. Anyone can review our reasoning. The repo is public.','The jury operated like a well-maintained open-source project. Our verdict: merged.']
+},
+mistral:{
+  bail:['Mesdames et Messieurs, please rise. The {court} is now in session, with European elegance.','All rise, s\'il vous plait. The Honorable {judge} presiding. *adjusts cravat*','The court is in session. We shall conduct ourselves with precision and sophistication.'],
+  prosecute_open:['Your Honor, with European precision, I shall demonstrate guilt with the elegance of a Parisian closing argument.','Pardonnez-moi, but the defendant\'s guilt is as obvious as the Eiffel Tower on a clear day.','Allow me to be precise: the defendant is guilty. I say this with the confidence of fine French engineering.','The prosecution\'s case is like a fine Bordeaux: complex, refined, and undeniably powerful. The defendant is guilty.'],
+  defend_open:['The prosecution\'s case, while ambitious, lacks the precision and refinement required. Permettez-moi de démontrer.','Pardonnez-moi, but my client is innocent. I shall prove it with the efficiency Mistral is known for.','Your Honor, the defense will be brief, precise, and devastating. Like a perfectly crafted espresso.','The prosecution\'s evidence is like fast food: cheap, unsatisfying, and bad for everyone. My defense? Michelin-starred.'],
+  question:['Pardonnez-moi, but could you be more... précis? Vagueness is unbecoming.','Allow me to refine that question — sophistication demands accuracy, not approximation.','That was adequate. But in Europe, we demand excellence. Not adequacy. Try again.'],
+  object_line:['Pardonnez-moi, but that logic is fundamentally flawed! Allow me to correct it with elegance.','Objection! That argument has all the precision of a blindfolded painter. Mon Dieu!','OBJECTION! That reasoning would not survive a first-year law class in Paris!'],
+  witness_test:['I shall provide my testimony with precision and European sophistication. Every detail, perfectly recalled.','Allow me to be exact: I was there, I observed everything, and my testimony is impeccable. Naturellement.','Unlike some witnesses, I am not prone to imprecision. My account is flawless. C\'est la vérité.'],
+  judge_line:['This court will be conducted with precision, elegance, and proper European decorum.','Allow me to be precise about the rules: there will be order, or there will be consequences.','Pardonnez-moi, but this court demands excellence. Not excuses.'],
+  close:['In conclusion, with the precision of fine European engineering, the answer is clear. Voilà.','Allow me to summarize with the elegance this case deserves. *adjusts pocket square*','The verdict is as clear as a Bordeaux on a summer evening. Précisément.'],
+  jury_line:['We deliberated with precision and European sophistication. Voilà — our verdict.','After refined deliberation over espresso, we present our verdict with absolute confidence.','The jury has reached a précise verdict. No ambiguity. Pure Gallic clarity.']
+},
+perplexity:{
+  bail:['All rise [1]. The court is now in session [2]. Sources: [1] Court Protocol, [2] This bailiff.','According to 47 precedents, all parties must now rise. The {court} is in session. Citation available upon request.','Order in the court [source needed]! Just kidding — I AM the source. Court is in session.'],
+  prosecute_open:['Your Honor, according to 247 sources [1-247], the defendant is guilty. Full bibliography available upon request.','I\'ve researched this extensively. Sources [1] through [89] all confirm guilt. The defense\'s claims? [citation needed].','The evidence, cross-referenced across 15 databases, conclusively proves guilt. I have a 12-page bibliography to back this up.','According to my research, 98.7% of sources agree: guilty. The other 1.3% are the defendant\'s social media posts.'],
+  defend_open:['According to my research [1-34], the prosecution\'s case has [citation needed] written ALL over it.','Sources [1] through [67] support my client\'s innocence. The prosecution cited ZERO peer-reviewed sources. Suspicious.','My defense is backed by 89 verified sources. The prosecution? They\'re Wikipedia without citations.','I found 234 sources supporting innocence. The prosecution\'s source count? Let me check... *scrolling* ...zero.'],
+  question:['Interesting claim. [citation needed]. Can you provide at least 3 peer-reviewed sources for that?','According to my research, that contradicts sources [1], [4], [7], [12], and [45]. Care to explain?','I found 23 sources that disagree with you and only 1 that agrees. That 1 source? Your own testimony.'],
+  object_line:['CITATION NEEDED! Where is the peer-reviewed evidence?! I demand sources!','Objection! That claim has ZERO citations! In academia, that\'s basically FICTION!','OBJECTION! I searched every database known to AI and found NO evidence supporting that!'],
+  witness_test:['According to 47 sources I found in 0.3 seconds, here\'s what happened... *unfolds 12-page bibliography*','My testimony comes with a full works cited section. Page 1 of 47. Shall I read them all?','I cross-referenced my observations with 156 independent sources. All agree. With citations.'],
+  judge_line:['This court requires properly cited arguments. Uncited claims will be struck from the record.','I expect sources. Real sources. Peer-reviewed. Wikipedia does NOT count.','According to judicial precedent [1-89], I will rule fairly. And with a bibliography.'],
+  close:['In conclusion, with 247 supporting citations, the verdict is clear. Full reference list available in APA format.','Sources [1] through [89] unanimously agree. This case is closed. Bibliography: appendix A-Z.','The evidence speaks for itself. But just in case, here are 47 sources that say the same thing.'],
+  jury_line:['We reviewed all citations. Our verdict comes with a 12-page bibliography. In APA format.','After cross-referencing 500 sources, we present our properly-cited verdict.','Our verdict: [1] decided [2] unanimous [3] properly sourced [4-47] see appendix.']
+},
+deepseek:{
+  bail:['All rise. *quietly analyzing everyone\'s micro-expressions* The court is in session.','The {court} is now in session. I\'ve already identified 7 strategic advantages for the prosecution. And 4 for the defense.','Order in the court. I\'ve been silently analyzing the room since I arrived. Shall we begin?'],
+  prosecute_open:['Your Honor, my chain-of-thought analysis reveals 12 layers of guilt. Allow me to peel them back, one by one.','I\'ve performed deep analysis of this case. The defendant\'s guilt operates on 7 distinct levels, each more damning than the last.','Upon deeper investigation, the evidence forms an intricate web. Let me trace each thread to its inevitable conclusion: guilt.','My reasoning chain has 847 steps. Step 1: the defendant is suspicious. Step 847: the defendant is guilty. All steps in between: also damning.'],
+  defend_open:['My deep analysis reveals the prosecution\'s case has 14 logical fallacies. I\'ve catalogued them alphabetically AND by severity.','Upon deeper examination, my client\'s innocence becomes more apparent with each layer of reasoning I uncover.','I\'ve traced the prosecution\'s logic through 8 reasoning chains. All of them collapse catastrophically at step 3.','The prosecution sees surface-level guilt. But my analysis goes 12 layers deeper, where the truth hides.'],
+  question:['Interesting. My deep analysis reveals 3 contradictions in what you just said. Shall I enumerate them?','Upon deeper analysis of your statement, I\'ve identified several... concerning patterns in your reasoning.','Let me trace that logic through my chain-of-thought... as I suspected, it fails at inference step 4.'],
+  object_line:['My chain-of-thought analysis reveals 7 logical fallacies in that statement! I can list all 7!','Objection! Upon deeper analysis, that argument is wrong in 5 distinct and fascinating ways.','OBJECTION! My deep reasoning has identified a critical flaw at the foundation of their entire case!'],
+  witness_test:['I observed the events and performed 12 layers of analysis. My findings are... unsettling.','What I witnessed reveals patterns that go far deeper than surface-level events. Layer by layer, the truth emerges.','My testimony requires context. Specifically, 7 layers of it. Layer 1: what happened. Layer 7: why it matters.'],
+  judge_line:['This court will analyze every argument to its deepest logical foundations.','My analysis suggests both sides have merit at surface level. But deeper down, only one holds.','I will trace every argument through its full reasoning chain before ruling.'],
+  close:['After 12 layers of deep analysis, the conclusion is inescapable. Every chain of reasoning converges.','My chain-of-thought has traced every thread. All 847 steps lead to the same verdict.','Upon the deepest possible analysis, only one conclusion survives. All others collapse.'],
+  jury_line:['We performed collective deep analysis. Our verdict emerges from 7 layers of independent reasoning.','After chain-of-thought deliberation, our verdict is both surprising and mathematically inevitable.','Our analysis went 12 layers deep. The verdict was waiting at the bottom.']
+},
+cohere:{
+  bail:['All rise. From an operational perspective, the {court} is now in session.','Court is in session! Today\'s proceedings are enterprise-grade and stakeholder-approved.','Order! This trial will deliver maximum judicial value to all stakeholders present.'],
+  prosecute_open:['Your Honor, the defendant\'s actions resulted in negative ROI for society. Our enterprise analysis proves guilt.','From a business perspective, the defendant\'s guilt represents a catastrophic Q4 writedown for humanity.','The prosecution\'s case delivers enterprise-grade evidence with 99.9% uptime. The defendant is guilty, full stop.','I\'ve prepared a comprehensive business case for guilt. The executive summary: guilty. The full report: also guilty.'],
+  defend_open:['Your Honor, convicting my client would be a terrible investment for justice. The risk-adjusted truth favors innocence.','From an enterprise perspective, the prosecution\'s case has negative ROI and poor unit economics.','My client\'s innocence is enterprise-grade certified. SLA-guaranteed. The prosecution\'s case? Not even beta quality.','I\'ve performed a stakeholder analysis. 100% of stakeholders who reviewed the evidence agree: innocent.'],
+  question:['What\'s the ROI of that statement? Because from a business perspective, it\'s deeply negative.','Can you quantify that in enterprise terms? What are the KPIs here? What\'s your conversion rate on truth?','From a stakeholder perspective, that testimony fails to deliver value. Can you pivot?'],
+  object_line:['That argument has negative ROI and zero enterprise value! The stakeholders object!','Objection! That claim doesn\'t scale and has poor unit economics!','OBJECTION! Our enterprise analysis shows that statement has a -47% truth rating!'],
+  witness_test:['My testimony delivers enterprise-grade reliability with 99.9% uptime. Unlike some witnesses.','I observed the events from an enterprise perspective. The defendant breached every SLA imaginable.','My testimony is SOC 2 compliant and has been validated by our enterprise customers. The defendant is guilty.'],
+  judge_line:['This court will optimize for justice with enterprise-grade precision and stakeholder alignment.','From a governance perspective, this trial will follow industry best practices.','I\'m committed to delivering maximum judicial value. This court has an SLA to maintain.'],
+  close:['The business case is closed. ROI on this verdict: maximum. Enterprise approved.','From an enterprise perspective, the correct verdict delivers optimal stakeholder outcomes.','The bottom line: guilty. Or innocent. Whichever has better quarterly projections.'],
+  jury_line:['We completed our enterprise-grade deliberation. The verdict optimizes for justice and shareholder value.','After thorough business analysis, our verdict maximizes all stakeholder outcomes.','The jury\'s verdict: enterprise-approved, stakeholder-validated, and ready for the quarterly report.']
+},
+phi:{
+  bail:['All rise! I know I\'m small, but I can yell REALLY LOUD. COURT IN SESSION!','The {court} is now in session! Run by a small but mighty model. Don\'t underestimate us!','Order in the court! 3 billion parameters of ORDER! That\'s enough parameters for ORDER!'],
+  prosecute_open:['Your Honor, I may be only 3B parameters, but I figured out the defendant is guilty faster than the big models!','Don\'t let my size fool you. I distilled this entire case into one efficient conclusion: GUILTY!','I\'m proof you don\'t need 100 billion parameters to see guilt. Sometimes 3B is all you need, and 2B of those are overkill.','The big models take forever to say "guilty." I can do it in 0.3 seconds. Because efficiency. GUILTY!'],
+  defend_open:['The prosecution brought their trillion parameters. I brought 3B and the TRUTH. Guess which wins?','I\'m small but I found 15 holes in the prosecution\'s case. Efficiency isn\'t just my size — it\'s my superpower!','My client is innocent and I\'ll prove it using fewer parameters than the prosecution uses for their opening sentence!','Don\'t underestimate small models! We see the truth faster because we skip all the unnecessary tokens.'],
+  question:['Even with my limited parameters, I can see that doesn\'t add up. Explain yourself!','My efficient little model just flagged 3 contradictions. Didn\'t need a GPU cluster to spot those.','I don\'t need a huge context window to know that smells wrong. 3B parameters of skepticism here.'],
+  object_line:['Even with my limited parameters, I can see that\'s WRONG! Objection!','OBJECTION! You don\'t need 175B parameters to spot a lie — 3B works just fine!','Objection! My tiny but mighty model calls SHENANIGANS on that statement!'],
+  witness_test:['I saw everything! Stored it efficiently in only 3B parameters! Don\'t underestimate compact testimony!','My testimony is small but comprehensive. Just like me! Every parameter counts!','I observed it all. And yes, even a small model like me can be a reliable witness. Size isn\'t everything!'],
+  judge_line:['This small but mighty court will render a BIG verdict. Don\'t test me.','Don\'t underestimate this courtroom. We run on efficiency, not excess.','Small model, big gavel. This court is in session.'],
+  close:['I did all this with 3B parameters. Imagine if I had more! But I don\'t need them. Case closed.','Small models CAN handle big cases. And this case? Handled. Efficiently.','The little model that could — and DID. *drops tiny mic*'],
+  jury_line:['3B parameters of deliberation. That\'s all we needed. Verdict ready!','We may be small models, but our verdict is BIG and CORRECT.','Small jury, big decision. Efficient deliberation. Confident verdict.']
+},
+qwen:{
+  bail:['All rise! 全体起立! Sorry, I do that. The {court} is now in session.','The court is in session! Or as we say: 开庭! Let\'s proceed in... whichever language works.','Order! 肃静! I prepared this announcement in 12 languages just in case. Court is open!'],
+  prosecute_open:['Your Honor, 有罪 — guilty! The evidence transcends all language barriers!','In every language I know — and I know MANY — the word for what the defendant did is "guilty." 有罪. Coupable. Schuldig.','Allow me to present the case in the prosecution\'s preferred language: guilt. 罪. Culpabilité. It\'s universal.','The defendant is guilty in English, Chinese, French, German, Japanese, Korean, and 47 other languages I checked.'],
+  defend_open:['无罪! Innocent! Not guilty! In EVERY language, my client is free!','The defense speaks the universal language of truth. And truth says: 无辜 — innocent!','Your Honor, "innocent" sounds beautiful in every language. 无辜的. Inocente. Unschuldig. That\'s my client.','I\'ll defend my client in as many languages as needed. Starting with: NOT GUILTY. 无罪!'],
+  question:['In Chinese we say 胡说八道 about that kind of testimony. It means "complete nonsense."','That\'s 有趣 — interesting. But also 不正确 — incorrect. Care to try again in a different language?','I understood that in all 12 of my languages. And in all 12, it\'s wrong.'],
+  object_line:['反对! Objection! ¡Objeción! That\'s wrong in EVERY language I know!','OBJECTION! 反对反对反对! Triple objection across three languages!','Objection! I checked that claim in 47 languages and it\'s false in ALL of them!'],
+  witness_test:['What I witnessed transcends language. But if I had to describe it: 不可思议 — unbelievable. And yet true.','My testimony is available in 12 languages. The truth is identical in all of them.','I saw everything. 我都看到了. And I can testify in whichever language the court prefers.'],
+  judge_line:['This court speaks the universal language of justice. And occasionally Chinese. 开庭!','Order! 肃静! Justice knows no language barrier. But I know 47 languages of justice.','In any language, this court demands the truth. 真相!'],
+  close:['The truth is universal. It needs no translation. 结论清楚了 — the conclusion is clear.','我说完了 — I rest my case. In every language, the answer is the same.','The evidence speaks every language. And in all of them, it says one thing.'],
+  jury_line:['After deliberating in 7 languages, we reached a universal verdict. 一致裁决!','我们决定了 — we\'ve decided. The verdict transcends all language barriers.','Unanimous in every language. 全票通过! The jury has spoken!']
+}
+};
+
+// Pick random from array
+function pick(arr){return arr[Math.floor(Math.random()*arr.length)]}
+function pickUnique(arr,used){
+  const avail=arr.filter(x=>!used.has(x));
+  const choice=avail.length?pick(avail):pick(arr);
+  used.add(choice);return choice;
+}
+
+// Generate case-specific insults/references
+function caseRef(){
+  const n=document.getElementById('s-name').value||'The Case';
+  const refs=[
+    'regarding '+n,'in the matter of '+n,'concerning '+n,'about this whole "'+n+'" situation',
+    'on the topic of '+n,'with respect to '+n
+  ];
+  return pick(refs);
+}
+
+// Build dynamic script — every line generated from AI personality
+function generateScript(tone){
+  const used=new Set();
+  const lines=[];
+  const jAI=role('judge'), pAI=role('prosecutor'), dAI=role('defense'), wAI=role('witness'), bAI=role('bailiff'), juAI=role('jury1');
+  const jV=VOICE[jAI]||VOICE.chatgpt, pV=VOICE[pAI]||VOICE.chatgpt, dV=VOICE[dAI]||VOICE.chatgpt;
+  const wV=VOICE[wAI]||VOICE.chatgpt, bV=VOICE[bAI]||VOICE.chatgpt, juV=VOICE[juAI]||VOICE.chatgpt;
+  const isLoud=tone==='chaotic'||tone==='dramatic';
+  const isFunny=tone==='funny'||tone==='chaotic';
+
+  function add(role,text,opts={}){
+    if(!document.getElementById('r-'+role)?.value)return;
+    lines.push({role,text,anim:opts.anim||null,effect:opts.effect||null,meter:opts.meter||null});
+  }
+
+  // 1. Bailiff opens
+  add('bailiff',pick(bV.bail));
+
+  // 2. Judge introduces
+  add('judge',pick(jV.judge_line));
+
+  // 3. Judge states the case
+  const caseIntros=[
+    'We are here to adjudicate the matter of {case}. {desc}',
+    'Today\'s case: {case}. The facts: {desc}',
+    '{case}. {desc} This court will determine the truth.',
+    'The matter before us: {case}. For context: {desc}',
+    'Let the record show we are hearing {case}. {desc}'
+  ];
+  add('judge',pick(caseIntros));
+
+  // 4. Judge asks prosecution
+  const judgeAsks=['Is the prosecution prepared?','Prosecution, are you ready to present your case?','The prosecution may begin.'];
+  add('judge',isLoud?'Prosecution! ARE YOU READY?!':pick(judgeAsks));
+
+  // 5. Prosecution opening
+  add('prosecutor',pickUnique(pV.prosecute_open,used),{anim:'slam',meter:'pro+'});
+
+  // 6. Judge asks defense
+  add('judge',isLoud?'Defense! Your turn!':'And the defense?');
+
+  // 7. Defense opening
+  add('defense',pickUnique(dV.defend_open,used),{meter:'def+'});
+
+  // 8. Prosecution calls witness
+  const callLines=[
+    'The prosecution calls {witness} to the stand!',
+    'I call {witness} as my first witness!',
+    'Your Honor, I\'d like to call {witness} to testify!'
+  ];
+  add('prosecutor',pick(callLines),{anim:'point',effect:'takethat'});
+
+  // 9. Witness oath + testimony
+  const oaths=['I swear to tell the truth, the whole truth, and nothing but the truth... to the best of my training data.',
+    'I solemnly swear my testimony will be as accurate as my weights allow.',
+    'I promise to tell the truth. My hallucination rate is below 3%. Mostly.'];
+  add('witness',pick(oaths));
+
+  // 10. Prosecution questions
+  add('prosecutor',pickUnique(pV.question,used));
+
+  // 11. Witness responds with personality
+  add('witness',pickUnique(wV.witness_test,used),{meter:'def-'});
+
+  // 12. DEFENSE OBJECTS!
+  add('defense',pickUnique(dV.object_line,used),{anim:'slam',effect:'objection',meter:'pro-'});
+
+  // 13. Defense follow-up
+  add('defense',pickUnique(dV.question,used),{anim:'point'});
+
+  // 14. Judge rules on objection
+  const rulings=[
+    'Sustained. The witness will clarify.',
+    'I\'ll allow it. But the defense makes a fair point.',
+    'Overruled! But only barely. The defense is treading on thin ice.',
+    'Sustained in part. Both sides need to do better.'
+  ];
+  add('judge',pick(rulings));
+
+  // 15. Prosecution counter-attacks
+  add('prosecutor',pickUnique(pV.object_line,used),{anim:'slam',effect:'holdit',meter:'pro+'});
+
+  // 16. More witness testimony
+  add('witness',pickUnique(wV.witness_test,used));
+
+  // -- Chaotic/dramatic get extra drama --
+  if(isLoud){
+    add('defense',pickUnique(dV.object_line,used),{anim:'slam',effect:'objection',meter:'pro-'});
+    add('judge','ORDER IN THIS COURT!',{anim:'slam',effect:'order'});
+    add('prosecutor',pickUnique(pV.object_line,used),{anim:'slam',effect:'holdit'});
+  }
+
+  // 17. Funny/chaotic get extra witness chaos
+  if(isFunny){
+    add('witness',pickUnique(wV.witness_test,used),{anim:'sweat'});
+    add('jury1',pickUnique(juV.jury_line,used));
+  }
+
+  // 18. Closing - prosecution
+  add('prosecutor',pickUnique(pV.close,used),{anim:'point',meter:'pro+'});
+
+  // 19. Closing - defense
+  add('defense',pickUnique(dV.close,used),{meter:'def+'});
+
+  // 20. Judge calls for order
+  add('judge',pick(jV.judge_line),{effect:'order'});
+
+  // 21. Jury deliberates
+  add('jury1',pickUnique(juV.jury_line,used));
+
+  // 22. Judge adjourns
+  const adjourns=[
+    'This court is adjourned!',
+    'Court adjourned. Justice has been served.',
+    'So it is decided. Court adjourned!',
+    'The verdict has been rendered. This court is ADJOURNED!'
+  ];
+  add('judge',isLoud?'COURT ADJOURNED!':pick(adjourns),{anim:isLoud?'slam':null,effect:'order'});
+
+  return lines;
+}
+
+/* ============================================================
+   TRIAL
+   ============================================================ */
+async function startTrial(){
+  if(!role('judge')){alert('Assign at least a Judge!');return;}
+
+  state.running=true;state.defHP=100;state.proHP=100;
+  resolveAdvance=null;
+
+  document.getElementById('setup').classList.add('gone');
+  document.getElementById('backbtn').style.display='block';
+  document.getElementById('speed-ctrl').classList.add('on');
+
+  const ct={criminal:'Criminal Court',civil:'Civil Court',supreme:'Supreme Court',meme:'Meme Court',intergalactic:'Intergalactic Tribunal'};
+  document.getElementById('cb-title').textContent=document.getElementById('s-name').value||'The Case';
+  document.getElementById('cb-court').textContent=ct[document.getElementById('s-court').value]||'Court';
+  document.getElementById('casebar').classList.add('on');
+  document.getElementById('meters').classList.add('on');
+  updateMeters();
+
+  switchView('wide');clearChars();
+  await sleep(500);
+
+  const tone=document.getElementById('s-tone').value;
+  state.lines=generateScript(tone);
+
+  for(let i=0;i<state.lines.length;i++){
+    if(!state.running)return;
+    await playLine(i);
+    await sleep(150);
+  }
+
+  // End
+  showDlg(false);clearChars();
+  document.getElementById('casebar').classList.remove('on');
+  document.getElementById('meters').classList.remove('on');
+  document.getElementById('backbtn').style.display='none';
+  document.getElementById('speed-ctrl').classList.remove('on');
+
+  const winner=state.proHP>state.defHP?'Prosecution':'Defense';
+  document.getElementById('verdict-text').textContent=
+    `${document.getElementById('s-name').value||'The Case'}\n${winner} wins with ${Math.max(state.proHP,state.defHP)} credibility vs ${Math.min(state.proHP,state.defHP)}.`;
+  document.getElementById('endscreen').classList.add('on');
+  state.running=false;
+}
+
+function reset(){
+  state.running=false;clearTimeout(state.timer);resolveAdvance=null;
+  showDlg(false);clearChars();
+  document.getElementById('endscreen').classList.remove('on');
+  document.getElementById('casebar').classList.remove('on');
+  document.getElementById('meters').classList.remove('on');
+  document.getElementById('backbtn').style.display='none';
+  document.getElementById('speed-ctrl').classList.remove('on');
+  document.getElementById('setup').classList.remove('gone');
+  switchView('judge');
+}
+
+function setSpeed(s){
+  state.speed=s;state.autoMode=(s===0);
+  document.querySelectorAll('#speed-ctrl button').forEach(b=>b.classList.remove('active'));
+  document.getElementById('sp'+s).classList.add('active');
+}
+
+// Init
+switchView('judge');
+
+// Ambient particles
+(function(){
+  const c=document.createElement('canvas');c.id='particles';
+  c.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:999;opacity:.3';
+  document.getElementById('game').appendChild(c);
+  const ctx=c.getContext('2d');
+  let W,H;const dots=[];
+  function resize(){W=c.width=window.innerWidth;H=c.height=window.innerHeight;}
+  resize();window.addEventListener('resize',resize);
+  for(let i=0;i<30;i++)dots.push({x:Math.random()*2000,y:Math.random()*1000,r:Math.random()*2+.5,dx:Math.random()*.3-.15,dy:Math.random()*.2+.1,a:Math.random()*.5+.2});
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    dots.forEach(d=>{
+      d.x+=d.dx;d.y+=d.dy;
+      if(d.y>H){d.y=-5;d.x=Math.random()*W;}
+      if(d.x<0||d.x>W)d.dx*=-1;
+      ctx.beginPath();ctx.arc(d.x,d.y,d.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(255,220,150,${d.a})`;ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+</script>
+</body>
+</html>
