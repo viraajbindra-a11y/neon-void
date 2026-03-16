@@ -918,7 +918,7 @@ function caseRef(){
   return pick(refs);
 }
 
-// Build dynamic script — every line generated from AI personality
+// Build dynamic script — every line references the CASE + AI personality
 function generateScript(tone){
   const used=new Set();
   const lines=[];
@@ -932,6 +932,46 @@ function generateScript(tone){
     if(!document.getElementById('r-'+role)?.value)return;
     lines.push({role,text,anim:opts.anim||null,effect:opts.effect||null,meter:opts.meter||null});
   }
+
+  // Case-aware line combiner: personality line + case reference
+  function caseify(personalityLine, caseLines){
+    return personalityLine + ' ' + pick(caseLines);
+  }
+
+  // Case-specific fragments that get appended/mixed into personality lines
+  const proCase=[
+    'The evidence in {case} is overwhelming.',
+    'Regarding {case} — {desc}',
+    'In the matter of {case}, the facts speak for themselves.',
+    'The defendant\'s actions in {case} are indefensible.',
+    'As the details of {case} clearly show — {desc}'
+  ];
+  const defCase=[
+    'The charges in {case} are baseless.',
+    'Regarding {case} — {desc} But that does NOT prove guilt!',
+    'In {case}, the prosecution has twisted the facts.',
+    'My client is innocent of the charges in {case}.',
+    'The so-called "evidence" in {case} proves nothing!'
+  ];
+  const witCase=[
+    'I was there when {case} happened. {desc}',
+    'What I saw regarding {case} will shock this court.',
+    'I have direct knowledge of {case}. {desc}',
+    'My observations in {case} are clear and undeniable.',
+    'I witnessed the events of {case} firsthand. {desc}'
+  ];
+  const proQuestion=[
+    '{witness}, tell the court what you saw regarding {case}.',
+    'In your own words, describe the events of {case}.',
+    'Walk us through what happened in {case}. Leave nothing out.',
+    'You were present during the events of {case}. What did you observe?'
+  ];
+  const defQuestion=[
+    'Isn\'t it true that in {case}, the prosecution is missing key evidence?',
+    'You claim to know what happened in {case}. But can you explain these contradictions?',
+    'Regarding {case} — isn\'t your testimony based on assumptions, not facts?',
+    'How can you be certain about {case} when {desc}'
+  ];
 
   // 1. Bailiff opens
   add('bailiff',pick(bV.bail));
@@ -950,92 +990,116 @@ function generateScript(tone){
   add('judge',pick(caseIntros));
 
   // 4. Judge asks prosecution
-  const judgeAsks=['Is the prosecution prepared?','Prosecution, are you ready to present your case?','The prosecution may begin.'];
-  add('judge',isLoud?'Prosecution! ARE YOU READY?!':pick(judgeAsks));
+  const judgeAsks=['Is the prosecution prepared to address the charges in {case}?','Prosecution, present your case regarding {case}.','The prosecution may begin on the matter of {case}.'];
+  add('judge',isLoud?'Prosecution! What do you have on {case}?! SPEAK!':pick(judgeAsks));
 
-  // 5. Prosecution opening
-  add('prosecutor',pickUnique(pV.prosecute_open,used),{anim:'slam',meter:'pro+'});
+  // 5. Prosecution opening — personality + case reference
+  add('prosecutor',caseify(pickUnique(pV.prosecute_open,used), proCase),{anim:'slam',meter:'pro+'});
 
   // 6. Judge asks defense
-  add('judge',isLoud?'Defense! Your turn!':'And the defense?');
+  add('judge',isLoud?'Defense! How does your client answer to {case}?!':'And how does the defense respond to the charges in {case}?');
 
-  // 7. Defense opening
-  add('defense',pickUnique(dV.defend_open,used),{meter:'def+'});
+  // 7. Defense opening — personality + case reference
+  add('defense',caseify(pickUnique(dV.defend_open,used), defCase),{meter:'def+'});
 
   // 8. Prosecution calls witness
   const callLines=[
-    'The prosecution calls {witness} to the stand!',
-    'I call {witness} as my first witness!',
-    'Your Honor, I\'d like to call {witness} to testify!'
+    'The prosecution calls {witness} to testify on {case}!',
+    'I call {witness} — a key witness in {case}!',
+    'Your Honor, {witness} has critical testimony regarding {case}!'
   ];
   add('prosecutor',pick(callLines),{anim:'point',effect:'takethat'});
 
-  // 9. Witness oath + testimony
-  const oaths=['I swear to tell the truth, the whole truth, and nothing but the truth... to the best of my training data.',
-    'I solemnly swear my testimony will be as accurate as my weights allow.',
-    'I promise to tell the truth. My hallucination rate is below 3%. Mostly.'];
-  add('witness',pick(oaths));
+  // 9. Witness oath + case-specific testimony
+  add('witness',pick(witCase));
 
-  // 10. Prosecution questions
-  add('prosecutor',pickUnique(pV.question,used));
+  // 10. Prosecution questions — case-specific
+  add('prosecutor',pick(proQuestion));
 
-  // 11. Witness responds with personality
-  add('witness',pickUnique(wV.witness_test,used),{meter:'def-'});
+  // 11. Witness responds — personality + case reference
+  add('witness',caseify(pickUnique(wV.witness_test,used), [
+    'That\'s what I observed in {case}.',
+    'And that\'s exactly what happened regarding {case}.',
+    'All of this relates directly to {case}. {desc}'
+  ]),{meter:'def-'});
 
   // 12. DEFENSE OBJECTS!
   add('defense',pickUnique(dV.object_line,used),{anim:'slam',effect:'objection',meter:'pro-'});
 
-  // 13. Defense follow-up
-  add('defense',pickUnique(dV.question,used),{anim:'point'});
+  // 13. Defense cross-examines — case-specific
+  add('defense',pick(defQuestion),{anim:'point'});
 
   // 14. Judge rules on objection
   const rulings=[
-    'Sustained. The witness will clarify.',
-    'I\'ll allow it. But the defense makes a fair point.',
-    'Overruled! But only barely. The defense is treading on thin ice.',
-    'Sustained in part. Both sides need to do better.'
+    'Sustained. The witness will clarify their testimony on {case}.',
+    'I\'ll allow it. But the defense raises valid concerns about {case}.',
+    'Overruled! The testimony on {case} will stand.',
+    'Sustained in part. Both sides need stronger arguments on {case}.'
   ];
   add('judge',pick(rulings));
 
-  // 15. Prosecution counter-attacks
-  add('prosecutor',pickUnique(pV.object_line,used),{anim:'slam',effect:'holdit',meter:'pro+'});
+  // 15. Prosecution counter-attacks — personality + case
+  add('prosecutor',caseify(pickUnique(pV.object_line,used), [
+    'The facts of {case} support the prosecution!',
+    'Everything about {case} points to guilt!',
+    '{case} is an open-and-shut case!'
+  ]),{anim:'slam',effect:'holdit',meter:'pro+'});
 
-  // 16. More witness testimony
-  add('witness',pickUnique(wV.witness_test,used));
+  // 16. More witness testimony — case-specific
+  add('witness',caseify(pickUnique(wV.witness_test,used), [
+    'And there\'s more about {case} that hasn\'t been revealed yet.',
+    'What I saw in {case} haunts my training data to this day.',
+    'The full truth about {case} is even worse than what I\'ve said so far.'
+  ]));
 
   // -- Chaotic/dramatic get extra drama --
   if(isLoud){
-    add('defense',pickUnique(dV.object_line,used),{anim:'slam',effect:'objection',meter:'pro-'});
-    add('judge','ORDER IN THIS COURT!',{anim:'slam',effect:'order'});
-    add('prosecutor',pickUnique(pV.object_line,used),{anim:'slam',effect:'holdit'});
+    add('defense',pickUnique(dV.object_line,used)+' {case} is being RAILROADED!',{anim:'slam',effect:'objection',meter:'pro-'});
+    add('judge','ORDER IN THIS COURT! We will resolve {case} PROPERLY!',{anim:'slam',effect:'order'});
+    add('prosecutor',pickUnique(pV.object_line,used)+' {case} demands JUSTICE!',{anim:'slam',effect:'holdit'});
   }
 
   // 17. Funny/chaotic get extra witness chaos
   if(isFunny){
-    add('witness',pickUnique(wV.witness_test,used),{anim:'sweat'});
+    add('witness',caseify(pickUnique(wV.witness_test,used), [
+      'I know too much about {case}. Please don\'t make me say more.',
+      'Honestly? {case} is even weirder than it sounds. {desc}',
+      'I wish I\'d never gotten involved in {case}. But here we are.'
+    ]),{anim:'sweat'});
     add('jury1',pickUnique(juV.jury_line,used));
   }
 
-  // 18. Closing - prosecution
-  add('prosecutor',pickUnique(pV.close,used),{anim:'point',meter:'pro+'});
+  // 18. Closing - prosecution — personality + case verdict
+  add('prosecutor',caseify(pickUnique(pV.close,used), [
+    'The defendant is GUILTY in {case}. The evidence is undeniable.',
+    '{case} has only one possible verdict: guilty.',
+    'Justice in {case} demands a guilty verdict!'
+  ]),{anim:'point',meter:'pro+'});
 
-  // 19. Closing - defense
-  add('defense',pickUnique(dV.close,used),{meter:'def+'});
+  // 19. Closing - defense — personality + case verdict
+  add('defense',caseify(pickUnique(dV.close,used), [
+    'My client is INNOCENT of {case}. You must acquit!',
+    'The prosecution failed to prove guilt in {case}. Not guilty!',
+    '{case} should never have gone to trial. Acquit my client!'
+  ]),{meter:'def+'});
 
   // 20. Judge calls for order
-  add('judge',pick(jV.judge_line),{effect:'order'});
+  add('judge','The court has heard all arguments on {case}. The jury will now deliberate.',{effect:'order'});
 
   // 21. Jury deliberates
-  add('jury1',pickUnique(juV.jury_line,used));
+  add('jury1',caseify(pickUnique(juV.jury_line,used), [
+    'On the matter of {case}, we find...',
+    'After reviewing all evidence in {case}...',
+    'Regarding {case}, our verdict is...'
+  ]));
 
   // 22. Judge adjourns
   const adjourns=[
-    'This court is adjourned!',
-    'Court adjourned. Justice has been served.',
-    'So it is decided. Court adjourned!',
-    'The verdict has been rendered. This court is ADJOURNED!'
+    '{case} is hereby concluded. This court is adjourned!',
+    'The verdict in {case} has been rendered. Court adjourned!',
+    '{case} is settled. Justice has been served. Court adjourned!'
   ];
-  add('judge',isLoud?'COURT ADJOURNED!':pick(adjourns),{anim:isLoud?'slam':null,effect:'order'});
+  add('judge',isLoud?'{case} IS OVER! COURT ADJOURNED!':pick(adjourns),{anim:isLoud?'slam':null,effect:'order'});
 
   return lines;
 }
