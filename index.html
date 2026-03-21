@@ -717,7 +717,7 @@
 
 
         function getBaseStats() {
-            let base = { dmgMulti: 1.5, fireRateMulti: 1.0, maxHp: 500, speedMulti: 1.2, projCount: 1, homing: false, explosive: false, vampirism: 0, dashCdMulti: 1.0, pierce: 0, guardian: 0, bombDrones: 0, laserDrones: 0, miniDrones: 0, scatterDrones: 0, empDrones: 0, sawDrones: 0, sniperDrones: 0, critChance: 0.05, critMult: 2.0, tesla: 0, timeDilator: false, nukeDash: false, magnet: false, antimatter: false, bloodthirst: false, bloodthirstTimer: 0, wisp: false, shieldGen: false, nanoRepair: false, coinMulti: 1.0, voidSiphon: false, overcharge: false, phaseShift: false, quantumEcho: false };
+            let base = { dmgMulti: 1.8, fireRateMulti: 1.1, maxHp: 600, speedMulti: 1.3, projCount: 1, homing: false, explosive: false, vampirism: 0, dashCdMulti: 1.0, pierce: 0, regen: 0.5, guardian: 0, bombDrones: 0, laserDrones: 0, miniDrones: 0, scatterDrones: 0, empDrones: 0, sawDrones: 0, sniperDrones: 0, critChance: 0.05, critMult: 2.0, tesla: 0, timeDilator: false, nukeDash: false, magnet: false, antimatter: false, bloodthirst: false, bloodthirstTimer: 0, wisp: false, shieldGen: false, nanoRepair: false, coinMulti: 1.0, voidSiphon: false, overcharge: false, phaseShift: false, quantumEcho: false };
             if (purchasedUpgrades.includes('homing')) base.homing = true; if (purchasedUpgrades.includes('explosive')) base.explosive = true; if (purchasedUpgrades.includes('pierce')) base.pierce += 1; if (purchasedUpgrades.includes('drone_bomb')) base.bombDrones += 1; if (purchasedUpgrades.includes('drone_laser')) base.laserDrones += 1; if (purchasedUpgrades.includes('drone_mini')) base.miniDrones += 1; if (purchasedUpgrades.includes('drone_scatter')) base.scatterDrones += 1; if (purchasedUpgrades.includes('drone_emp')) base.empDrones += 1; if (purchasedUpgrades.includes('drone_saw')) base.sawDrones += 1; if (purchasedUpgrades.includes('drone_sniper')) base.sniperDrones += 1; if (purchasedUpgrades.includes('guardian')) base.guardian += 1; if (purchasedUpgrades.includes('tesla')) base.tesla += 1; if (purchasedUpgrades.includes('time_dilator')) base.timeDilator = true; if (purchasedUpgrades.includes('nuke_dash')) base.nukeDash = true; if (purchasedUpgrades.includes('magnet')) base.magnet = true; if (purchasedUpgrades.includes('antimatter')) base.antimatter = true; if (purchasedUpgrades.includes('bloodthirst')) base.bloodthirst = true; if (purchasedUpgrades.includes('wisp')) base.wisp = true;
             if (purchasedUpgrades.includes('dart_protocol')) base.projCount += 1; if (purchasedUpgrades.includes('alchemist')) { base.dmgMulti *= 1.25; base.speedMulti *= 1.15; }
             if (purchasedUpgrades.includes('shield_gen')) base.shieldGen = true; if (purchasedUpgrades.includes('nano_repair')) base.nanoRepair = true; if (purchasedUpgrades.includes('coin_boost')) base.coinMulti = 1.5; if (purchasedUpgrades.includes('void_siphon')) base.voidSiphon = true; if (purchasedUpgrades.includes('overcharge')) base.overcharge = true; if (purchasedUpgrades.includes('phase_shift')) base.phaseShift = true; if (purchasedUpgrades.includes('quantum_echo')) base.quantumEcho = true;
@@ -2032,7 +2032,7 @@
         }
 
 
-        const ENEMY_TYPES = { dummy: { hp: 9999999, spd: 0, color: '#00ff00', r: 30, xp: 0 }, chaser: { hp: 120, spd: 4.0, color: '#ff0055', r: 12, xp: 20 }, shooter: { hp: 100, spd: 2.2, color: '#ff8800', r: 14, xp: 30 }, sniper: { hp: 80, spd: 1.2, color: '#ffff00', r: 10, xp: 40 }, tank: { hp: 400, spd: 1.0, color: '#ff0000', r: 20, xp: 60 }, rammer: { hp: 80, spd: 6.5, color: '#00ffff', r: 10, xp: 25 }, heavy_shooter: { hp: 250, spd: 1.0, color: '#ff8800', r: 18, xp: 45 }, pulsar: { hp: 150, spd: 1.5, color: '#ff00ff', r: 16, xp: 40 }, ghost: { hp: 100, spd: 2.0, color: '#cccccc', r: 14, xp: 35 }, mine: { hp: 50, spd: 0.5, color: '#ff0000', r: 15, xp: 50 }, teleporter: { hp: 120, spd: 0, color: '#00ffff', r: 14, xp: 40 }, avatar: { hp: 2500, spd: 0.8, color: '#ffff00', r: 25, xp: 200 }, dark_avatar: { hp: 6000, spd: 1.0, color: '#ff0000', r: 30, xp: 500 }, bad: { hp: 12000, spd: 0.3, color: '#800080', r: 40, xp: 1000 }, orbiter: { hp: 150, spd: 3.0, color: '#ff88ff', r: 12, xp: 35 }, splitter: { hp: 200, spd: 2.5, color: '#88ff00', r: 16, xp: 45 }, shielder: { hp: 300, spd: 1.5, color: '#4488ff', r: 18, xp: 55 }, bomber: { hp: 180, spd: 2.0, color: '#ff6600', r: 16, xp: 55 }, healer: { hp: 150, spd: 1.8, color: '#00ff88', r: 14, xp: 60 }, swarm: { hp: 30, spd: 5.5, color: '#ff88ff', r: 6, xp: 10 }, leech: { hp: 200, spd: 1.8, color: '#88ff00', r: 16, xp: 50 }, cloaked: { hp: 120, spd: 3.0, color: '#336699', r: 12, xp: 45 } };
+        const ENEMY_TYPES = { dummy: { hp: 9999999, spd: 0, color: '#00ff00', r: 30, xp: 0 }, chaser: { hp: 90, spd: 3.5, color: '#ff0055', r: 12, xp: 22 }, shooter: { hp: 80, spd: 2.0, color: '#ff8800', r: 14, xp: 32 }, sniper: { hp: 65, spd: 1.1, color: '#ffff00', r: 10, xp: 42 }, tank: { hp: 320, spd: 0.9, color: '#ff0000', r: 20, xp: 65 }, rammer: { hp: 65, spd: 5.8, color: '#00ffff', r: 10, xp: 28 }, heavy_shooter: { hp: 200, spd: 0.9, color: '#ff8800', r: 18, xp: 48 }, pulsar: { hp: 120, spd: 1.4, color: '#ff00ff', r: 16, xp: 42 }, ghost: { hp: 80, spd: 1.8, color: '#cccccc', r: 14, xp: 38 }, mine: { hp: 40, spd: 0.5, color: '#ff0000', r: 15, xp: 52 }, teleporter: { hp: 100, spd: 0, color: '#00ffff', r: 14, xp: 42 }, avatar: { hp: 2000, spd: 0.7, color: '#ffff00', r: 25, xp: 220 }, dark_avatar: { hp: 5000, spd: 0.9, color: '#ff0000', r: 30, xp: 550 }, bad: { hp: 10000, spd: 0.3, color: '#800080', r: 40, xp: 1100 }, orbiter: { hp: 120, spd: 2.8, color: '#ff88ff', r: 12, xp: 38 }, splitter: { hp: 160, spd: 2.3, color: '#88ff00', r: 16, xp: 48 }, shielder: { hp: 240, spd: 1.4, color: '#4488ff', r: 18, xp: 58 }, bomber: { hp: 140, spd: 1.8, color: '#ff6600', r: 16, xp: 58 }, healer: { hp: 120, spd: 1.6, color: '#00ff88', r: 14, xp: 65 }, swarm: { hp: 25, spd: 5.0, color: '#ff88ff', r: 6, xp: 12 }, leech: { hp: 160, spd: 1.6, color: '#88ff00', r: 16, xp: 52 }, cloaked: { hp: 100, spd: 2.8, color: '#336699', r: 12, xp: 48 } };
 
 
         class Enemy {
@@ -4555,6 +4555,8 @@
 
             c.frame++;
             if (c.frame >= c.maxFrames) {
+                // Clear cinematic FIRST to prevent update() from returning early
+                bossCinematic = null;
                 if (activeBoss && !activeBoss.isDead) {
                     activeBoss.hp -= c.dmgDealt;
                     spawnParticles(activeBoss.x, activeBoss.y, activeBoss.color, 100, 5);
@@ -4562,9 +4564,9 @@
                     spawnText(activeBoss.x, activeBoss.y, 'CRITICAL HIT -' + c.dmgDealt.toLocaleString(), '#ff0000', 28);
                     if (activeBoss.hp <= 0 && !activeBoss.isDead) { activeBoss.isDead = true; handleBossDeath(); }
                 }
-                bossCinematic = null;
                 state.paused = false;
-                requestAnimationFrame(update);
+                // Small delay to ensure state is clean before resuming game loop
+                setTimeout(() => { if (state.active && !state.paused) requestAnimationFrame(update); }, 50);
                 return;
             }
             requestAnimationFrame(animateBossCinematic);
