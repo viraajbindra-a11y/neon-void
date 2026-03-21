@@ -825,9 +825,9 @@
 
 
         class Trail {
-            constructor(x, y, c) { this.x = x; this.y = y; this.c = c; this.life = 1; this.decay = 0.1; }
+            constructor(x, y, c) { this.x = x; this.y = y; this.c = c; this.life = 1; this.decay = 0.14; }
             update() { this.life -= this.decay; }
-            draw(ctx) { if (this.life <= 0) return; ctx.globalAlpha = this.life * 0.5; ctx.fillStyle = this.c; ctx.beginPath(); ctx.arc(this.x, this.y, 8 * this.life, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1; }
+            draw(ctx) { if (this.life <= 0) return; ctx.shadowBlur = 0; ctx.globalAlpha = this.life * 0.4; ctx.fillStyle = this.c; ctx.beginPath(); ctx.arc(this.x, this.y, 7 * this.life, 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1; }
         }
 
 
@@ -1771,22 +1771,55 @@
                     ctx.drawImage(customSkinImage, -16, -16, 32, 32);
                 } else {
                     if (aimMode === 'auto' && this.target) { ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.hypot(this.target.x - this.x, this.target.y - this.y), 0); ctx.strokeStyle = this.baseColor; ctx.globalAlpha = 0.15; ctx.lineWidth = 1; ctx.stroke(); ctx.globalAlpha = 1.0; }
-                    if (keys['KeyW'] || keys['ArrowUp'] || keys['KeyS'] || keys['ArrowDown'] || keys['KeyA'] || keys['ArrowLeft'] || keys['KeyD'] || keys['ArrowRight'] || joyData.active) { ctx.fillStyle = '#ff8800'; ctx.beginPath(); ctx.arc(-12, 0, 4 + Math.random()*2, 0, Math.PI*2); ctx.fill(); }
+                    let isMoving = keys['KeyW'] || keys['ArrowUp'] || keys['KeyS'] || keys['ArrowDown'] || keys['KeyA'] || keys['ArrowLeft'] || keys['KeyD'] || keys['ArrowRight'] || joyData.active;
                     let drawColor = this.timers.invuln > 0 ? `hsl(${state.frame * 10 % 360}, 100%, 50%)` : this.baseColor;
-                    ctx.shadowBlur = appSettings.graphics === 'high' ? 15 : 0;
+                    ctx.shadowBlur = appSettings.graphics === 'high' ? 20 : 0;
                     let activeColor = this.timers.overdrive > 0 || state.stats.bloodthirstTimer > 0 ? '#ff8800' : drawColor;
                     ctx.shadowColor = activeColor;
-                    // Main hull
-                    ctx.fillStyle = activeColor;
-                    ctx.beginPath(); ctx.moveTo(18, 0); ctx.lineTo(-4, 8); ctx.lineTo(-8, 4); ctx.lineTo(-6, 0); ctx.lineTo(-8, -4); ctx.lineTo(-4, -8); ctx.closePath(); ctx.fill();
-                    // Wings
-                    ctx.fillStyle = activeColor; ctx.globalAlpha = 0.7;
-                    ctx.beginPath(); ctx.moveTo(5, 5); ctx.lineTo(-12, 14); ctx.lineTo(-14, 10); ctx.lineTo(-6, 5); ctx.closePath(); ctx.fill();
-                    ctx.beginPath(); ctx.moveTo(5, -5); ctx.lineTo(-12, -14); ctx.lineTo(-14, -10); ctx.lineTo(-6, -5); ctx.closePath(); ctx.fill();
+                    // Engine exhaust (drawn first, behind ship)
+                    if (isMoving) {
+                        let flicker = Math.random() * 4;
+                        ctx.fillStyle = '#ff8800'; ctx.globalAlpha = 0.9;
+                        ctx.beginPath(); ctx.moveTo(-14, -3); ctx.lineTo(-22 - flicker, 0); ctx.lineTo(-14, 3); ctx.closePath(); ctx.fill();
+                        ctx.fillStyle = '#ffcc44'; ctx.globalAlpha = 0.7;
+                        ctx.beginPath(); ctx.moveTo(-14, -1.5); ctx.lineTo(-18 - flicker*0.5, 0); ctx.lineTo(-14, 1.5); ctx.closePath(); ctx.fill();
+                        // Side thrusters
+                        ctx.fillStyle = '#44ccff'; ctx.globalAlpha = 0.5;
+                        ctx.beginPath(); ctx.arc(-10, 9, 1.5 + Math.random(), 0, Math.PI*2); ctx.fill();
+                        ctx.beginPath(); ctx.arc(-10, -9, 1.5 + Math.random(), 0, Math.PI*2); ctx.fill();
+                        ctx.globalAlpha = 1;
+                    }
+                    // Main fuselage - sleek pointed shape
+                    ctx.fillStyle = activeColor; ctx.globalAlpha = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(22, 0);      // Nose tip
+                    ctx.lineTo(10, 4);      // Upper front
+                    ctx.lineTo(-4, 5);      // Upper mid
+                    ctx.lineTo(-12, 3);     // Upper rear
+                    ctx.lineTo(-14, 0);     // Tail center
+                    ctx.lineTo(-12, -3);    // Lower rear
+                    ctx.lineTo(-4, -5);     // Lower mid
+                    ctx.lineTo(10, -4);     // Lower front
+                    ctx.closePath(); ctx.fill();
+                    // Wings - swept back angular
+                    ctx.fillStyle = activeColor; ctx.globalAlpha = 0.8;
+                    ctx.beginPath(); ctx.moveTo(4, 5); ctx.lineTo(-6, 7); ctx.lineTo(-16, 16); ctx.lineTo(-14, 12); ctx.lineTo(-8, 6); ctx.closePath(); ctx.fill();
+                    ctx.beginPath(); ctx.moveTo(4, -5); ctx.lineTo(-6, -7); ctx.lineTo(-16, -16); ctx.lineTo(-14, -12); ctx.lineTo(-8, -6); ctx.closePath(); ctx.fill();
                     ctx.globalAlpha = 1;
-                    // Cockpit
-                    ctx.fillStyle = '#fff'; ctx.globalAlpha = 0.5;
-                    ctx.beginPath(); ctx.arc(6, 0, 3, 0, Math.PI * 2); ctx.fill();
+                    // Wing tips - small fin accents
+                    ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.6;
+                    ctx.beginPath(); ctx.moveTo(-15, 15); ctx.lineTo(-18, 17); ctx.lineTo(-16, 13); ctx.closePath(); ctx.fill();
+                    ctx.beginPath(); ctx.moveTo(-15, -15); ctx.lineTo(-18, -17); ctx.lineTo(-16, -13); ctx.closePath(); ctx.fill();
+                    ctx.globalAlpha = 1;
+                    // Center line detail
+                    ctx.strokeStyle = activeColor; ctx.lineWidth = 1; ctx.globalAlpha = 0.4;
+                    ctx.beginPath(); ctx.moveTo(18, 0); ctx.lineTo(-12, 0); ctx.stroke();
+                    ctx.globalAlpha = 1;
+                    // Cockpit - elongated canopy with glow
+                    ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.7;
+                    ctx.beginPath(); ctx.ellipse(8, 0, 4, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = activeColor; ctx.globalAlpha = 0.3;
+                    ctx.beginPath(); ctx.ellipse(8, 0, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
                     ctx.globalAlpha = 1;
                 }
                 
@@ -2529,6 +2562,8 @@
                             } 
                         };
                         
+                        // Reset shadow before drawing particles/trails to prevent ghost afterimages
+                        ctx.shadowBlur = 0; ctx.shadowColor = 'transparent'; ctx.globalAlpha = 1;
                         updateArr(entities.particles); updateArr(entities.texts); updateArr(entities.trails);
                         
                         if (state.stats.guardian > 0) { 
@@ -7051,6 +7086,14 @@
                         <div class="nv-mode-chip" style="--gc:${mc('#00ccff')};border-color:#00ccff66;background:rgba(0,204,255,0.06);" onclick="openMultiplayer()">
                             <span class="nv-chip-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00ccff" stroke-width="2" stroke-linecap="round"><path d="M16 3.13a4 4 0 0 1 0 7.75M21 21v-2a4 4 0 0 0-3-3.87M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg></span>
                             <div><div class="nv-chip-label" style="color:#00ccff;">CO-OP</div><div class="nv-chip-sub" style="color:#00ccff88;">Multiplayer</div></div>
+                        </div>
+                        <div class="nv-mode-chip" style="--gc:${mc('#ffcc00')};border-color:#ffcc0066;background:rgba(255,204,0,0.06);animation:pulse 2s infinite;" onclick="startArcade()">
+                            <span class="nv-chip-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffcc00" stroke-width="2" stroke-linecap="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h4M8 10v4M15 11h.01M18 13h.01"/></svg></span>
+                            <div><div class="nv-chip-label" style="color:#ffcc00;">ARCADE</div><div class="nv-chip-sub" style="color:#ffcc0088;">${arcadeHighScore > 0 ? 'Best: ' + arcadeHighScore.toLocaleString() : '3 Lives'}</div></div>
+                        </div>
+                        <div class="nv-mode-chip" style="--gc:${mc('#44ccff')};border-color:#44ccff66;background:rgba(68,204,255,0.06);" onclick="startSandbox()">
+                            <span class="nv-chip-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#44ccff" stroke-width="2" stroke-linecap="round"><path d="M12 3l9 4.5v9L12 21l-9-4.5v-9L12 3z"/><path d="M12 12l9-4.5M12 12v9M12 12L3 7.5"/></svg></span>
+                            <div><div class="nv-chip-label" style="color:#44ccff;">SANDBOX</div><div class="nv-chip-sub" style="color:#44ccff88;">God Mode</div></div>
                         </div>
                         ${secretChip}${paradoxChip}
                     </div>
