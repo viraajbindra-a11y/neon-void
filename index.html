@@ -184,6 +184,8 @@
         <div class="subtitle-text" style="color:#00ffcc;font-size:14px;letter-spacing:6px;">SELECT CALLSIGN</div>
         <div class="login-form" style="margin-top:15px;">
             <input type="text" id="username-input" class="nv-input" placeholder="ENTER PILOT NAME" maxlength="16" autocomplete="off" style="width:320px;font-size:20px;padding:15px 25px;border-radius:4px;background:rgba(0,255,204,0.05);border:2px solid #00ffcc40;transition:all 0.3s;">
+            <input type="password" id="password-input" class="nv-input" placeholder="PASSWORD (FOR CLOUD SYNC)" maxlength="32" autocomplete="off" style="width:320px;font-size:16px;padding:12px 25px;border-radius:4px;background:rgba(0,255,204,0.05);border:2px solid #00ffcc20;transition:all 0.3s;">
+            <div style="color:#555;font-size:10px;margin-top:-8px;">Same name + password = same save on any device</div>
             <button id="login-btn" onclick="loginUser()" style="border-color:#00ffcc; color:#000; background:linear-gradient(135deg,#00ffcc,#00aa88); box-shadow: 0 0 30px #00ffcc80; padding:12px 50px; font-size:18px; font-weight:900; letter-spacing:4px; cursor:pointer; transition:all 0.3s; border-radius:4px;">DEPLOY</button>
             <div id="login-error" style="color: #ff0055; font-size: 14px; height: 20px;"></div>
             <div style="color:#555;font-size:11px;margin-top:10px;">ARROW KEYS / WASD + SPACE / MOUSE TO FIGHT</div>
@@ -488,7 +490,15 @@
             'void_siphon': { name: "VOID SIPHON", desc: "Kills restore 3% max HP", price: 450000 },
             'overcharge': { name: "OVERCHARGE CAPACITOR", desc: "Every 10th shot deals 5x damage", price: 600000 },
             'phase_shift': { name: "PHASE SHIFT", desc: "Brief invincibility after taking damage", price: 800000 },
-            'quantum_echo': { name: "QUANTUM ECHO", desc: "20% chance to fire a duplicate shot", price: 1500000 }
+            'quantum_echo': { name: "QUANTUM ECHO", desc: "20% chance to fire a duplicate shot", price: 1500000 },
+            'cryo_snare': { name: "CRYO SNARE", desc: "25% chance kills freeze nearby enemies for 1.5s", price: 350000 },
+            'orbital_strike': { name: "ORBITAL STRIKE", desc: "Every 30s, call down a devastating beam from space", price: 3000000 },
+            'gravity_well': { name: "GRAVITY WELL", desc: "Dash creates a vortex that pulls enemies in", price: 750000 },
+            'chain_lightning': { name: "CHAIN LIGHTNING", desc: "Kills have 30% chance to chain to nearby enemy", price: 900000 },
+            'berserker': { name: "BERSERKER IMPLANT", desc: "Below 30% HP: +100% damage, +50% fire rate", price: 1200000 },
+            'mirror_shield': { name: "MIRROR SHIELD", desc: "15% chance to reflect enemy bullets back", price: 2500000 },
+            'temporal_rewind': { name: "TEMPORAL REWIND", desc: "On death, rewind 3 seconds (once per run)", price: 5000000 },
+            'void_walker': { name: "VOID WALKER", desc: "Dash through enemies to deal 200% damage", price: 4000000 }
         };
 
 
@@ -724,6 +734,7 @@
             if (purchasedUpgrades.includes('homing')) base.homing = true; if (purchasedUpgrades.includes('explosive')) base.explosive = true; if (purchasedUpgrades.includes('pierce')) base.pierce += 1; if (purchasedUpgrades.includes('drone_bomb')) base.bombDrones += 1; if (purchasedUpgrades.includes('drone_laser')) base.laserDrones += 1; if (purchasedUpgrades.includes('drone_mini')) base.miniDrones += 1; if (purchasedUpgrades.includes('drone_scatter')) base.scatterDrones += 1; if (purchasedUpgrades.includes('drone_emp')) base.empDrones += 1; if (purchasedUpgrades.includes('drone_saw')) base.sawDrones += 1; if (purchasedUpgrades.includes('drone_sniper')) base.sniperDrones += 1; if (purchasedUpgrades.includes('guardian')) base.guardian += 1; if (purchasedUpgrades.includes('tesla')) base.tesla += 1; if (purchasedUpgrades.includes('time_dilator')) base.timeDilator = true; if (purchasedUpgrades.includes('nuke_dash')) base.nukeDash = true; if (purchasedUpgrades.includes('magnet')) base.magnet = true; if (purchasedUpgrades.includes('antimatter')) base.antimatter = true; if (purchasedUpgrades.includes('bloodthirst')) base.bloodthirst = true; if (purchasedUpgrades.includes('wisp')) base.wisp = true;
             if (purchasedUpgrades.includes('dart_protocol')) base.projCount += 1; if (purchasedUpgrades.includes('alchemist')) { base.dmgMulti *= 1.25; base.speedMulti *= 1.15; }
             if (purchasedUpgrades.includes('shield_gen')) base.shieldGen = true; if (purchasedUpgrades.includes('nano_repair')) base.nanoRepair = true; if (purchasedUpgrades.includes('coin_boost')) base.coinMulti = 1.5; if (purchasedUpgrades.includes('void_siphon')) base.voidSiphon = true; if (purchasedUpgrades.includes('overcharge')) base.overcharge = true; if (purchasedUpgrades.includes('phase_shift')) base.phaseShift = true; if (purchasedUpgrades.includes('quantum_echo')) base.quantumEcho = true;
+            if (purchasedUpgrades.includes('cryo_snare')) base.cryoSnare = true; if (purchasedUpgrades.includes('berserker')) base.berserker = true; if (purchasedUpgrades.includes('mirror_shield')) base.mirrorShield = true; if (purchasedUpgrades.includes('temporal_rewind')) base.temporalRewind = true; if (purchasedUpgrades.includes('void_walker')) base.voidWalker = true; if (purchasedUpgrades.includes('chain_lightning')) base.chainLightning = true; if (purchasedUpgrades.includes('gravity_well')) base.gravityWell = true; if (purchasedUpgrades.includes('orbital_strike')) base.orbitalStrike = true;
             return base;
         }
 
@@ -5911,73 +5922,54 @@
         // ==================== CLOUD SAVE SYSTEM (replaces manual sync) ====================
         let PROFILE_BLOB_ID = localStorage.getItem('neonVoidProfileBlobId') || '';
         let PROFILE_API = PROFILE_BLOB_ID ? `https://jsonblob.com/api/jsonBlob/${PROFILE_BLOB_ID}` : '';
-        let cloudProfiles = {};
+        // ==================== CLOUD SAVE SYSTEM (username + password) ====================
+        const CLOUD_DB_URL = 'https://jsonblob.com/api/jsonBlob/019d0e69-1ff9-746a-9e57-ef455e7c62da';
+        let cloudDB = {};
         let lastCloudSave = 0;
 
-        async function ensureProfileBlob() {
-            if (PROFILE_BLOB_ID && PROFILE_API) return true;
+        async function fetchCloudProfile(key) {
+            if (!key) return;
             try {
-                let res = await fetch('https://jsonblob.com/api/jsonBlob', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({})
-                });
-                if (res.ok) {
-                    let loc = res.headers.get('Location') || res.headers.get('x-jsonblob');
-                    if (loc) {
-                        PROFILE_BLOB_ID = loc.split('/').pop();
-                        PROFILE_API = `https://jsonblob.com/api/jsonBlob/${PROFILE_BLOB_ID}`;
-                        localStorage.setItem('neonVoidProfileBlobId', PROFILE_BLOB_ID);
-                        return true;
-                    }
-                }
-            } catch(e) { console.warn('Cloud save: failed to create profile blob', e); }
-            return false;
-        }
-
-        async function fetchCloudProfile(username) {
-            if (!username) return;
-            if (!await ensureProfileBlob()) return;
-            try {
-                let res = await fetch(PROFILE_API);
-                if (res.ok) { cloudProfiles = await res.json(); }
-            } catch(e) { console.warn('Cloud profile fetch failed'); }
-            let profile = cloudProfiles[username];
+                let res = await fetch(CLOUD_DB_URL);
+                if (res.ok) cloudDB = await res.json();
+            } catch(e) { console.warn('Cloud fetch failed'); return; }
+            // Look up by password hash first, then by username
+            let profile = cloudDB[key] || cloudDB[currentUsername];
             if (profile) {
-                if (profile.coins !== undefined) { totalCoins = profile.coins; localStorage.setItem('neonVoidCoins', totalCoins); }
-                if (profile.upgrades) { purchasedUpgrades = profile.upgrades; localStorage.setItem('neonVoidUpgrades', JSON.stringify(purchasedUpgrades)); }
-                if (profile.skins) { unlockedSkins = profile.skins; localStorage.setItem('neonVoidSkins', JSON.stringify(unlockedSkins)); }
+                if (profile.coins !== undefined) { totalCoins = Math.max(totalCoins, profile.coins); localStorage.setItem('neonVoidCoins', totalCoins); }
+                if (profile.upgrades) { purchasedUpgrades = [...new Set([...purchasedUpgrades, ...profile.upgrades])]; localStorage.setItem('neonVoidUpgrades', JSON.stringify(purchasedUpgrades)); }
+                if (profile.skins) { unlockedSkins = [...new Set([...unlockedSkins, ...profile.skins])]; localStorage.setItem('neonVoidSkins', JSON.stringify(unlockedSkins)); }
                 if (profile.equippedSkin) { equippedSkin = profile.equippedSkin; localStorage.setItem('neonVoidEquippedSkin', equippedSkin); }
-                if (profile.stage) { localStorage.setItem('neonVoidStage', profile.stage); }
-                if (profile.settings) { appSettings = {...appSettings, ...profile.settings}; saveSettings(); }
-                if (profile.totalKills) { localStorage.setItem('neonVoidTotalKills', profile.totalKills); }
+                if (profile.stage) { let cur = parseInt(localStorage.getItem('neonVoidStage')) || 1; localStorage.setItem('neonVoidStage', Math.max(cur, profile.stage)); }
+                if (profile.totalKills) { localStorage.setItem('neonVoidTotalKills', Math.max(parseInt(localStorage.getItem('neonVoidTotalKills'))||0, profile.totalKills)); }
+                console.log('Cloud profile loaded for ' + currentUsername);
             }
         }
 
         async function saveCloudProfile() {
             if (!currentUsername || Date.now() - lastCloudSave < 10000) return;
             lastCloudSave = Date.now();
-            if (!await ensureProfileBlob()) return;
+            let saveKey = userPasswordHash || currentUsername;
             try {
-                let res = await fetch(PROFILE_API);
-                if (res.ok) cloudProfiles = await res.json();
+                let res = await fetch(CLOUD_DB_URL);
+                if (res.ok) cloudDB = await res.json();
             } catch(e) {}
-            cloudProfiles[currentUsername] = {
+            cloudDB[saveKey] = {
+                name: currentUsername,
                 coins: totalCoins,
                 upgrades: purchasedUpgrades,
                 skins: unlockedSkins,
                 equippedSkin: equippedSkin,
                 stage: parseInt(localStorage.getItem('neonVoidStage')) || 1,
-                settings: appSettings,
                 totalKills: parseInt(localStorage.getItem('neonVoidTotalKills')) || 0,
                 timestamp: Date.now()
             };
             try {
-                await fetch(PROFILE_API, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(cloudProfiles) });
-            } catch(e) { console.warn('Cloud profile save failed'); }
+                await fetch(CLOUD_DB_URL, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(cloudDB) });
+                console.log('Cloud save successful');
+            } catch(e) { console.warn('Cloud save failed'); }
         }
 
-        // Backward-compatible alias: existing code calls cloudSave()
         function cloudSave() { saveCloudProfile(); }
 
         function generateSyncCode() {
@@ -6031,20 +6023,35 @@
         // --- Username / Login ---
         let currentUsername = localStorage.getItem('neonVoidUsername') || '';
 
+        let userPasswordHash = '';
+        async function hashCredentials(name, pass) {
+            let data = new TextEncoder().encode(name + ':' + pass);
+            let buf = await crypto.subtle.digest('SHA-256', data);
+            return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
         async function loginUser() {
             const input = document.getElementById('username-input');
+            const passInput = document.getElementById('password-input');
             const err = document.getElementById('login-error');
             const name = input.value.trim().replace(/[^a-zA-Z0-9_\-]/g, '');
+            const pass = passInput ? passInput.value : '';
             if (name.length < 2) { err.textContent = 'CALLSIGN TOO SHORT (MIN 2)'; return; }
             if (name.length > 16) { err.textContent = 'CALLSIGN TOO LONG (MAX 16)'; return; }
             currentUsername = name.toUpperCase();
             localStorage.setItem('neonVoidUsername', currentUsername);
+            // Generate password hash for cloud sync key
+            if (pass.length >= 1) {
+                userPasswordHash = await hashCredentials(currentUsername, pass);
+                localStorage.setItem('neonVoidPassHash', userPasswordHash);
+            } else {
+                userPasswordHash = localStorage.getItem('neonVoidPassHash') || '';
+            }
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('player-tag').textContent = 'PILOT: ' + currentUsername;
             document.getElementById('player-tag').style.display = 'block';
             playSound('powerup');
-            // Restore cloud profile if available
-            await fetchCloudProfile(currentUsername);
+            // Restore cloud profile using password-hashed key
+            await fetchCloudProfile(userPasswordHash || currentUsername);
             returnToMenu();
         }
 
