@@ -337,6 +337,36 @@
             <div class="btn-container" id="upgrade-grid" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; max-width: 1000px; margin-bottom: 30px;"></div>
             <h2 id="wisp-skins-header" style="color: #00ccff; text-decoration: underline; margin-top: 20px; letter-spacing: 5px; text-shadow: 0 0 10px #00ccff; display: none;">WISP SKINS</h2>
             <div class="btn-container" id="wisp-skin-grid" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; max-width: 1000px; margin-bottom: 30px;"></div>
+            <h2 style="color: #ff00ff; text-decoration: underline; margin-top: 20px; letter-spacing: 5px; text-shadow: 0 0 20px #ff00ff;">VOID CASINO</h2>
+            <div class="subtitle-text" style="color:#ff00ff88;">Risk your coins for massive rewards. The void always wins... or does it?</div>
+            <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:20px;max-width:800px;margin-bottom:30px;">
+                <div style="background:rgba(255,0,255,0.05);border:2px solid #ff00ff44;padding:20px;border-radius:8px;text-align:center;width:340px;">
+                    <div style="color:#ff00ff;font-size:22px;font-weight:bold;letter-spacing:3px;margin-bottom:8px;">COIN FLIP</div>
+                    <div style="color:#888;font-size:13px;margin-bottom:12px;">Double or nothing. 50/50 odds.</div>
+                    <div id="flip-result" style="font-size:40px;height:50px;line-height:50px;margin-bottom:10px;"></div>
+                    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+                        <button onclick="coinFlip(100)" style="border-color:#ff00ff;color:#ff00ff;padding:6px 14px;font-size:13px;">BET 100</button>
+                        <button onclick="coinFlip(1000)" style="border-color:#ff00ff;color:#ff00ff;padding:6px 14px;font-size:13px;">BET 1K</button>
+                        <button onclick="coinFlip(10000)" style="border-color:#ffcc00;color:#ffcc00;padding:6px 14px;font-size:13px;">BET 10K</button>
+                        <button onclick="coinFlip(100000)" style="border-color:#ff0055;color:#ff0055;padding:6px 14px;font-size:13px;">BET 100K</button>
+                    </div>
+                </div>
+                <div style="background:rgba(255,0,255,0.05);border:2px solid #ff00ff44;padding:20px;border-radius:8px;text-align:center;width:340px;">
+                    <div style="color:#ffcc00;font-size:22px;font-weight:bold;letter-spacing:3px;margin-bottom:8px;">VOID SLOTS</div>
+                    <div style="color:#888;font-size:13px;margin-bottom:12px;">Match 3 for big wins. Jackpot = 50x!</div>
+                    <div id="slot-reels" style="display:flex;gap:10px;justify-content:center;margin-bottom:10px;">
+                        <div class="slot-reel" style="font-size:36px;width:50px;height:50px;line-height:50px;border:2px solid #ffcc0066;border-radius:4px;">?</div>
+                        <div class="slot-reel" style="font-size:36px;width:50px;height:50px;line-height:50px;border:2px solid #ffcc0066;border-radius:4px;">?</div>
+                        <div class="slot-reel" style="font-size:36px;width:50px;height:50px;line-height:50px;border:2px solid #ffcc0066;border-radius:4px;">?</div>
+                    </div>
+                    <div id="slot-result" style="color:#ffcc00;font-size:16px;height:24px;margin-bottom:8px;"></div>
+                    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+                        <button onclick="spinSlots(500)" style="border-color:#ffcc00;color:#ffcc00;padding:6px 14px;font-size:13px;">SPIN 500</button>
+                        <button onclick="spinSlots(5000)" style="border-color:#ffcc00;color:#ffcc00;padding:6px 14px;font-size:13px;">SPIN 5K</button>
+                        <button onclick="spinSlots(50000)" style="border-color:#ff0055;color:#ff0055;padding:6px 14px;font-size:13px;">SPIN 50K</button>
+                    </div>
+                </div>
+            </div>
             <button onclick="returnToMenu()" style="border-color: #fff; color: #fff; box-shadow: 0 0 20px #fff; margin-bottom: 50px;">BACK TO MENU</button>
         </div>
     </div>
@@ -3946,6 +3976,83 @@
 
 
         function openShop() { cleanupMenuAnims(); ui.mainOverlay.classList.add('hidden'); document.getElementById('shop-screen').classList.remove('hidden'); renderShop(); }
+
+        // ==================== VOID CASINO ====================
+        function coinFlip(bet) {
+            if (totalCoins < bet) { document.getElementById('flip-result').innerHTML = '<span style="color:#ff0055;font-size:16px;">NOT ENOUGH COINS</span>'; return; }
+            totalCoins -= bet;
+            let el = document.getElementById('flip-result');
+            let spinning = 0;
+            let interval = setInterval(() => {
+                el.innerText = Math.random() > 0.5 ? '🪙' : '💀';
+                spinning++;
+                if (spinning > 12) {
+                    clearInterval(interval);
+                    let win = Math.random() < 0.48; // Slight house edge
+                    if (win) {
+                        totalCoins += bet * 2;
+                        el.innerHTML = '🪙 <span style="color:#00ff88;font-size:18px;">+' + bet.toLocaleString() + '!</span>';
+                        playSound('powerup');
+                    } else {
+                        el.innerHTML = '💀 <span style="color:#ff0055;font-size:18px;">-' + bet.toLocaleString() + '</span>';
+                        playSound('hit');
+                    }
+                    localStorage.setItem('neonVoidCoins', totalCoins);
+                    document.getElementById('shop-coin-display').innerText = 'COINS: ' + totalCoins.toLocaleString();
+                    cloudSave();
+                }
+            }, 80);
+        }
+
+        function spinSlots(bet) {
+            if (totalCoins < bet) { document.getElementById('slot-result').innerHTML = '<span style="color:#ff0055;">NOT ENOUGH COINS</span>'; return; }
+            totalCoins -= bet;
+            let symbols = ['💎','🔥','⚡','💰','🎯','☠️','🌟','🍀'];
+            let reels = document.querySelectorAll('.slot-reel');
+            let results = [0, 0, 0];
+            let spins = [0, 0, 0];
+            let maxSpins = [10, 14, 18]; // Staggered stop
+            let interval = setInterval(() => {
+                for (let i = 0; i < 3; i++) {
+                    if (spins[i] < maxSpins[i]) {
+                        results[i] = Math.floor(Math.random() * symbols.length);
+                        reels[i].innerText = symbols[results[i]];
+                        spins[i]++;
+                    }
+                }
+                if (spins[2] >= maxSpins[2]) {
+                    clearInterval(interval);
+                    let s0 = results[0], s1 = results[1], s2 = results[2];
+                    let el = document.getElementById('slot-result');
+                    if (s0 === s1 && s1 === s2) {
+                        // JACKPOT - all 3 match
+                        let multi = s0 === 3 ? 50 : 20; // 💰 = 50x, others = 20x
+                        let win = bet * multi;
+                        totalCoins += win;
+                        el.innerHTML = '🎰 JACKPOT! +' + win.toLocaleString() + ' (' + multi + 'x)';
+                        el.style.color = '#ffcc00';
+                        playSound('powerup'); playSound('powerup');
+                        // Shake effect
+                        let shopEl = document.getElementById('shop-screen');
+                        shopEl.style.animation = 'shake 0.3s ease'; setTimeout(() => shopEl.style.animation = '', 300);
+                    } else if (s0 === s1 || s1 === s2 || s0 === s2) {
+                        // 2 match - small win
+                        let win = Math.floor(bet * 1.5);
+                        totalCoins += win;
+                        el.innerHTML = '✨ 2 MATCH! +' + win.toLocaleString();
+                        el.style.color = '#00ffcc';
+                        playSound('powerup');
+                    } else {
+                        el.innerHTML = '💀 NO MATCH -' + bet.toLocaleString();
+                        el.style.color = '#ff0055';
+                        playSound('hit');
+                    }
+                    localStorage.setItem('neonVoidCoins', totalCoins);
+                    document.getElementById('shop-coin-display').innerText = 'COINS: ' + totalCoins.toLocaleString();
+                    cloudSave();
+                }
+            }, 70);
+        }
         function openSettings() { cleanupMenuAnims(); ui.mainOverlay.classList.add('hidden'); document.getElementById('settings-screen').classList.remove('hidden'); }
         
         function renderShop() {
@@ -6075,8 +6182,9 @@
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('player-tag').textContent = 'PILOT: ' + currentUsername;
                 document.getElementById('player-tag').style.display = 'block';
-                // Restore cloud profile on page load
-                fetchCloudProfile(currentUsername);
+                // Restore cloud profile on page load - use password hash if available
+                userPasswordHash = localStorage.getItem('neonVoidPassHash') || '';
+                fetchCloudProfile(userPasswordHash || currentUsername);
             } else {
                 document.getElementById('login-screen').classList.remove('hidden');
                 ui.mainOverlay.classList.add('hidden');
