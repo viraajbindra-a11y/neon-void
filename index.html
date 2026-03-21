@@ -811,7 +811,16 @@
 
 
         function shakeScreen(amt) { state.shake = Math.max(state.shake, amt); }
-        function spawnParticles(x, y, color, count, speedMulti = 1) { if (appSettings.graphics === 'low') count = Math.max(1, Math.floor(count / 5)); for(let i = 0; i < count; i++) { entities.particles.push(new Particle(x, y, color, speedMulti)); } }
+        const MAX_PARTICLES = 300; // Performance cap
+        function spawnParticles(x, y, color, count, speedMulti = 1) {
+            if (appSettings.graphics === 'low') count = Math.max(1, Math.floor(count / 5));
+            else if (appSettings.graphics === 'medium') count = Math.floor(count * 0.6);
+            // Cap total particles to prevent lag
+            let room = MAX_PARTICLES - entities.particles.length;
+            if (room <= 0) return;
+            count = Math.min(count, room);
+            for(let i = 0; i < count; i++) { entities.particles.push(new Particle(x, y, color, speedMulti)); }
+        }
         function spawnText(x, y, text, color, size = 16) { entities.texts.push(new FloatingText(x, y, text, color, size)); }
         
         function getNearestEnemy(x, y) {
@@ -841,7 +850,7 @@
                 let a = Math.random() * Math.PI * 2;
                 let s = (Math.random() * 6 + 1) * sm;
                 this.vx = Math.cos(a) * s; this.vy = Math.sin(a) * s;
-                this.life = 1; this.decay = Math.random() * 0.05 + 0.02;
+                this.life = 1; this.decay = Math.random() * 0.06 + 0.03; // Faster decay for performance
                 // Size variation: mostly small, some big
                 let sizeRoll = Math.random();
                 if (sizeRoll < 0.15) this.size = Math.random() * 8 + 4; // big spark
@@ -6027,23 +6036,18 @@
             input.click();
         }
 
-        // ==================== CLOUD SAVE SYSTEM (replaces manual sync) ====================
-        let PROFILE_BLOB_ID = localStorage.getItem('neonVoidProfileBlobId') || '';
-        let PROFILE_API = PROFILE_BLOB_ID ? `https://jsonblob.com/api/jsonBlob/${PROFILE_BLOB_ID}` : '';
-        // ==================== CLOUD SAVE SYSTEM ====================
-        const CLOUD_DB_URL = 'https://jsonbin-zeta.vercel.app/api/bins/IOLghyEXEO';
-        let cloudDB = {};
+        // ==================== CLOUD SAVE SYSTEM (Cloudflare Worker) ====================
+        const CLOUD_API = 'https://neon-void-saves.neon-void.workers.dev';
         let lastCloudSave = 0;
 
         async function fetchCloudProfile(key) {
             if (!key) return;
             try {
-                let res = await fetch(CLOUD_DB_URL);
-                if (res.ok) { let json = await res.json(); cloudDB = json.data || json; }
-            } catch(e) { console.warn('Cloud fetch failed:', e.message); return; }
-            // Look up by password hash first, then by username
-            let profile = cloudDB[key] || cloudDB[currentUsername];
-            if (profile) {
+                let res = await fetch(`${CLOUD_API}/save/${key}`);
+                if (!res.ok) { console.warn('Cloud fetch HTTP ' + res.status); return; }
+                let data = await res.json();
+                if (!data.found) { console.log('No cloud save found for key'); return; }
+                let profile = data.profile;
                 if (profile.coins !== undefined) { totalCoins = Math.max(totalCoins, profile.coins); localStorage.setItem('neonVoidCoins', totalCoins); }
                 if (profile.upgrades) { purchasedUpgrades = [...new Set([...purchasedUpgrades, ...profile.upgrades])]; localStorage.setItem('neonVoidUpgrades', JSON.stringify(purchasedUpgrades)); }
                 if (profile.skins) { unlockedSkins = [...new Set([...unlockedSkins, ...profile.skins])]; localStorage.setItem('neonVoidSkins', JSON.stringify(unlockedSkins)); }
@@ -6051,18 +6055,14 @@
                 if (profile.stage) { let cur = parseInt(localStorage.getItem('neonVoidStage')) || 1; localStorage.setItem('neonVoidStage', Math.max(cur, profile.stage)); }
                 if (profile.totalKills) { localStorage.setItem('neonVoidTotalKills', Math.max(parseInt(localStorage.getItem('neonVoidTotalKills'))||0, profile.totalKills)); }
                 console.log('Cloud profile loaded for ' + currentUsername);
-            }
+            } catch(e) { console.warn('Cloud fetch failed:', e.message); }
         }
 
         async function saveCloudProfile() {
             if (!currentUsername || Date.now() - lastCloudSave < 10000) return;
             lastCloudSave = Date.now();
             let saveKey = userPasswordHash || currentUsername;
-            try {
-                let res = await fetch(CLOUD_DB_URL);
-                if (res.ok) { let json = await res.json(); cloudDB = json.data || json; }
-            } catch(e) {}
-            cloudDB[saveKey] = {
+            let saveData = {
                 name: currentUsername,
                 coins: totalCoins,
                 upgrades: purchasedUpgrades,
@@ -6073,9 +6073,9 @@
                 timestamp: Date.now()
             };
             try {
-                await fetch(CLOUD_DB_URL, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(cloudDB) });
+                await fetch(`${CLOUD_API}/save/${saveKey}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(saveData) });
                 console.log('Cloud save successful');
-            } catch(e) { console.warn('Cloud save failed'); }
+            } catch(e) { console.warn('Cloud save failed:', e.message); }
         }
 
         function cloudSave() { saveCloudProfile(); }
