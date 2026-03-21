@@ -169,12 +169,21 @@
     <canvas id="minimap" width="120" height="120"></canvas>
 
     <div id="login-screen" class="overlay-screen" style="z-index: 50;">
-        <div class="title-text" style="-webkit-text-stroke: 3px #00ffcc; text-shadow: 0 0 50px #00ffcc;">NEON VOID</div>
-        <div class="subtitle-text">ENTER YOUR CALLSIGN TO BEGIN</div>
-        <div class="login-form">
-            <input type="text" id="username-input" class="nv-input" placeholder="CALLSIGN" maxlength="16" autocomplete="off">
-            <button id="login-btn" onclick="loginUser()" style="border-color:#00ffcc; color:#00ffcc; box-shadow: 0 0 20px #00ffcc;">DEPLOY</button>
+        <div style="position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;pointer-events:none;">
+            <div id="login-ship" style="position:absolute;top:50%;left:-60px;font-size:40px;filter:drop-shadow(0 0 20px #00ffcc);animation:flyShip 8s linear infinite;">▸</div>
+            <style>@keyframes flyShip { 0% { left:-60px; top:30%; opacity:0; } 10% { opacity:1; } 90% { opacity:1; } 100% { left:110%; top:70%; opacity:0; } }</style>
+        </div>
+        <div style="font-size:20px;color:#00ffcc55;letter-spacing:12px;margin-bottom:8px;animation:fadeIn 1s ease;">WELCOME TO</div>
+        <div class="title-text" style="-webkit-text-stroke: 3px #ff0055; text-shadow: 0 0 50px #ff0055, 0 0 100px #ff005580; font-size:90px; animation:titlePulse 3s ease-in-out infinite;">NEON VOID</div>
+        <style>@keyframes titlePulse { 0%,100% { text-shadow: 0 0 50px #ff0055, 0 0 100px #ff005580; } 50% { text-shadow: 0 0 80px #ff0055, 0 0 150px #ff005580, 0 0 200px #ff005540; } } @keyframes fadeIn { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }</style>
+        <div class="subtitle-text" style="color:#888;font-size:16px;letter-spacing:4px;margin-top:5px;">THE ULTIMATE SPACE SHOOTER</div>
+        <div style="width:60px;height:2px;background:linear-gradient(90deg,transparent,#00ffcc,transparent);margin:20px auto;"></div>
+        <div class="subtitle-text" style="color:#00ffcc;font-size:14px;letter-spacing:6px;">SELECT CALLSIGN</div>
+        <div class="login-form" style="margin-top:15px;">
+            <input type="text" id="username-input" class="nv-input" placeholder="ENTER PILOT NAME" maxlength="16" autocomplete="off" style="width:320px;font-size:20px;padding:15px 25px;border-radius:4px;background:rgba(0,255,204,0.05);border:2px solid #00ffcc40;transition:all 0.3s;">
+            <button id="login-btn" onclick="loginUser()" style="border-color:#00ffcc; color:#000; background:linear-gradient(135deg,#00ffcc,#00aa88); box-shadow: 0 0 30px #00ffcc80; padding:12px 50px; font-size:18px; font-weight:900; letter-spacing:4px; cursor:pointer; transition:all 0.3s; border-radius:4px;">DEPLOY</button>
             <div id="login-error" style="color: #ff0055; font-size: 14px; height: 20px;"></div>
+            <div style="color:#555;font-size:11px;margin-top:10px;">ARROW KEYS / WASD + SPACE / MOUSE TO FIGHT</div>
         </div>
     </div>
 
@@ -1746,7 +1755,11 @@
                 } else { this.hp -= amt; }
 
                 if (state.stats.phaseShift) this.timers.invuln = 30;
-                if (this.hp <= 0) gameOver();
+                if (this.hp <= 0) {
+                    if (state.mode === 'sandbox') { this.hp = state.stats.maxHp; spawnParticles(this.x, this.y, '#00ffcc', 20); return; }
+                    if (state.mode === 'arcade' && arcadeLives > 1) { arcadeLives--; this.hp = state.stats.maxHp; this.timers.invuln = 120; spawnParticles(this.x, this.y, '#ffcc00', 30); playSound('powerup'); spawnText(this.x, this.y - 30, `${arcadeLives} LIVES LEFT`, '#ffcc00', 18); state.shake = 15; return; }
+                    gameOver();
+                }
             }
 
 
@@ -2369,6 +2382,7 @@
 
 
         function spawnWave() {
+            if (state.mode === 'sandbox') return; // Sandbox: manual spawning only
             if (state.mode === 'training') { updateManualTraining(); updateBossPractice(); if (trainingMode === 'dummies') { if (entities.enemies.length < 5 && state.frame % 120 === 0) { entities.enemies.push(new Enemy((gameRng() * (canvas.width - 200)) + 100, (gameRng() * (canvas.height - 200)) + 100, 'dummy')); } } return; }
             if (state.mode === 'boss_rush') { if (mpState.active && mpState.mode === 'coop' && !mpState.isHost) return; if (!activeBoss && !state.spawningBoss && state.bossesDefeated < 15) { state.spawningBoss = true; setTimeout(() => { activeBoss = new Boss(state.bossesDefeated); activeBoss.bossIdx = state.bossesDefeated; state.spawningBoss = false; }, 1500); } return; }
             // In co-op, only host spawns enemies — clients receive via enemy-sync
@@ -2436,12 +2450,23 @@
         }
 
 
-        function update() {
+        let _lastFrameTime = 0;
+        let _lagCompensation = 1;
+        function update(timestamp) {
             if (!state.active || state.paused) { if (!state.active && is3DActive && renderer3d) renderer3d.domElement.style.display = 'none'; return; }
             if (bossCinematic) return;
             checkBossCinematic();
+            // --- LAG COMPENSATION: prevent low-FPS abuse ---
+            if (_lastFrameTime > 0 && timestamp) {
+                let dt = timestamp - _lastFrameTime;
+                // If running below 30fps, compensate by running extra physics steps
+                // This prevents "slow motion dodging" on laggy machines
+                _lagCompensation = Math.min(Math.round(dt / 16.67), 4); // Cap at 4x catchup
+                if (_lagCompensation < 1) _lagCompensation = 1;
+            }
+            _lastFrameTime = timestamp || performance.now();
             if (slowMoActive) { slowMoFrames--; if (slowMoFrames <= 0) slowMoActive = false; }
-            let framesToRun = state.hyper ? 2 : 1;
+            let framesToRun = state.hyper ? 2 : _lagCompensation;
             if (slowMoActive && state.frame % 3 !== 0) { requestAnimationFrame(update); return; }
             
             try {
@@ -2672,7 +2697,7 @@
             if (state.frame % 30 === 0) checkScoreEggs();
             checkIdle();
             if (appSettings.autoFire && state.active && !state.paused) mouse.down = true;
-            ui.score.innerText = `SCORE: ${Math.floor(state.score)}`; ui.combo.innerText = `COMBO x${state.combo.toFixed(1)}`; ui.lvl.innerText = state.mode === 'training' ? (trainingMode === 'aim' ? 'AIM TRAINER' : trainingMode === 'manual' ? 'MANUAL AIM' : trainingMode === 'boss_practice' ? 'BOSS PRACTICE' : 'FREE PRACTICE') : (state.mode === 'boss_rush' ? `BOSS ${Math.min(state.bossesDefeated + 1, 15)}/15 | ${Math.floor(state.frame/3600)}:${(Math.floor(state.frame/60)%60).toString().padStart(2,'0')}` : `LVL: ${state.level}`); ui.coins.innerText = `COINS: ${totalCoins + state.runCoins}`; ui.hp.style.width = `${Math.max(0, (player.hp/state.stats.maxHp)*100)}%`; ui.shield.style.width = `${Math.min(100, player.shield)}%`; ui.xp.style.width = `${(state.xp / state.xpNeeded)*100}%`;
+            ui.score.innerText = `SCORE: ${Math.floor(state.score)}`; ui.combo.innerText = `COMBO x${state.combo.toFixed(1)}`; ui.lvl.innerText = state.mode === 'training' ? (trainingMode === 'aim' ? 'AIM TRAINER' : trainingMode === 'manual' ? 'MANUAL AIM' : trainingMode === 'boss_practice' ? 'BOSS PRACTICE' : 'FREE PRACTICE') : state.mode === 'boss_rush' ? `BOSS ${Math.min(state.bossesDefeated + 1, 15)}/15 | ${Math.floor(state.frame/3600)}:${(Math.floor(state.frame/60)%60).toString().padStart(2,'0')}` : state.mode === 'sandbox' ? 'SANDBOX' : state.mode === 'arcade' ? `WAVE ${state.level} | ${'❤'.repeat(arcadeLives)}` : `LVL: ${state.level}`; ui.coins.innerText = `COINS: ${totalCoins + state.runCoins}`; ui.hp.style.width = `${Math.max(0, (player.hp/state.stats.maxHp)*100)}%`; ui.shield.style.width = `${Math.min(100, player.shield)}%`; ui.xp.style.width = `${(state.xp / state.xpNeeded)*100}%`;
             if (appSettings.render3D && is3DActive) update3D();
             requestAnimationFrame(update);
         }
@@ -3826,6 +3851,124 @@
                 let sysName = `SYSTEM: APOCALYPSE`; if (appSettings.hardcore) sysName += ' [NIGHTMARE]'; if (appSettings.hyper) sysName += ' [HYPER-DRIVE]'; ui.status.innerText = sysName; initGameBase();
             });
         }
+        // ==================== SANDBOX MODE ====================
+        let sandboxPanel = null;
+        function startSandbox() {
+            ui.mainOverlay.classList.add('hidden');
+            showWeaponSelect(() => {
+                state = { active: true, paused: false, mode: 'sandbox', frame: 0, score: 0, combo: 1, xp: 0, level: 99, xpNeeded: 99999, runCoins: 0, kills: 0, shake: 0, currentStage: 1, bossesDefeated: 0, difficulty: 1, nextBossLevel: 999, spawningBoss: false, warping: true, warpFrames: 0, hardcore: false, hyper: false, stats: getBaseStats() };
+                if (selectedWeapon) selectedWeapon.apply();
+                state.stats.maxHp = 99999; state.stats.regen = 50;
+                ui.status.innerText = 'SANDBOX: GOD MODE'; initGameBase();
+                setTimeout(showSandboxPanel, 500);
+            });
+        }
+        function showSandboxPanel() {
+            if (sandboxPanel) sandboxPanel.remove();
+            sandboxPanel = document.createElement('div');
+            sandboxPanel.id = 'sandbox-panel';
+            sandboxPanel.style.cssText = 'position:fixed;top:60px;right:10px;width:220px;max-height:80vh;overflow-y:auto;background:rgba(0,0,0,0.9);border:1px solid #00ffcc;border-radius:8px;padding:12px;z-index:10000;font-family:monospace;font-size:12px;color:#ccc;';
+            sandboxPanel.innerHTML = `
+                <div style="color:#00ffcc;font-weight:bold;font-size:14px;margin-bottom:8px;text-align:center;">SANDBOX CONTROLS</div>
+                <div style="margin-bottom:6px;"><label>Damage: <input type="range" id="sb-dmg" min="0.1" max="50" step="0.1" value="${state.stats.dmgMulti}" style="width:100px;"></label><span id="sb-dmg-v">${state.stats.dmgMulti.toFixed(1)}</span></div>
+                <div style="margin-bottom:6px;"><label>Fire Rate: <input type="range" id="sb-fr" min="0.1" max="20" step="0.1" value="${state.stats.fireRateMulti}" style="width:100px;"></label><span id="sb-fr-v">${state.stats.fireRateMulti.toFixed(1)}</span></div>
+                <div style="margin-bottom:6px;"><label>Speed: <input type="range" id="sb-spd" min="0.5" max="10" step="0.1" value="${state.stats.speedMulti}" style="width:100px;"></label><span id="sb-spd-v">${state.stats.speedMulti.toFixed(1)}</span></div>
+                <div style="margin-bottom:6px;"><label>Proj Count: <input type="range" id="sb-proj" min="1" max="30" step="1" value="${state.stats.projCount}" style="width:100px;"></label><span id="sb-proj-v">${state.stats.projCount}</span></div>
+                <div style="margin-bottom:6px;"><label>Pierce: <input type="range" id="sb-pierce" min="0" max="50" step="1" value="${state.stats.pierce}" style="width:100px;"></label><span id="sb-pierce-v">${state.stats.pierce}</span></div>
+                <div style="margin-bottom:8px;">
+                    <label><input type="checkbox" id="sb-homing" ${state.stats.homing?'checked':''}> Homing</label>
+                    <label><input type="checkbox" id="sb-explosive" ${state.stats.explosive?'checked':''}> Explosive</label>
+                </div>
+                <div style="border-top:1px solid #333;padding-top:8px;margin-top:4px;">
+                    <div style="color:#ff8800;font-weight:bold;margin-bottom:6px;">SPAWN</div>
+                    <select id="sb-enemy-type" style="width:100%;background:#111;color:#fff;border:1px solid #444;padding:3px;margin-bottom:4px;">
+                        <option value="chaser">Chaser</option><option value="shooter">Shooter</option><option value="sniper">Sniper</option>
+                        <option value="speed">Speed</option><option value="tank">Tank</option><option value="splitter">Splitter</option>
+                        <option value="rammer">Rammer</option><option value="orbiter">Orbiter</option><option value="ghost">Ghost</option>
+                        <option value="bomber">Bomber</option><option value="mine">Mine</option><option value="teleporter">Teleporter</option>
+                        <option value="healer">Healer</option><option value="shielder">Shielder</option><option value="heavy_shooter">Heavy Shooter</option>
+                        <option value="bad">B.A.D.</option><option value="swarm">Swarm x5</option>
+                    </select>
+                    <button onclick="sbSpawnEnemy()" style="width:100%;padding:4px;background:#ff8800;color:#000;border:none;cursor:pointer;font-weight:bold;margin-bottom:4px;">SPAWN ENEMY</button>
+                    <select id="sb-boss-type" style="width:100%;background:#111;color:#fff;border:1px solid #444;padding:3px;margin-bottom:4px;">
+                        ${Array.from({length:15}, (_,i) => `<option value="${i}">Boss ${i+1}</option>`).join('')}
+                    </select>
+                    <button onclick="sbSpawnBoss()" style="width:100%;padding:4px;background:#ff0055;color:#fff;border:none;cursor:pointer;font-weight:bold;margin-bottom:4px;">SPAWN BOSS</button>
+                    <button onclick="sbSpawnPowerup()" style="width:100%;padding:4px;background:#ffcc00;color:#000;border:none;cursor:pointer;font-weight:bold;margin-bottom:4px;">SPAWN POWERUP</button>
+                </div>
+                <div style="border-top:1px solid #333;padding-top:8px;margin-top:4px;">
+                    <button onclick="sbClearAll()" style="width:100%;padding:4px;background:#444;color:#fff;border:none;cursor:pointer;margin-bottom:4px;">CLEAR ALL ENEMIES</button>
+                    <button onclick="sbNuke()" style="width:100%;padding:4px;background:#ff0000;color:#fff;border:none;cursor:pointer;margin-bottom:4px;">NUKE EVERYTHING</button>
+                    <button onclick="sbChangeWeapon()" style="width:100%;padding:4px;background:#00ffcc;color:#000;border:none;cursor:pointer;font-weight:bold;">CHANGE WEAPON</button>
+                </div>
+            `;
+            document.body.appendChild(sandboxPanel);
+            // Bind sliders
+            ['dmg','fr','spd','proj','pierce'].forEach(k => {
+                let el = document.getElementById('sb-'+k);
+                el.oninput = () => {
+                    let v = parseFloat(el.value);
+                    document.getElementById('sb-'+k+'-v').innerText = k==='proj'||k==='pierce' ? v : v.toFixed(1);
+                    if(k==='dmg') state.stats.dmgMulti = v;
+                    if(k==='fr') state.stats.fireRateMulti = v;
+                    if(k==='spd') state.stats.speedMulti = v;
+                    if(k==='proj') state.stats.projCount = v;
+                    if(k==='pierce') state.stats.pierce = v;
+                };
+            });
+            document.getElementById('sb-homing').onchange = (e) => { state.stats.homing = e.target.checked; };
+            document.getElementById('sb-explosive').onchange = (e) => { state.stats.explosive = e.target.checked; };
+        }
+        function sbSpawnEnemy() {
+            let type = document.getElementById('sb-enemy-type').value;
+            let x = canvas.width/2 + (Math.random()-0.5)*400, y = canvas.height/2 + (Math.random()-0.5)*400;
+            if (type === 'swarm') { for(let i=0;i<5;i++) entities.enemies.push(new Enemy(x+(Math.random()-0.5)*80, y+(Math.random()-0.5)*80, 'swarm')); }
+            else entities.enemies.push(new Enemy(x, y, type));
+        }
+        function sbSpawnBoss() {
+            let idx = parseInt(document.getElementById('sb-boss-type').value);
+            entities.enemies = [];
+            activeBoss = new Boss(idx); activeBoss.bossIdx = idx;
+        }
+        function sbSpawnPowerup() {
+            let types = ['heal','shield','overdrive','nuke','freeze','magnet','multishot','rapidfire'];
+            let t = types[Math.floor(Math.random()*types.length)];
+            entities.powerups.push({ x: player.x + (Math.random()-0.5)*200, y: player.y + (Math.random()-0.5)*200, type: t, radius: 15, glow: 0 });
+        }
+        function sbClearAll() { entities.enemies = []; entities.eBullets = []; if(activeBoss) { activeBoss = null; ui.boss.style.display='none'; } }
+        function sbNuke() { entities.enemies.forEach(e => { if(e) spawnParticles(e.x,e.y,'#ff0000',15); }); entities.enemies = []; entities.eBullets = []; entities.bullets = []; if(activeBoss) { spawnParticles(activeBoss.x,activeBoss.y,'#ff0000',40); activeBoss = null; ui.boss.style.display='none'; } playSound('hit'); state.shake = 30; }
+        function sbChangeWeapon() {
+            state.paused = true;
+            showWeaponSelect(() => {
+                // Reset stats to base then reapply weapon
+                state.stats = getBaseStats(); state.stats.maxHp = 99999; state.stats.regen = 50;
+                if (selectedWeapon) selectedWeapon.apply();
+                // Re-read slider values
+                state.stats.dmgMulti = parseFloat(document.getElementById('sb-dmg').value);
+                state.stats.fireRateMulti = parseFloat(document.getElementById('sb-fr').value);
+                state.stats.speedMulti = parseFloat(document.getElementById('sb-spd').value);
+                state.stats.projCount = parseInt(document.getElementById('sb-proj').value);
+                state.stats.pierce = parseInt(document.getElementById('sb-pierce').value);
+                state.stats.homing = document.getElementById('sb-homing').checked;
+                state.stats.explosive = document.getElementById('sb-explosive').checked;
+                state.paused = false; requestAnimationFrame(update);
+            });
+        }
+
+        // ==================== ARCADE MODE ====================
+        let arcadeLives = 0;
+        let arcadeHighScore = parseInt(localStorage.getItem('neonVoidArcadeHigh')) || 0;
+        function startArcade() {
+            ui.mainOverlay.classList.add('hidden');
+            showWeaponSelect(() => {
+                state = { active: true, paused: false, mode: 'arcade', frame: 0, score: 0, combo: 1, xp: 0, level: 1, xpNeeded: 150, runCoins: 0, kills: 0, shake: 0, currentStage: 1, bossesDefeated: 0, difficulty: 1.2, nextBossLevel: 5, spawningBoss: false, warping: true, warpFrames: 0, hardcore: false, hyper: false, stats: getBaseStats() };
+                if (selectedWeapon) selectedWeapon.apply();
+                arcadeLives = 3;
+                lastWaveLevel = 0; nextMilestoneIdx = 0; dashGhosts = [];
+                ui.status.innerText = 'ARCADE MODE'; initGameBase();
+            });
+        }
+
         // ===== TRAINING CAMP =====
         let trainingMode = 'dummies'; // 'dummies' | 'aim' | 'manual' | 'boss_practice'
         let trainingStats = { shots: 0, hits: 0, targets: 0, targetsHit: 0, reactionTimes: [], bestStreak: 0, currentStreak: 0 };
@@ -4075,10 +4218,11 @@
         
         function saveRunCoins() { totalCoins += state.runCoins; localStorage.setItem('neonVoidCoins', totalCoins); cloudSave(); }
         
-        function gameOver() { state.active = false; saveRunCoins(); triggerChroma(6);
+        function gameOver() { state.active = false; saveRunCoins(); triggerChroma(6); if (sandboxPanel) { sandboxPanel.remove(); sandboxPanel = null; }
+            if (state.mode === 'arcade') { let isNew = state.score > arcadeHighScore; if (isNew) { arcadeHighScore = Math.floor(state.score); localStorage.setItem('neonVoidArcadeHigh', arcadeHighScore); } }
             let elapsed = Math.floor(state.frame / 60); let mins = Math.floor(elapsed / 60); let secs = elapsed % 60;
             let kpm = elapsed > 0 ? ((state.kills / elapsed) * 60).toFixed(1) : '0';
-            ui.mainOverlay.classList.remove('hidden'); ui.mainOverlay.classList.remove('win-theme'); ui.boss.style.display = 'none'; document.getElementById('mobile-controls').style.display = 'none'; document.getElementById('menu-coin-display').style.display = 'none'; ui.mainTitle.innerText = "YOU DIED"; ui.mainTitle.style.color = "transparent"; ui.mainTitle.style.webkitTextStroke = "3px #ff0055"; ui.mainTitle.style.textShadow = "0 0 50px #ff0055"; ui.mainDesc.innerHTML = `THE VOID CLAIMED YOU. YOUR FAMILY IS LOST FOREVER.<br><br><table style="margin:10px auto; border:1px solid rgba(255,0,85,0.3); border-collapse:collapse; font-size:16px;"><tr><td style="padding:6px 20px; color:#666; text-align:left;">SCORE</td><td style="padding:6px 20px; color:#00ffcc; font-size:22px; text-align:right;">${Math.floor(state.score).toLocaleString()}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">KILLS</td><td style="padding:6px 20px; color:#ff8800; font-size:22px; text-align:right;">${state.kills}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">LEVEL</td><td style="padding:6px 20px; color:#aa00ff; font-size:22px; text-align:right;">${state.level}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">BOSSES</td><td style="padding:6px 20px; color:#ff0055; font-size:22px; text-align:right;">${state.bossesDefeated}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">TIME</td><td style="padding:6px 20px; color:#fff; font-size:20px; text-align:right;">${mins}m ${secs.toString().padStart(2,'0')}s</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">KILLS/MIN</td><td style="padding:6px 20px; color:#ff8800; font-size:18px; text-align:right;">${kpm}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">COINS</td><td style="padding:6px 20px; color:#ffcc00; font-size:22px; text-align:right;">+${state.runCoins.toLocaleString()}</td></tr></table>`; if (state.mode === 'mission') ui.menuBtns.innerHTML = `<button onclick="startMission(${state.currentStage})">Retry Sector</button><button onclick="returnToMenu()">Main Menu</button>`; else if (state.mode === 'boss_rush') ui.menuBtns.innerHTML = `<button onclick="startBossRush()">Retry Boss Rush</button><button onclick="returnToMenu()">Main Menu</button>`; else if (state.mode === 'coop') ui.menuBtns.innerHTML = `<button onclick="leaveLobby()">Leave Game</button><button onclick="returnToMenu()">Main Menu</button>`; else ui.menuBtns.innerHTML = `<button onclick="startInfinite()">Retry Infinite</button><button onclick="returnToMenu()">Main Menu</button>`; }
+            ui.mainOverlay.classList.remove('hidden'); ui.mainOverlay.classList.remove('win-theme'); ui.boss.style.display = 'none'; document.getElementById('mobile-controls').style.display = 'none'; document.getElementById('menu-coin-display').style.display = 'none'; ui.mainTitle.innerText = "YOU DIED"; ui.mainTitle.style.color = "transparent"; ui.mainTitle.style.webkitTextStroke = "3px #ff0055"; ui.mainTitle.style.textShadow = "0 0 50px #ff0055"; ui.mainDesc.innerHTML = `THE VOID CLAIMED YOU. YOUR FAMILY IS LOST FOREVER.<br><br><table style="margin:10px auto; border:1px solid rgba(255,0,85,0.3); border-collapse:collapse; font-size:16px;"><tr><td style="padding:6px 20px; color:#666; text-align:left;">SCORE</td><td style="padding:6px 20px; color:#00ffcc; font-size:22px; text-align:right;">${Math.floor(state.score).toLocaleString()}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">KILLS</td><td style="padding:6px 20px; color:#ff8800; font-size:22px; text-align:right;">${state.kills}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">LEVEL</td><td style="padding:6px 20px; color:#aa00ff; font-size:22px; text-align:right;">${state.level}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">BOSSES</td><td style="padding:6px 20px; color:#ff0055; font-size:22px; text-align:right;">${state.bossesDefeated}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">TIME</td><td style="padding:6px 20px; color:#fff; font-size:20px; text-align:right;">${mins}m ${secs.toString().padStart(2,'0')}s</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">KILLS/MIN</td><td style="padding:6px 20px; color:#ff8800; font-size:18px; text-align:right;">${kpm}</td></tr><tr><td style="padding:6px 20px; color:#666; text-align:left;">COINS</td><td style="padding:6px 20px; color:#ffcc00; font-size:22px; text-align:right;">+${state.runCoins.toLocaleString()}</td></tr></table>`; if (state.mode === 'mission') ui.menuBtns.innerHTML = `<button onclick="startMission(${state.currentStage})">Retry Sector</button><button onclick="returnToMenu()">Main Menu</button>`; else if (state.mode === 'boss_rush') ui.menuBtns.innerHTML = `<button onclick="startBossRush()">Retry Boss Rush</button><button onclick="returnToMenu()">Main Menu</button>`; else if (state.mode === 'coop') ui.menuBtns.innerHTML = `<button onclick="leaveLobby()">Leave Game</button><button onclick="returnToMenu()">Main Menu</button>`; else if (state.mode === 'arcade') ui.menuBtns.innerHTML = `<button onclick="startArcade()">Retry Arcade</button><button onclick="returnToMenu()">Main Menu</button>`; else if (state.mode === 'sandbox') ui.menuBtns.innerHTML = `<button onclick="startSandbox()">Restart Sandbox</button><button onclick="returnToMenu()">Main Menu</button>`; else ui.menuBtns.innerHTML = `<button onclick="startInfinite()">Retry Infinite</button><button onclick="returnToMenu()">Main Menu</button>`; }
         
         function stageCleared() { state.active = false; saveRunCoins(); let elapsed = Math.floor(state.frame / 60); let mins = Math.floor(elapsed / 60); let secs = elapsed % 60; ui.mainOverlay.classList.remove('hidden'); ui.mainOverlay.classList.add('win-theme'); ui.boss.style.display = 'none'; document.getElementById('mobile-controls').style.display = 'none'; document.getElementById('menu-coin-display').style.display = 'none'; canvas.style.display = 'none'; ui.mainTitle.innerText = `SECTOR ${state.currentStage} CLEARED`; ui.mainTitle.style.color = 'transparent'; ui.mainTitle.style.webkitTextStroke = "3px #00ffcc"; ui.mainTitle.style.textShadow = "0 0 50px #00ffcc"; ui.mainDesc.innerHTML = `THREAT NEUTRALIZED. YOU ARE GETTING CLOSER.<br><br><table style="margin:10px auto;border:1px solid rgba(0,255,204,0.2);border-collapse:collapse;font-size:16px;"><tr><td style="padding:8px 20px;color:#666;text-align:left;">SCORE</td><td style="padding:8px 20px;color:#00ffcc;font-size:22px;text-align:right;">${Math.floor(state.score).toLocaleString()}</td></tr><tr><td style="padding:8px 20px;color:#666;text-align:left;">KILLS</td><td style="padding:8px 20px;color:#ff8800;font-size:22px;text-align:right;">${state.kills}</td></tr><tr><td style="padding:8px 20px;color:#666;text-align:left;">TIME</td><td style="padding:8px 20px;color:#fff;font-size:20px;text-align:right;">${mins}m ${secs.toString().padStart(2,'0')}s</td></tr><tr><td style="padding:8px 20px;color:#666;text-align:left;">COINS</td><td style="padding:8px 20px;color:#ffcc00;font-size:22px;text-align:right;">+${state.runCoins.toLocaleString()}</td></tr></table>`; ui.menuBtns.innerHTML = `<button onclick="canvas.style.display='';startMission(${state.currentStage + 1})">Next Sector</button><button onclick="canvas.style.display='';returnToMenu()">Main Menu</button>`; }
         
@@ -6572,7 +6716,8 @@
             let rushBest = parseInt(localStorage.getItem('neonVoidBossRushBest')) || 0;
             let rushLabel = rushBest > 0 ? `Best: ${Math.floor(rushBest/60)}m ${(rushBest%60).toString().padStart(2,'0')}s` : 'All 15 Bosses';
 
-            ui.menuBtns.innerHTML = `<button onclick="openMissionSelect()">Mission Mode<br><span style="font-size:12px">15 Sectors</span></button><button class="btn-infinite" onclick="startInfinite()">Infinite Mode<br><span style="font-size:12px">Endless Scaling</span></button><button style="border-color:#ff0055; color:#ff0055; box-shadow: 0 0 20px #ff0055;" onclick="startBossRush()">Boss Rush<br><span style="font-size:12px">${rushLabel}</span></button>${secretBtn}${paradoxBtn}<button style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;" onclick="startTraining()">Training Camp<br><span style="font-size:12px">Test Weapons</span></button><button style="border-color:#00ffcc; color:#00ffcc; box-shadow: 0 0 20px #00ffcc;" onclick="openMultiplayer()">Multiplayer<br><span style="font-size:12px">Co-Op & Race</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00;" onclick="openShop()">The Hangar<br><span style="font-size:12px">Black Market</span></button><button style="border-color:#aa00ff; color:#aa00ff; box-shadow: 0 0 20px #aa00ff;" onclick="openLeaderboard()">Leaderboards<br><span style="font-size:12px">Top Pilots</span></button><button style="border-color:#fff; color:#fff;" onclick="openSettings()">Settings<br><span style="font-size:12px">Sys Config</span></button>`;
+            let arcadeLabel = arcadeHighScore > 0 ? `High: ${arcadeHighScore.toLocaleString()}` : 'Classic Lives';
+            ui.menuBtns.innerHTML = `<button onclick="openMissionSelect()">Mission Mode<br><span style="font-size:12px">15 Sectors</span></button><button class="btn-infinite" onclick="startInfinite()">Infinite Mode<br><span style="font-size:12px">Endless Scaling</span></button><button style="border-color:#ff0055; color:#ff0055; box-shadow: 0 0 20px #ff0055;" onclick="startBossRush()">Boss Rush<br><span style="font-size:12px">${rushLabel}</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00; animation: pulse 2s infinite;" onclick="startArcade()">Arcade Mode<br><span style="font-size:12px">${arcadeLabel}</span></button><button style="border-color:#44ccff; color:#44ccff; box-shadow: 0 0 20px #44ccff;" onclick="startSandbox()">Sandbox<br><span style="font-size:12px">God Mode</span></button>${secretBtn}${paradoxBtn}<button style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;" onclick="startTraining()">Training Camp<br><span style="font-size:12px">Test Weapons</span></button><button style="border-color:#00ffcc; color:#00ffcc; box-shadow: 0 0 20px #00ffcc;" onclick="openMultiplayer()">Multiplayer<br><span style="font-size:12px">Co-Op & Race</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00;" onclick="openShop()">The Hangar<br><span style="font-size:12px">Black Market</span></button><button style="border-color:#aa00ff; color:#aa00ff; box-shadow: 0 0 20px #aa00ff;" onclick="openLeaderboard()">Leaderboards<br><span style="font-size:12px">Top Pilots</span></button><button style="border-color:#fff; color:#fff;" onclick="openSettings()">Settings<br><span style="font-size:12px">Sys Config</span></button>`;
             document.getElementById('menu-coin-display').style.display = 'block';
             document.getElementById('mobile-controls').style.display = 'none';
         };
