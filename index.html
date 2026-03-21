@@ -2299,11 +2299,19 @@
                 entities.enemies.splice(idx, 1);
                 if (mpState.active) broadcast({ type: 'enemy-killed', enemyId: e.id, enemyType: e.type, ex: e.x, ey: e.y });
 
-                spawnParticles(e.x, e.y, e.color, 25, 1.5);
+                let bigKill = e.xp >= 40;
+                spawnParticles(e.x, e.y, e.color, bigKill ? 40 : 25, bigKill ? 2.0 : 1.5);
                 if (is3DActive && scene3d) spawnExplosion3d(e.x, e.y, e.color);
                 playSound('hit');
                 registerKill();
-                if (appSettings.graphics === 'high' && e.xp >= 40) deathRingEffect(e.x, e.y, e.color);
+                if (appSettings.graphics === 'high' && bigKill) deathRingEffect(e.x, e.y, e.color);
+                // Screen micro-flash on big kills
+                if (bigKill && appSettings.graphics !== 'low') {
+                    let flash = document.getElementById('damage-flash');
+                    if (flash) { flash.style.background = `rgba(${e.color === '#ffff00' ? '255,255,0' : '0,255,204'},0.15)`; flash.style.opacity = '1'; setTimeout(() => { flash.style.opacity = '0'; flash.style.background = 'rgba(255,0,0,0.4)'; }, 80); }
+                }
+                // Kill milestones
+                if (state.kills > 0 && state.kills % 100 === 0) { spawnText(player.x, player.y - 50, `${state.kills} KILLS!`, '#ffcc00', 24); shakeScreen(10); }
                 
                 state.score += e.xp * 10 * state.combo * (state.dailyScoreMulti || 1);
                 state.combo = Math.min(10.0, state.combo + 0.1); resetComboDecay(); 
@@ -4340,15 +4348,34 @@
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, cw, ch);
 
-            // Starfield with speed lines
+            // Cinematic letterbox bars
+            let barH = ch * 0.08;
+            let barProgress = Math.min(1, f / 20);
+
+            // Starfield with parallax layers + speed lines
             if (f < 100) {
                 let intensity = Math.min(1, f / 40);
+                // Far stars (slow)
+                for (let i = 0; i < 30; i++) {
+                    let sx = (Math.sin(i*7.3+f*0.01)*0.5+0.5)*cw, sy = (Math.cos(i*3.1+f*0.005)*0.5+0.5)*ch;
+                    ctx.fillStyle = `rgba(100,150,255,${0.1 + Math.random()*0.15})`;
+                    ctx.fillRect(sx, sy, 1, 1);
+                }
+                // Speed lines
                 for (let i = 0; i < 60; i++) {
                     let sx = Math.random()*cw, sy = Math.random()*ch;
                     let len = 20 + Math.random()*80*intensity;
                     ctx.strokeStyle = `rgba(150,200,255,${0.05 + Math.random()*0.2*intensity})`;
                     ctx.lineWidth = 0.5 + Math.random();
                     ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + len*0.3, sy - len); ctx.stroke();
+                }
+                // Nebula glow
+                if (appSettings.graphics !== 'low') {
+                    let nebGrad = ctx.createRadialGradient(cw*0.7, ch*0.3, 0, cw*0.7, ch*0.3, 300);
+                    nebGrad.addColorStop(0, `rgba(100,0,200,${0.08*intensity})`);
+                    nebGrad.addColorStop(1, 'transparent');
+                    ctx.fillStyle = nebGrad;
+                    ctx.fillRect(0, 0, cw, ch);
                 }
             }
 
@@ -4581,6 +4608,38 @@
                 ctx.fillText('-' + c.dmgDealt.toLocaleString() + ' HP', cw/2, ch*0.88);
                 ctx.restore();
             }
+
+            // Lens flare on slash impact
+            if (f >= 175 && f < 195 && appSettings.graphics !== 'low') {
+                let flareProgress = (f - 175) / 20;
+                let flareAlpha = Math.sin(flareProgress * Math.PI) * 0.6;
+                // Central flare
+                let flareGrad = ctx.createRadialGradient(c.bossX, c.bossY, 0, c.bossX, c.bossY, 200 + flareProgress * 300);
+                flareGrad.addColorStop(0, `rgba(0,255,204,${flareAlpha})`);
+                flareGrad.addColorStop(0.3, `rgba(255,255,255,${flareAlpha * 0.5})`);
+                flareGrad.addColorStop(1, 'transparent');
+                ctx.fillStyle = flareGrad;
+                ctx.fillRect(0, 0, cw, ch);
+                // Horizontal streak
+                ctx.fillStyle = `rgba(0,255,204,${flareAlpha * 0.3})`;
+                ctx.fillRect(0, c.bossY - 2, cw, 4);
+            }
+
+            // Chromatic aberration on impact (f 180-190)
+            if (f >= 180 && f < 190 && appSettings.graphics !== 'low') {
+                let abAlpha = Math.sin((f-180)/10 * Math.PI) * 0.15;
+                ctx.globalCompositeOperation = 'lighter';
+                ctx.fillStyle = `rgba(255,0,0,${abAlpha})`;
+                ctx.fillRect(2, 0, cw, ch);
+                ctx.fillStyle = `rgba(0,0,255,${abAlpha})`;
+                ctx.fillRect(-2, 0, cw, ch);
+                ctx.globalCompositeOperation = 'source-over';
+            }
+
+            // Cinematic letterbox bars (drawn on top)
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, cw, barH * barProgress);
+            ctx.fillRect(0, ch - barH * barProgress, cw, barH * barProgress);
 
             // Fade to black at end
             if (f >= 250) {
