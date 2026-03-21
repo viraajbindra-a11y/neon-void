@@ -6158,9 +6158,11 @@
             document.getElementById('player-tag').textContent = 'PILOT: ' + currentUsername;
             document.getElementById('player-tag').style.display = 'block';
             playSound('powerup');
-            // Restore cloud profile using password-hashed key
+            // Restore cloud profile using password-hashed key, then refresh menu
             await fetchCloudProfile(userPasswordHash || currentUsername);
             returnToMenu();
+            // Re-render menu after cloud data loads to show updated coins/stats
+            setTimeout(() => returnToMenu(), 100);
         }
 
         function logoutUser() {
@@ -6185,7 +6187,10 @@
                 document.getElementById('player-tag').style.display = 'block';
                 // Restore cloud profile on page load - use password hash if available
                 userPasswordHash = localStorage.getItem('neonVoidPassHash') || '';
-                fetchCloudProfile(userPasswordHash || currentUsername);
+                fetchCloudProfile(userPasswordHash || currentUsername).then(() => {
+                    // Refresh menu to show updated cloud data
+                    if (typeof returnToMenu === 'function') setTimeout(() => returnToMenu(), 200);
+                });
             } else {
                 document.getElementById('login-screen').classList.remove('hidden');
                 ui.mainOverlay.classList.add('hidden');
