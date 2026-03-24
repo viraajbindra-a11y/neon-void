@@ -3156,8 +3156,10 @@
         // Boss variant assignment (10% chance per boss kill in normal/infinite mode)
         const BOSS_VARIANTS = ['duo','escape','puzzle','pacifist','swarm_boss','mimic','time_boss','gauntlet','arena'];
         function applyBossVariant(boss) {
-            if (state.mode !== 'normal' && state.mode !== 'infinite') return;
-            if (Math.random() < 0.1) {
+            // Boss Rush: 100% chance of a variant. Normal/Infinite: 15% chance.
+            let chance = (state.mode === 'boss_rush') ? 1.0 : 0.15;
+            if (state.mode !== 'normal' && state.mode !== 'infinite' && state.mode !== 'boss_rush') return;
+            if (Math.random() < chance) {
                 boss.variant = BOSS_VARIANTS[Math.floor(Math.random()*BOSS_VARIANTS.length)];
                 // PACIFIST special setup
                 if (boss.variant === 'pacifist') { boss.hp = 2000; boss.maxHp = 2000; boss.color = '#ffffff'; boss.pacifistTimer = 0; }
@@ -3277,6 +3279,7 @@
                 if(bm==='shielded'){activeBoss.bossShield=activeBoss.hp*0.3;}
                 if(bm==='clone'){activeBoss.rushClone=true;} // Clone: spawn mini-copy when boss dies
                 spawnText(canvas.width/2, 120, 'MODIFIER: '+bm.toUpperCase().replace('_',' '), '#ff8800', 18);
+                applyBossVariant(activeBoss); // 100% variant chance in boss rush
                 state.spawningBoss = false; }, 1500); } return; }
             // In co-op, only host spawns enemies — clients receive via enemy-sync
             if (mpState.active && mpState.mode === 'coop' && !mpState.isHost) return;
@@ -4814,7 +4817,48 @@
             let rushBest = parseInt(localStorage.getItem('neonVoidBossRushBest')) || 0;
             let rushLabel = rushBest > 0 ? `Best: ${Math.floor(rushBest/60)}m ${(rushBest%60).toString().padStart(2,'0')}s` : 'All 15 Bosses';
 
-            ui.menuBtns.innerHTML = `<button onclick="openMissionSelect()">Mission Mode<br><span style="font-size:12px">15 Sectors</span></button><button class="btn-infinite" onclick="startInfinite()">Infinite Mode<br><span style="font-size:12px">Endless Scaling</span></button><button style="border-color:#ff0055; color:#ff0055; box-shadow: 0 0 20px #ff0055;" onclick="startBossRush()">Boss Rush<br><span style="font-size:12px">${rushLabel}</span></button>${secretBtn}${paradoxBtn}<button style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;" onclick="startTraining()">Training Camp<br><span style="font-size:12px">Test Weapons</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00;" onclick="openShop()">The Hangar<br><span style="font-size:12px">Black Market</span></button><button style="border-color:#fff; color:#fff;" onclick="openSettings()">Settings<br><span style="font-size:12px">Sys Config</span></button>`;
+            ui.menuBtns.innerHTML = `<button onclick="openMissionSelect()">Mission Mode<br><span style="font-size:12px">15 Sectors</span></button><button class="btn-infinite" onclick="startInfinite()">Infinite Mode<br><span style="font-size:12px">Endless Scaling</span></button><button style="border-color:#ff0055; color:#ff0055; box-shadow: 0 0 20px #ff0055;" onclick="startBossRush()">Boss Rush<br><span style="font-size:12px">${rushLabel}</span></button>${secretBtn}${paradoxBtn}<button style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;" onclick="startTraining()">Training Camp<br><span style="font-size:12px">Test Weapons</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00;" onclick="openShop()">The Hangar<br><span style="font-size:12px">Upgrades &amp; Shop</span></button><button style="border-color:#fff; color:#fff;" onclick="openSettings()">Settings<br><span style="font-size:12px">Sys Config</span></button>
+<div style="width:100%;margin-top:10px;padding-top:8px;border-top:1px solid #333;">
+  <div style="color:#888;font-size:11px;font-family:monospace;text-align:center;margin-bottom:6px;letter-spacing:2px;">MORE MODES</div>
+  <div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;max-height:160px;overflow-y:auto;padding:4px;">
+    <button style="border-color:#ff6600;color:#ff6600;font-size:11px;padding:6px 10px;" onclick="startSurvivalArena()">Survival Arena<br><span style="font-size:10px">How Long Can You Last?</span></button>
+    <button style="border-color:#ffcc00;color:#ffcc00;font-size:11px;padding:6px 10px;" onclick="startRaceMode()">Race Mode<br><span style="font-size:10px">Checkpoint Sprint</span></button>
+    <button style="border-color:#44ff88;color:#44ff88;font-size:11px;padding:6px 10px;" onclick="startEscort()">Escort Mission<br><span style="font-size:10px">Protect the Cargo</span></button>
+    <button style="border-color:#ff6600;color:#ff6600;font-size:11px;padding:6px 10px;" onclick="startHordeDefense()">Horde Defense<br><span style="font-size:10px">Place Turrets</span></button>
+    <button style="border-color:#ffd700;color:#ffd700;font-size:11px;padding:6px 10px;" onclick="startSpeedrun()">Speedrun<br><span style="font-size:10px">Sector 1-15 Timer</span></button>
+    <button style="border-color:#cc44ff;color:#cc44ff;font-size:11px;padding:6px 10px;" onclick="startMirror()">Mirror Mode<br><span style="font-size:10px">Everything Reversed</span></button>
+    <button style="border-color:#ff4400;color:#ff4400;font-size:11px;padding:6px 10px;" onclick="startChaos()">Chaos Mode<br><span style="font-size:10px">Randomized Everything</span></button>
+    <button style="border-color:#ff0088;color:#ff0088;font-size:11px;padding:6px 10px;" onclick="startOneHit()">One Hit<br><span style="font-size:10px">Instant Death</span></button>
+    <button style="border-color:#ff88ff;color:#ff88ff;font-size:11px;padding:6px 10px;" onclick="startBulletHell()">Bullet Hell<br><span style="font-size:10px">Maximum Projectiles</span></button>
+    <button style="border-color:#00ff88;color:#00ff88;font-size:11px;padding:6px 10px;" onclick="startPacifist()">Pacifist<br><span style="font-size:10px">No Shooting</span></button>
+    <button style="border-color:#ffaa44;color:#ffaa44;font-size:11px;padding:6px 10px;" onclick="startTagTeam()">Tag Team<br><span style="font-size:10px">2-Ship Switching</span></button>
+    <button style="border-color:#ffd700;color:#ffd700;font-size:11px;padding:6px 10px;" onclick="startTournament()">Tournament<br><span style="font-size:10px">Bracket Matches</span></button>
+    <button style="border-color:#8844ff;color:#8844ff;font-size:11px;padding:6px 10px;" onclick="startRoguelike()">Roguelike<br><span style="font-size:10px">10 Floors, Permadeath</span></button>
+    <button style="border-color:#ff0055;color:#ff0055;font-size:11px;padding:6px 10px;" onclick="startInfection()">Infection<br><span style="font-size:10px">Last Healthy Wins</span></button>
+    <button style="border-color:#44ddff;color:#44ddff;font-size:11px;padding:6px 10px;" onclick="startPvP()">PvP 1v1<br><span style="font-size:10px">Best of 3 Rounds</span></button>
+    <button style="border-color:#00ffaa;color:#00ffaa;font-size:11px;padding:6px 10px;" onclick="openLevelEditor()">Level Editor<br><span style="font-size:10px">Build Rooms</span></button>
+  </div>
+</div>
+<div style="width:100%;margin-top:8px;padding-top:6px;border-top:1px solid #333;">
+  <div style="color:#888;font-size:11px;font-family:monospace;text-align:center;margin-bottom:6px;letter-spacing:2px;">HANGAR &amp; PROGRESSION</div>
+  <div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;">
+    <button style="border-color:#ffe04b;color:#ffe04b;font-size:11px;padding:5px 9px;" onclick="openBattlePass()">Battle Pass</button>
+    <button style="border-color:#ffaa00;color:#ffaa00;font-size:11px;padding:5px 9px;" onclick="openMastery()">Mastery</button>
+    <button style="border-color:#44ffdd;color:#44ffdd;font-size:11px;padding:5px 9px;" onclick="openBlueprints()">Blueprints</button>
+    <button style="border-color:#44ff88;color:#44ff88;font-size:11px;padding:5px 9px;" onclick="openContracts()">Contracts</button>
+    <button style="border-color:#ff4488;color:#ff4488;font-size:11px;padding:5px 9px;" onclick="openBlackMarket()">Black Market</button>
+    <button style="border-color:#88eeff;color:#88eeff;font-size:11px;padding:5px 9px;" onclick="openGemShop()">Gem Shop</button>
+    <button style="border-color:#ffcc44;color:#ffcc44;font-size:11px;padding:5px 9px;" onclick="openTradePost()">Trade Post</button>
+    <button style="border-color:#ff8800;color:#ff8800;font-size:11px;padding:5px 9px;" onclick="openBounties()">Bounties</button>
+    <button style="border-color:#ff6622;color:#ff6622;font-size:11px;padding:5px 9px;" onclick="openRebirth()">Rebirth</button>
+    <button style="border-color:#ffd700;color:#ffd700;font-size:11px;padding:5px 9px;" onclick="openVIPPanel()">VIP Status</button>
+    <button style="border-color:#ffcc00;color:#ffcc00;font-size:11px;padding:5px 9px;" onclick="openAchievementsPanel()">Achievements</button>
+    <button style="border-color:#00ff88;color:#00ff88;font-size:11px;padding:5px 9px;" onclick="openLeaderboards()">Leaderboards</button>
+    <button style="border-color:#ff9900;color:#ff9900;font-size:11px;padding:5px 9px;" onclick="openClan()">Clan</button>
+    <button style="border-color:#c8a0ff;color:#c8a0ff;font-size:11px;padding:5px 9px;" onclick="openPrestigePanel()">Prestige</button>
+    <button style="border-color:#00ffcc;color:#00ffcc;font-size:11px;padding:5px 9px;" onclick="openPhotoMode()">Photo Mode</button>
+  </div>
+</div>`;
             document.getElementById('menu-coin-display').style.display = 'block'; document.getElementById('mobile-controls').style.display = 'none';
         }
 
@@ -9890,6 +9934,46 @@ function generateSyncCode() {
                             <span class="nv-chip-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffd700" stroke-width="2" stroke-linecap="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V22M14 14.66V22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg></span>
                             <div><div class="nv-chip-label" style="color:#ffd700;">TOURNAMENT</div><div class="nv-chip-sub" style="color:#ffd70088;">AI Bracket</div></div>
                         </div>
+                        <div class="nv-mode-chip" style="--gc:${mc('#44ff88')};border-color:#44ff8866;background:rgba(68,255,136,0.06);" onclick="startSurvivalArena()">
+                            <span class="nv-chip-icon">⚔</span>
+                            <div><div class="nv-chip-label" style="color:#44ff88;">SURVIVAL</div><div class="nv-chip-sub" style="color:#44ff8888;">Arena</div></div>
+                        </div>
+                        <div class="nv-mode-chip" style="--gc:${mc('#44ccff')};border-color:#44ccff66;background:rgba(68,204,255,0.06);" onclick="startRaceMode()">
+                            <span class="nv-chip-icon">🏁</span>
+                            <div><div class="nv-chip-label" style="color:#44ccff;">RACE</div><div class="nv-chip-sub" style="color:#44ccff88;">Checkpoints</div></div>
+                        </div>
+                        <div class="nv-mode-chip" style="--gc:${mc('#88ff44')};border-color:#88ff4466;background:rgba(136,255,68,0.06);" onclick="startEscort()">
+                            <span class="nv-chip-icon">🚀</span>
+                            <div><div class="nv-chip-label" style="color:#88ff44;">ESCORT</div><div class="nv-chip-sub" style="color:#88ff4488;">Protect Cargo</div></div>
+                        </div>
+                        <div class="nv-mode-chip" style="--gc:${mc('#ff8844')};border-color:#ff884466;background:rgba(255,136,68,0.06);" onclick="startHordeDefense()">
+                            <span class="nv-chip-icon">🏰</span>
+                            <div><div class="nv-chip-label" style="color:#ff8844;">HORDE</div><div class="nv-chip-sub" style="color:#ff884488;">Tower Defense</div></div>
+                        </div>
+                        <div class="nv-mode-chip" style="--gc:${mc('#ffaa00')};border-color:#ffaa0066;background:rgba(255,170,0,0.06);" onclick="startTagTeam()">
+                            <span class="nv-chip-icon">🤝</span>
+                            <div><div class="nv-chip-label" style="color:#ffaa00;">TAG TEAM</div><div class="nv-chip-sub" style="color:#ffaa0088;">Co-op Swap</div></div>
+                        </div>
+                        <div class="nv-mode-chip" style="--gc:${mc('#ff2244')};border-color:#ff224466;background:rgba(255,34,68,0.06);" onclick="startInfection()">
+                            <span class="nv-chip-icon">🦠</span>
+                            <div><div class="nv-chip-label" style="color:#ff2244;">INFECTION</div><div class="nv-chip-sub" style="color:#ff224488;">Co-op Tag</div></div>
+                        </div>
+                        <div class="nv-mode-chip" style="--gc:${mc('#aa44ff')};border-color:#aa44ff66;background:rgba(170,68,255,0.06);" onclick="startRoguelike()">
+                            <span class="nv-chip-icon">🎲</span>
+                            <div><div class="nv-chip-label" style="color:#aa44ff;">ROGUELIKE</div><div class="nv-chip-sub" style="color:#aa44ff88;">10 Floors</div></div>
+                        </div>
+                        <div class="nv-mode-chip" style="--gc:${mc('#ff4488')};border-color:#ff448866;background:rgba(255,68,136,0.06);" onclick="startPvP()">
+                            <span class="nv-chip-icon">⚡</span>
+                            <div><div class="nv-chip-label" style="color:#ff4488;">1v1 PVP</div><div class="nv-chip-sub" style="color:#ff448888;">Duel</div></div>
+                        </div>
+                        <div class="nv-mode-chip" style="--gc:${mc('#4488ff')};border-color:#4488ff66;background:rgba(68,136,255,0.06);" onclick="startCaptureTheFlag()">
+                            <span class="nv-chip-icon">🚩</span>
+                            <div><div class="nv-chip-label" style="color:#4488ff;">CTF</div><div class="nv-chip-sub" style="color:#4488ff88;">Capture Flag</div></div>
+                        </div>
+                        <div class="nv-mode-chip" style="--gc:${mc('#88ffcc')};border-color:#88ffcc66;background:rgba(136,255,204,0.06);" onclick="openLevelEditor()">
+                            <span class="nv-chip-icon">🔧</span>
+                            <div><div class="nv-chip-label" style="color:#88ffcc;">EDITOR</div><div class="nv-chip-sub" style="color:#88ffcc88;">Level Design</div></div>
+                        </div>
                         ${secretChip}${paradoxChip}
                     </div>
 
@@ -9904,6 +9988,26 @@ function generateSyncCode() {
                             <div class="gc-text"><div class="gc-title" style="color:#ff88ff;">RANKS</div><div class="gc-sub">Leaderboards</div></div>
                         </div>
                     </div>
+                    <div style="margin-top:8px;padding:0 4px;">
+                        <div style="font-size:9px;letter-spacing:3px;color:#ffffff44;margin-bottom:6px;">PROGRESSION</div>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                            <div style="padding:6px 12px;border:1px solid #ffd70044;border-radius:8px;cursor:pointer;font-size:10px;color:#ffd700;letter-spacing:1px;" onclick="openBattlePass()">⭐ BATTLE PASS</div>
+                            <div style="padding:6px 12px;border:1px solid #ff880044;border-radius:8px;cursor:pointer;font-size:10px;color:#ff8800;letter-spacing:1px;" onclick="openMastery()">🎯 MASTERY</div>
+                            <div style="padding:6px 12px;border:1px solid #44ff8844;border-radius:8px;cursor:pointer;font-size:10px;color:#44ff88;letter-spacing:1px;" onclick="openBlueprints()">📜 BLUEPRINTS</div>
+                            <div style="padding:6px 12px;border:1px solid #ff445544;border-radius:8px;cursor:pointer;font-size:10px;color:#ff4455;letter-spacing:1px;" onclick="openContracts()">📋 CONTRACTS</div>
+                            <div style="padding:6px 12px;border:1px solid #aa44ff44;border-radius:8px;cursor:pointer;font-size:10px;color:#aa44ff;letter-spacing:1px;" onclick="openBlackMarket()">🏪 BLACK MARKET</div>
+                            <div style="padding:6px 12px;border:1px solid #00ffcc44;border-radius:8px;cursor:pointer;font-size:10px;color:#00ffcc;letter-spacing:1px;" onclick="openGemShop()">💎 GEM SHOP</div>
+                            <div style="padding:6px 12px;border:1px solid #ffcc0044;border-radius:8px;cursor:pointer;font-size:10px;color:#ffcc00;letter-spacing:1px;" onclick="openTradePost()">🔄 TRADE POST</div>
+                            <div style="padding:6px 12px;border:1px solid #ff005544;border-radius:8px;cursor:pointer;font-size:10px;color:#ff0055;letter-spacing:1px;" onclick="openBounties()">🎯 BOUNTIES</div>
+                            <div style="padding:6px 12px;border:1px solid #4488ff44;border-radius:8px;cursor:pointer;font-size:10px;color:#4488ff;letter-spacing:1px;" onclick="openRebirth()">♻️ REBIRTH</div>
+                            <div style="padding:6px 12px;border:1px solid #ffd70044;border-radius:8px;cursor:pointer;font-size:10px;color:#ffd700;letter-spacing:1px;" onclick="openVIPPanel()">👑 VIP</div>
+                            <div style="padding:6px 12px;border:1px solid #ffffff44;border-radius:8px;cursor:pointer;font-size:10px;color:#ffffff;letter-spacing:1px;" onclick="openAchievements()">🏆 ACHIEVEMENTS</div>
+                            <div style="padding:6px 12px;border:1px solid #00ffcc44;border-radius:8px;cursor:pointer;font-size:10px;color:#00ffcc;letter-spacing:1px;" onclick="openClan()">👥 CLAN</div>
+                            <div style="padding:6px 12px;border:1px solid #ff88ff44;border-radius:8px;cursor:pointer;font-size:10px;color:#ff88ff;letter-spacing:1px;" onclick="openPrestige()">🌟 PRESTIGE</div>
+                            <div style="padding:6px 12px;border:1px solid #88ffcc44;border-radius:8px;cursor:pointer;font-size:10px;color:#88ffcc;letter-spacing:1px;" onclick="openPhotoMode()">📸 PHOTO MODE</div>
+                        </div>
+                    </div>
+                    <div style="height:80px;"></div>
 
                     <!-- ANIMATED INFO PANEL -->
                     <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px;">
@@ -11643,6 +11747,32 @@ let dx=gh.attachX-(mp.x+mp.w/2),dy=gh.attachY-(mp.y+mp.h/2);let dist=Math.hypot(
 if(mp.grappleHook){let gh=mp.grappleHook;mx.strokeStyle=COLORS.neon;mx.lineWidth=2;mx.globalAlpha=0.8;mx.beginPath();mx.moveTo(mp.x+mp.w/2-camX,mp.y+mp.h/3-camY);mx.lineTo(gh.x-camX,gh.y-camY);mx.stroke();mx.fillStyle=COLORS.neon;mx.beginPath();mx.arc(gh.x-camX,gh.y-camY,4,0,Math.PI*2);mx.fill();mx.globalAlpha=1;}if(mp2&&!mp2.dead){let d2P=mp2.invuln<=0||Math.floor(mp2.invuln/3)%2===0;if(d2P){let p2x=mp2.x,p2y=mp2.y,p2c=mp2.color||crashedP2Color;mx.shadowColor=p2c;mx.shadowBlur=14;mx.fillStyle=p2c;mx.beginPath();mx.arc(p2x+mp2.w/2,p2y+8,8,0,Math.PI*2);mx.fill();mx.fillStyle='#061a14';mx.beginPath();mx.arc(p2x+mp2.w/2+(mp2.facing*3),p2y+7,3.5,0,Math.PI*2);mx.fill();mx.fillStyle=p2c;mx.fillRect(p2x+3,p2y+15,mp2.w-6,mp2.h-23);mx.fillStyle='#061a14';mx.fillRect(p2x+7,p2y+19,mp2.w-14,4);let a2y=p2y+mp2.h/2-2;mx.fillStyle=p2c;mx.fillRect(p2x+(mp2.facing>0?mp2.w-2:-10),a2y-1,12,5);let la2=mp2.grounded&&Math.abs(mp2.vx)>1?Math.sin(mp2.animTimer*0.4)*4:0;mx.fillStyle='#0a4a3a';mx.fillRect(p2x+4,p2y+mp2.h-10+la2,6,10);mx.fillRect(p2x+mp2.w-10,p2y+mp2.h-10-la2,6,10);mx.fillStyle=p2c;mx.fillRect(p2x+3,p2y+mp2.h-2+la2,8,2);mx.fillRect(p2x+mp2.w-11,p2y+mp2.h-2-la2,8,2);mx.shadowBlur=0;mx.fillStyle=p2c;mx.font='bold 9px monospace';mx.textAlign='center';mx.fillText('P2',p2x+mp2.w/2,p2y-5);}}if(!mp.dead){let dP=mp.invuln<=0||Math.floor(mp.invuln/3)%2===0;if(dP){let aimX=mMouse.x-camX,aimY=mMouse.y-camY;mx.strokeStyle=sc;mx.globalAlpha=0.15;mx.lineWidth=1;mx.setLineDash([4,6]);mx.beginPath();mx.moveTo(px+mp.w/2-camX,py+mp.h/2-camY);mx.lineTo(aimX,aimY);mx.stroke();mx.setLineDash([]);mx.globalAlpha=0.5;mx.strokeStyle=sc;mx.lineWidth=1;mx.beginPath();mx.arc(aimX,aimY,8,0,Math.PI*2);mx.stroke();mx.beginPath();mx.moveTo(aimX-12,aimY);mx.lineTo(aimX-5,aimY);mx.moveTo(aimX+5,aimY);mx.lineTo(aimX+12,aimY);mx.moveTo(aimX,aimY-12);mx.lineTo(aimX,aimY-5);mx.moveTo(aimX,aimY+5);mx.lineTo(aimX,aimY+12);mx.stroke();mx.globalAlpha=1;}}for(let p of mState.particles){let a=p.life/p.maxLife;mx.globalAlpha=a;mx.fillStyle=p.color;mx.fillRect(p.x-p.size/2,p.y-p.size/2,p.size*a,p.size*a);}mx.globalAlpha=1;mx.shadowBlur=0;for(let t of mState.texts){let a=t.life/t.maxLife;mx.globalAlpha=a;mx.fillStyle=t.color;mx.font='bold 14px monospace';mx.textAlign='center';mx.shadowColor=t.color;mx.shadowBlur=6;mx.fillText(t.text,t.x,t.y);}mx.globalAlpha=1;mx.shadowBlur=0;mx.restore();/* Feature 94: gravity flip zone outer glow */if(mState.gravityFlipped){  mx.save();mx.strokeStyle='rgba(180,0,255,'+(0.3+Math.sin(mState.frameCount*0.1)*0.2)+')';  mx.lineWidth=4;mx.shadowColor='#aa00ff';mx.shadowBlur=20;  mx.strokeRect(2,2,cw-4,ch-4);mx.restore();}let hp2=16,bw=180,bh=14;mx.fillStyle=COLORS.hudBg;mx.fillRect(hp2-2,hp2-2,bw+4,bh+4);mx.fillStyle='#1a0011';mx.fillRect(hp2,hp2,bw,bh);let hpR=mp.hp/mp.maxHp,hpC=hpR>0.5?COLORS.neon:(hpR>0.25?COLORS.yellow:COLORS.pink);mx.fillStyle=hpC;mx.shadowColor=hpC;mx.shadowBlur=6;mx.fillRect(hp2,hp2,bw*hpR,bh);mx.shadowBlur=0;mx.fillStyle=COLORS.white;mx.font='bold 11px monospace';mx.textAlign='left';mx.fillText('HP '+mp.hp+'/'+mp.maxHp,hp2+4,hp2+11);mx.fillStyle=COLORS.hudBg;mx.fillRect(hp2-2,hp2+bh+6,bw+4,bh+4);mx.fillStyle='#1a1a00';mx.fillRect(hp2,hp2+bh+8,bw,bh);mx.fillStyle=COLORS.ammo;mx.shadowColor=COLORS.ammo;mx.shadowBlur=6;mx.fillRect(hp2,hp2+bh+8,bw*(mp.ammo/mp.maxAmmo),bh);mx.shadowBlur=0;mx.fillStyle=COLORS.white;let ammoTypeColor=mState.ammoType==='fire'?'#ff8800':mState.ammoType==='ice'?'#88ddff':'#00ffcc';mx.fillStyle=ammoTypeColor;mx.fillText('[1]NRM [2]FIRE [3]ICE | '+mState.ammoType.toUpperCase(),hp2+4,hp2+bh+35);let _hudY=hp2+bh+48;mx.fillStyle=COLORS.white;mx.font='10px monospace';mx.textAlign='left';let _kLabels=[{id:'keyR',c:'#ff3333',n:'R'},{id:'keyB',c:'#3333ff',n:'B'},{id:'keyG',c:'#33ff33',n:'G'}];mx.fillText('KEYS:',hp2+4,_hudY);for(let _ki=0;_ki<3;_ki++){let _kl=_kLabels[_ki];let _kh=mState.bossKeyInventory.includes(_kl.id);  mx.fillStyle=_kh?_kl.c:'#444';mx.fillText(_kl.n,hp2+44+_ki*14,_hudY);}let _oC=mOrbs.filter(o=>o.collected).length;mx.fillStyle=COLORS.neon;mx.fillText('ORBS:'+_oC+'/5',hp2+88,_hudY);if(mp.specialWeapon){mx.fillStyle='#ffcc00';mx.fillText('[C]:'+mp.specialWeapon+(mp.activeWeapon!=='default'?'(ON)':'(OFF)'),hp2+4,_hudY+12);}if(mState.gravityFlipped){mx.fillStyle='#aa00ff';mx.font='bold 11px monospace';mx.textAlign='center';mx.fillText('GRAVITY FLIPPED',cw/2,hp2+12);}if(_inWater){mx.fillStyle='#4488ff';mx.font='10px monospace';mx.textAlign='left';mx.fillText('UNDERWATER',hp2+4,_hudY+24);}mx.fillStyle=COLORS.white;mx.fillText('AMMO '+mp.ammo+'/'+mp.maxAmmo,hp2+4,hp2+bh+19);if(mp2){let p2y=hp2+bh*2+20;mx.fillStyle=COLORS.hudBg;mx.fillRect(hp2-2,p2y-2,bw+4,bh+4);mx.fillStyle='#1a0011';mx.fillRect(hp2,p2y,bw,bh);let p2c=mp2.color||crashedP2Color;mx.fillStyle=p2c;mx.fillRect(hp2,p2y,bw*(mp2.hp/mp2.maxHp),bh);mx.fillStyle=COLORS.white;mx.font='bold 11px monospace';mx.textAlign='left';mx.fillText('P2 HP '+mp2.hp+'/'+mp2.maxHp,hp2+4,p2y+11);mx.fillStyle=COLORS.hudBg;mx.fillRect(hp2-2,p2y+bh+4,bw+4,bh+4);mx.fillStyle='#1a1a00';mx.fillRect(hp2,p2y+bh+6,bw,bh);mx.fillStyle=COLORS.ammo;mx.fillRect(hp2,p2y+bh+6,bw*(mp2.ammo/mp2.maxAmmo),bh);mx.fillStyle=COLORS.white;mx.fillText('P2 AMMO '+mp2.ammo+'/'+mp2.maxAmmo,hp2+4,p2y+bh+17);}let rn=['CRASH SITE','ALIEN CAVERNS','LAVA DEPTHS','VOID CORRIDOR','VALE\'S SANCTUM'];mx.fillStyle=COLORS.neon;mx.font='bold 13px monospace';mx.textAlign='right';mx.shadowColor=COLORS.neon;mx.shadowBlur=8;mx.fillText(rn[room],cw-hp2,hp2+12);mx.shadowBlur=0;let mmW=120,mmH=40,mmX=cw-hp2-mmW,mmY=hp2+22;mx.fillStyle='rgba(6,6,12,0.8)';mx.fillRect(mmX,mmY,mmW,mmH);mx.strokeStyle='rgba(0,255,204,0.3)';mx.lineWidth=1;mx.strokeRect(mmX,mmY,mmW,mmH);let msx=mmW/(ROOM_W*TILE),msy=mmH/(ROOM_H*TILE);mx.fillStyle='rgba(0,0,0,0.6)';mx.fillRect(mmX,mmY,mmW,mmH);mx.fillStyle='rgba(0,255,204,0.2)';for(let ty=0;ty<ROOM_H;ty+=2)for(let tx=0;tx<ROOM_W;tx+=2){let _ek=room+'_'+tx+'_'+ty;if(mState.exploredTiles[_ek]&&rooms[room][ty][tx]===1)mx.fillRect(mmX+tx*TILE*msx,mmY+ty*TILE*msy,2,2);}mx.fillStyle=COLORS.neon;mx.fillRect(mmX+mp.x*msx-1,mmY+mp.y*msy-1,3,3);if(mp2){mx.fillStyle=mp2.color||crashedP2Color;mx.fillRect(mmX+mp2.x*msx-1,mmY+mp2.y*msy-1,3,3);}for(let e of enemies){if(!e.alive)continue;mx.fillStyle=e.type==='boss'?COLORS.boss:COLORS.enemy;mx.fillRect(mmX+e.x*msx-1,mmY+e.y*msy-1,2,2);}if(mState.introTimer>0){let a=Math.min(1,mState.introTimer/30);mx.globalAlpha=a;let bxW=420,bxH=120;mx.fillStyle=COLORS.hudBg;mx.fillRect(cw/2-bxW/2,ch/2-bxH/2-40,bxW,bxH);mx.strokeStyle=COLORS.neon;mx.lineWidth=1;mx.strokeRect(cw/2-bxW/2,ch/2-bxH/2-40,bxW,bxH);mx.fillStyle=COLORS.pink;mx.font='bold 18px monospace';mx.textAlign='center';mx.fillText('C R A S H E D   A D V E N T U R E',cw/2,ch/2-90);mx.fillStyle=COLORS.neon;mx.font='13px monospace';let storyLines=['[VALE]: Pilot! Your ship took critical damage from the Glitch shockwave!','[YOU]: The controls are dead. I\'m going down.','[VALE]: Scanners show hostile lifeforms... and something massive in the core.','[YOU]: I didn\'t survive 15 sectors to die on some rock.','[VALE]: The core\'s energy could power a distress beacon. You have to reach it.','[YOU]: ...You sound nervous, Vale. What aren\'t you telling me?','[VALE]: Just... be careful down there. Please.'];let visibleLines=Math.min(storyLines.length,Math.floor((180-mState.introTimer)/18)+1);for(let sl=0;sl<visibleLines;sl++){let line=storyLines[sl];mx.fillStyle=line.startsWith('[VALE]')?COLORS.neon:COLORS.white;mx.font=line.startsWith('[YOU]')?'bold 13px monospace':'13px monospace';mx.fillText(line,cw/2,ch/2-56+sl*18);}mx.fillStyle='#555';mx.font='11px monospace';mx.fillText('ARROWS/WASD: Move  |  Z/SPACE: Jump  |  X: Shoot',cw/2,ch/2+80);mx.fillStyle='#555';mx.fillText('Shoot red doors to open. Wall-jump off walls.',cw/2,ch/2+96);mx.globalAlpha=1;}if(room===4&&mState.bossSpawned&&!mState.bossDefeated){let boss=enemies.find(e=>e.type==='boss'&&e.alive);if(boss){let bbW=300,bbH=18,bbX=cw/2-bbW/2,bbY=ch-60;mx.fillStyle=COLORS.hudBg;mx.fillRect(bbX-2,bbY-22,bbW+4,bbH+26);mx.strokeStyle=COLORS.boss;mx.lineWidth=1;mx.strokeRect(bbX-2,bbY-22,bbW+4,bbH+26);mx.fillStyle=COLORS.boss;mx.font='bold 12px monospace';mx.textAlign='center';mx.fillText('COMMANDER VALE - THE BETRAYER',cw/2,bbY-8);if(mState.bossRevealTimer>0){mState.bossRevealTimer--;let brt=300-mState.bossRevealTimer;let bossDialogue=['[VALE]: You made it. I knew you would.','[YOU]: Vale... you\'re the core? YOU did all this?','[VALE]: I had to open the Void Gate. Your family was the price.','[VALE]: But I can bring them back. I just need YOUR neural pattern.','[YOU]: You destroyed everything I loved... for POWER?','[VALE]: For SALVATION. You\'ll understand when you\'re part of it.','[YOU]: Then I\'ll stop you. Even if it kills me.','[VALE]: ...It will.'];let bidx=Math.min(bossDialogue.length-1,Math.floor(brt/35));mx.fillStyle=bossDialogue[bidx].startsWith('[VALE]')?COLORS.boss:COLORS.white;mx.font='bold 12px monospace';mx.fillText(bossDialogue[bidx],cw/2,bbY-24);}mx.fillStyle='#1a001a';mx.fillRect(bbX,bbY,bbW,bbH);let bhr=boss.hp/boss.maxHp,bc=boss.phase>=2?COLORS.pink:COLORS.boss;mx.fillStyle=bc;mx.shadowColor=bc;mx.shadowBlur=8;mx.fillRect(bbX,bbY,bbW*bhr,bbH);mx.shadowBlur=0;}}if(mState.winTimer>0){let a=Math.min(1,(180-mState.winTimer)/60);mx.globalAlpha=a;mx.fillStyle='rgba(6,6,12,0.7)';mx.fillRect(0,0,cw,ch);mx.fillStyle=COLORS.neon;mx.font='bold 32px monospace';mx.textAlign='center';mx.shadowColor=COLORS.neon;mx.shadowBlur=20;mx.fillText('THE FINAL SACRIFICE',cw/2,ch/2-20);mx.font='16px monospace';mx.fillStyle=COLORS.white;mx.shadowBlur=0;mx.fillText('You saved them. You kept your promise. Rest now, pilot.',cw/2,ch/2+20);mx.globalAlpha=1;}if(mp.dead){mx.fillStyle='rgba(255,0,85,0.15)';mx.fillRect(0,0,cw,ch);mx.fillStyle=COLORS.pink;mx.font='bold 28px monospace';mx.textAlign='center';mx.shadowColor=COLORS.pink;mx.shadowBlur=15;mx.fillText('SYSTEMS CRITICAL',cw/2,ch/2-10);mx.font='14px monospace';mx.fillStyle=COLORS.white;mx.shadowBlur=0;mx.fillText('Rebooting...',cw/2,ch/2+15);}if(mState.showMap){  mx.fillStyle='rgba(6,6,12,0.92)';mx.fillRect(0,0,cw,ch);  mx.strokeStyle=COLORS.neon;mx.lineWidth=2;mx.strokeRect(20,20,cw-40,ch-40);  mx.fillStyle=COLORS.neon;mx.font='bold 18px monospace';mx.textAlign='center';  mx.fillText('SYSTEM MAP - [M] TO CLOSE',cw/2,48);  let _rNames=['CRASH SITE','ALIEN CAVERNS','LAVA DEPTHS','VOID CORRIDOR','VALE\'S SANCTUM'];  let _rX=[cw*0.15,cw*0.35,cw*0.35,cw*0.55,cw*0.75],_rY=[ch*0.4,ch*0.3,ch*0.6,ch*0.4,ch*0.4];  let _rW=120,_rH=60;  for(let _mi=0;_mi<5;_mi++){let _vis=mState.visitedRooms.includes(_mi);    mx.fillStyle=_mi===room?'rgba(0,255,204,0.3)':_vis?'rgba(0,100,80,0.3)':'rgba(30,30,50,0.5)';    mx.strokeStyle=_mi===room?COLORS.neon:_vis?'#00aa88':'#334';    mx.lineWidth=_mi===room?3:1;    mx.fillRect(_rX[_mi]-_rW/2,_rY[_mi]-_rH/2,_rW,_rH);    mx.strokeRect(_rX[_mi]-_rW/2,_rY[_mi]-_rH/2,_rW,_rH);    mx.fillStyle=_vis?(_mi===room?COLORS.neon:'#00aa88'):'#333';    mx.font='bold 11px monospace';mx.textAlign='center';    mx.fillText(_rNames[_mi],_rX[_mi],_rY[_mi]);    if(_mi===room){let _bp=mState.frameCount%40<20;if(_bp){mx.fillStyle=COLORS.pink;mx.beginPath();mx.arc(_rX[_mi],_rY[_mi]-10,5,0,Math.PI*2);mx.fill();}}}  let _conn=[[0,1],[1,2],[1,3],[3,4]];  for(let [_ca,_cb] of _conn){    mx.strokeStyle='rgba(0,255,204,0.3)';mx.lineWidth=1;    mx.beginPath();mx.moveTo(_rX[_ca],_rY[_ca]+_rH/2);mx.lineTo(_rX[_cb],_rY[_cb]);mx.stroke();}}if(mState.npcDialogue){  let _dw=Math.min(500,cw-80),_dh=60,_dx=cw/2-_dw/2,_dy=ch-_dh-30;  mx.fillStyle='rgba(6,6,12,0.92)';mx.fillRect(_dx,_dy,_dw,_dh);  mx.strokeStyle='#aaaaff';mx.lineWidth=1;mx.strokeRect(_dx,_dy,_dw,_dh);  mx.fillStyle='#aaaaff';mx.font='bold 12px monospace';mx.textAlign='left';  mx.fillText('[NPC]: '+mState.npcDialogue,_dx+10,_dy+22);  mx.fillStyle='#555';mx.font='10px monospace';mx.fillText('(approach to talk)',_dx+10,_dy+46);}if(mState.transitionAlpha>0){mx.fillStyle=COLORS.bg;mx.globalAlpha=mState.transitionAlpha;mx.fillRect(0,0,cw,ch);mx.globalAlpha=1;}}let mAnimFrame;function metroidLoop(){if(!mState.running)return;try{updateMetroid();}catch(e){console.error('Crashed Adventure updateMetroid error:',e);}try{renderMetroid();}catch(e){console.error('Crashed Adventure renderMetroid error:',e);}mAnimFrame=requestAnimationFrame(metroidLoop);}metroidLoop();window._metroidCleanup=function(){mState.running=false;if(mAnimFrame)cancelAnimationFrame(mAnimFrame);window.removeEventListener('keydown',mKeyDown);window.removeEventListener('keyup',mKeyUp);window.removeEventListener('resize',resizeMetroid);mc.removeEventListener('mousemove',mMouseMove);mc.removeEventListener('mousedown',mMouseDown);mc.removeEventListener('mouseup',mMouseUp);if(mc.parentNode)mc.parentNode.removeChild(mc);canvas.style.display='';document.querySelectorAll('.hud-text, #hp-bar, #shield-bar, #xp-bar, #boss-hud, #boss-alert, #kill-display, #dash-display, #combo-display, #score-display, #level-display, #status-display, #coin-display').forEach(el=>{if(el)el.style.visibility='';});};}
 
         function endMetroidMode(){if(window._metroidCleanup){window._metroidCleanup();window._metroidCleanup=null;}ui.mainOverlay.classList.remove('hidden');ui.mainOverlay.classList.remove('win-theme');ui.mainTitle.innerText="THE FINAL SACRIFICE";ui.mainTitle.style.webkitTextStroke="3px #ff0055";ui.mainTitle.style.textShadow="0 0 80px #ff0055";ui.mainDesc.innerHTML='<div style="max-width:600px;margin:0 auto;text-align:center;line-height:1.8;">'+'<span style="color:#ff0055;font-size:16px;">Vale is gone. The core is destabilizing.</span><br><br>'+'<span style="color:#888;font-style:italic;">"The beacon... it needs a neural pattern to broadcast."</span><br>'+'<span style="color:#888;font-style:italic;">"Your family\'s patterns are still in the core data."</span><br>'+'<span style="color:#888;font-style:italic;">"But someone has to stay connected to transmit them."</span><br><br>'+'<span style="color:#ffffff;font-size:15px;">You plug in. You feel their memories flood through you.</span><br>'+'<span style="color:#ffffff;font-size:15px;">Your daughter\'s laugh. Your partner\'s warmth. All of it.</span><br>'+'<span style="color:#ffffff;font-size:15px;">You hold on as the core burns through your mind.</span><br><br>'+'<span style="color:#00ffcc;font-size:18px;">The beacon fires. Across the galaxy, they wake up.</span><br>'+'<span style="color:#00ffcc;font-size:18px;">Your family is safe. They\'re free.</span><br><br>'+'<span style="color:#ff0055;font-size:14px;">You smile. You kept your promise.</span><br>'+'<span style="color:#555;font-size:13px;">The core goes dark.</span><br><br>'+'<span style="color:#ffcc00;font-size:12px;">ACHIEVEMENT UNLOCKED: THE PILOT WHO NEVER CAME HOME</span>'+'</div>';ui.menuBtns.innerHTML='<button onclick="returnToMenu()" style="border-color:#ff0055;color:#ff0055;">...Return to the Void</button>';}
+
+        // ==================== FUNCTION ALIASES ====================
+        // These expose functions defined in later script blocks so main-script menu buttons can call them.
+        // They use late-binding so the last-script-block definitions will already exist when called.
+        window.openLeaderboards = function(){ if(typeof openLeaderboardsPanel==='function') openLeaderboardsPanel(); else if(typeof openPersonalLeaderboard==='function') openPersonalLeaderboard(); else alert('Leaderboards coming soon'); };
+        window.openClan = function(){ if(typeof openClanMenu==='function') openClanMenu(); else alert('Clans coming soon'); };
+        window.openMastery = function(){ if(typeof openMasteryPanel==='function') openMasteryPanel(); else alert('Mastery coming soon'); };
+        window.openBlueprints = function(){ if(typeof openBlueprintsPanel==='function') openBlueprintsPanel(); else alert('Blueprints coming soon'); };
+        window.openBounties = function(){ if(typeof openBountyBoard==='function') openBountyBoard(); else alert('Bounties coming soon'); };
+        window.startEscort = function(){ if(typeof startEscortMission==='function') startEscortMission(); else alert('Escort coming soon'); };
+        window.openVIPPanel = function(){ if(typeof openVIPPanelFn==='function') openVIPPanelFn(); else alert('VIP Panel coming soon'); };
+        window.openPhotoMode = function(){
+            if(typeof state!=='undefined'&&state.active){
+                photoMode=true; state.paused=true;
+                spawnText(canvas.width/2,50,'PHOTO MODE ON - F2: Exit | Scroll: Zoom | 1-5: Filter | S: Save','#00ffcc',14);
+            } else {
+                alert('Start a game first, then use F2 to toggle Photo Mode.');
+            }
+        };
+        // These will be assigned once the last script block runs, but defining stubs here
+        // prevents "not defined" errors if buttons are clicked before that block executes.
+        window.openBlackMarket = window.openBlackMarket || function(){ alert('Black Market loading...'); };
+        window.openContracts = window.openContracts || function(){ alert('Contracts loading...'); };
+        window.openRebirth = window.openRebirth || function(){ alert('Rebirth loading...'); };
+        window.openGemShop = window.openGemShop || function(){ alert('Gem Shop loading...'); };
+        window.openTradePost = window.openTradePost || function(){ alert('Trade Post loading...'); };
     </script>
     <script>
     if ('serviceWorker' in navigator) {
@@ -12398,6 +12528,50 @@ function playBootCinematic(onDone){
   cvs.addEventListener('click',skip,{once:true});document.addEventListener('keydown',function kd(){skip();document.removeEventListener('keydown',kd);},{once:true});
   requestAnimationFrame(frame);
 }
+
+// ============================================================
+// WINDOW SCOPE ASSIGNMENTS
+// Expose all progression/UI panel functions to window so the main
+// script block (which runs first) can call them via late-binding aliases.
+// ============================================================
+window.openClanMenu = openClanMenu;
+window.openMasteryPanel = openMasteryPanel;
+window.openBlueprintsPanel = openBlueprintsPanel;
+window.openBlackMarket = openBlackMarket;
+window.openContracts = openContracts;
+window.openRebirth = openRebirth;
+window.openGemShop = openGemShop;
+window.openTradePost = openTradePost;
+window.openLeaderboardsPanel = openPersonalLeaderboard;
+window.openBountyBoard = (typeof openBountyBoard === 'function') ? openBountyBoard : function(){ alert('Bounties coming soon'); };
+window.openVIPPanelFn = function(){
+  var t = getVIPTier();
+  var ol = document.createElement('div');
+  ol.id = 'vip-overlay';
+  ol.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.93);z-index:9999;color:#fff;font-family:monospace;padding:40px;';
+  var html = '<h2 style="color:#ffd700;text-align:center">VIP STATUS</h2>';
+  html += '<p style="text-align:center">Lifetime Coins Earned: <b style="color:#ffd700">' + lifetimeCoins + '</b></p>';
+  if(t){ html += '<p style="text-align:center">Your Tier: <b style="color:' + t.color + '">' + t.name + '</b> (+' + (t.coinBonus*100).toFixed(0) + '% coins)</p>'; }
+  else { html += '<p style="text-align:center;color:#888">No VIP tier yet. Earn 1,000 lifetime coins!</p>'; }
+  html += '<table style="width:80%;margin:16px auto;border-collapse:collapse">';
+  for(var i=0;i<VIP_TIERS.length;i++){var vt=VIP_TIERS[i];var reached=lifetimeCoins>=vt.threshold;html+='<tr><td style="padding:6px;color:'+(reached?vt.color:'#555')+'">'+(reached?'[X] ':'[ ] ')+vt.name+'</td><td style="padding:6px;color:#888">'+vt.threshold.toLocaleString()+'+ coins</td><td style="padding:6px;color:#aaa">+'+( vt.coinBonus*100).toFixed(0)+'% coins</td></tr>';}
+  html += '</table>';
+  html += '<div style="text-align:center;margin-top:20px"><button onclick="document.getElementById(\'vip-overlay\').remove()" style="background:#555;color:#fff;border:none;padding:8px 24px;cursor:pointer">CLOSE</button></div>';
+  ol.innerHTML = html; document.body.appendChild(ol);
+};
+window.openPrestigePanel = function(){
+  alert('Prestige system: Use REBIRTH in the menu to prestige and earn permanent bonuses!');
+};
+window.openAchievementsPanel = function(){
+  if(typeof openAchievementsScreen==='function'){ openAchievementsScreen(); return; }
+  if(typeof ACHIEVEMENTS!=='undefined'){
+    var ol=document.createElement('div');ol.id='ach-overlay';ol.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.93);z-index:9999;color:#fff;font-family:monospace;padding:40px;overflow-y:auto;';
+    var html='<h2 style="color:#ffcc00;text-align:center">ACHIEVEMENTS</h2><div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center">';
+    for(var i=0;i<ACHIEVEMENTS.length;i++){var a=ACHIEVEMENTS[i];html+='<div style="background:'+(a.unlocked?'#111800':'#0a0a0a')+';border:1px solid '+(a.unlocked?'#ffcc00':'#333')+';padding:10px;min-width:160px;max-width:200px;text-align:center"><div style="color:'+(a.unlocked?'#ffcc00':'#555')+';font-weight:bold;font-size:13px">'+(a.unlocked?'[X] ':'')+a.name+'</div><div style="color:#aaa;font-size:11px;margin-top:4px">'+a.desc+'</div></div>';}
+    html+='</div><div style="text-align:center;margin-top:20px"><button onclick="document.getElementById(\'ach-overlay\').remove()" style="background:#555;color:#fff;border:none;padding:8px 24px;cursor:pointer">CLOSE</button></div>';
+    ol.innerHTML=html;document.body.appendChild(ol);
+  } else { alert('No achievements data found.'); }
+};
 
 // ============================================================
 // HOOK INTEGRATIONS
