@@ -1,0 +1,19 @@
+{
+  "name": "Neon Void",
+  "short_name": "NeonVoid",
+  "description": "Void Hunter Protocol - arcade shooter",
+  "start_url": "/index.html",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#06060c",
+  "theme_color": "#ff0055",
+  "categories": ["games"],
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect fill='%2306060c' width='512' height='512'/><text x='256' y='280' text-anchor='middle' font-size='120' font-weight='bold' fill='%23ff0055' font-family='monospace'>NV</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
