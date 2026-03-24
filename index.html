@@ -751,6 +751,7 @@
         window.addEventListener('keydown', e => {
             keys[e.code] = true;
             if (e.code === 'KeyC') { aimMode = aimMode === 'auto' ? 'mouse' : 'auto'; ui.aimMode.innerText = aimMode === 'auto' ? '[C] AIM MODE: CLASSIC AUTO-AIM' : '[C] AIM MODE: MANUAL MOUSE'; ui.aimMode.style.color = aimMode === 'auto' ? '#00ffcc' : '#ff8800'; }
+            if (e.code === 'KeyQ' && state.active && !state.paused) activateGravityWell();
             if ((e.code === 'Escape' || e.code === 'KeyP') && state.active && ui.lvlScreen.classList.contains('hidden')) { togglePause(); }
         });
         window.addEventListener('keyup', e => keys[e.code] = false);
@@ -1807,8 +1808,8 @@
                 if (this.shield > 0) {
                     this.shield -= amt;
                     if(this.shield < 0) { if (this.nukeShield) { triggerNuke(); triggerEMP(); this.nukeShield = false; } this.hp += this.shield; this.shield = 0; }
-                } else { this.hp -= amt; }
-
+                } else { this.hp -= amt; spawnHullFragments(amt); }
+                checkComboMorphDrop();
                 if (state.stats.phaseShift) this.timers.invuln = 30;
                 if (this.hp <= 0) {
                     if (state.mode === 'sandbox') { this.hp = state.stats.maxHp; spawnParticles(this.x, this.y, '#00ffcc', 20); return; }
@@ -2709,7 +2710,7 @@
                             ctx.restore();
                         }
                     } else {
-                        player.update(); if (state.stats.nanoRepair && state.frame % 120 === 0 && player.hp < state.stats.maxHp) { player.hp = Math.min(state.stats.maxHp, player.hp + 1); spawnParticles(player.x, player.y, '#00ff88', 3, 0.3); } if (f === framesToRun - 1) player.draw(ctx);
+                        player.update(); if (state.stats.nanoRepair && state.frame % 120 === 0 && player.hp < state.stats.maxHp) { player.hp = Math.min(state.stats.maxHp, player.hp + 1); spawnParticles(player.x, player.y, '#00ff88', 3, 0.3); } updateVanguardAura(); updateCorruptionZones(); updateGravityWells(); updateHullFragments(); updateVoidPortals(); if (f === framesToRun - 1) { drawCorruptionZones(ctx); drawVoidPortals(ctx); player.draw(ctx); drawVanguardAura(ctx); drawGravityWells(ctx); drawHullFragments(ctx); drawComboMorph(ctx); }
                         spawnWave(); 
                         if (activeBoss) { activeBoss.update(); if (f === framesToRun - 1) activeBoss.draw(ctx); } 
                         if (activeOrbitalStrike) { activeOrbitalStrike.update(); if (f === framesToRun - 1) activeOrbitalStrike.draw(ctx); if (activeOrbitalStrike.life <= 0) activeOrbitalStrike = null; }
@@ -4110,26 +4111,32 @@
             }
         }
 
-        function initGameBase() { player = new Player(); activeBoss = null; asteroids = []; exhaustParticles = []; entities = { bullets: [], enemies: [], eBullets: [], particles: [], powerups: [], texts: [], stars: [], trails: [] }; let starCount = appSettings.graphics === 'low' ? 25 : appSettings.graphics === 'medium' ? 80 : 150; for(let i=0; i<starCount; i++) entities.stars.push(new Star()); initNebulae(); ui.mainOverlay.classList.add('hidden'); document.getElementById('mission-select').classList.add('hidden'); document.getElementById('shop-screen').classList.add('hidden'); document.getElementById('settings-screen').classList.add('hidden'); ui.boss.style.display = 'none'; ui.bossAlert.style.display = 'none'; ui.kills.innerText = "KILLS: 0"; mobileAutoShoot = false; document.getElementById('mob-shoot').style.background = 'rgba(0,255,204,0.2)'; document.getElementById('mob-shoot').style.color = '#00ffcc'; document.getElementById('mobile-controls').style.display = appSettings.mobile ? 'flex' : 'none'; if(audioCtx.state === 'suspended') audioCtx.resume(); killStreak = 0; lastScoreEggCheck = 0; idleFrames = 0; idleMessageShown = false; killFlavorCooldown = 0; lastComboMilestone = 0; muzzleFlashes = []; slowMoActive = false; slowMoFrames = 0; stopMenuMusic(); stopMenuBg(); showCountdown(); if (appSettings.music) startMusic(); update(); }
+        function initGameBase() { player = new Player(); activeBoss = null; asteroids = []; exhaustParticles = []; entities = { bullets: [], enemies: [], eBullets: [], particles: [], powerups: [], texts: [], stars: [], trails: [] }; let starCount = appSettings.graphics === 'low' ? 25 : appSettings.graphics === 'medium' ? 80 : 150; for(let i=0; i<starCount; i++) entities.stars.push(new Star()); initNebulae(); ui.mainOverlay.classList.add('hidden'); document.getElementById('mission-select').classList.add('hidden'); document.getElementById('shop-screen').classList.add('hidden'); document.getElementById('settings-screen').classList.add('hidden'); ui.boss.style.display = 'none'; ui.bossAlert.style.display = 'none'; ui.kills.innerText = "KILLS: 0"; mobileAutoShoot = false; document.getElementById('mob-shoot').style.background = 'rgba(0,255,204,0.2)'; document.getElementById('mob-shoot').style.color = '#00ffcc'; document.getElementById('mobile-controls').style.display = appSettings.mobile ? 'flex' : 'none'; if(audioCtx.state === 'suspended') audioCtx.resume(); killStreak = 0; lastScoreEggCheck = 0; idleFrames = 0; idleMessageShown = false; killFlavorCooldown = 0; lastComboMilestone = 0; muzzleFlashes = []; slowMoActive = false; slowMoFrames = 0; stopMenuMusic(); stopMenuBg(); corruptionZones=[];playerStillFrames=0;gravityWells=[];gravWellCd=0;hullFragments=[];voidPortals=[];resetPortalTimer();lastComboMorphLevel=0; showCountdown(); if (appSettings.music) startMusic(); update(); }
         
-        function startMission(stageNum) { 
+        function startMission(stageNum) {
             let bootMission = () => {
-                state = { active: true, paused: false, mode: 'mission', frame: 0, score: 0, combo: 1, xp: 0, level: 1, xpNeeded: 100, runCoins: 0, kills: 0, shake: 0, currentStage: stageNum, bossesDefeated: stageNum - 1, difficulty: 1 + (stageNum - 1) * 0.4, nextBossLevel: 5, spawningBoss: false, warping: true, warpFrames: 0, hardcore: appSettings.hardcore, hyper: appSettings.hyper, stats: getBaseStats() }; 
-                state.stats.dmgMulti += (stageNum - 1) * 0.15; state.stats.fireRateMulti += (stageNum - 1) * 0.1; state.stats.maxHp += (stageNum - 1) * 30; state.stats.projCount += Math.floor((stageNum - 1) / 4); 
-                let sysName = `SYSTEM: SECTOR ${stageNum}`; if (stageNum === 14) sysName = 'SYSTEM: OMNIVERSAL ANOMALY DETECTED'; if (stageNum === 15) sysName = 'SYSTEM: [FATAL ERROR] GLITCH FOUND'; if (appSettings.hardcore) sysName += ' [NIGHTMARE]'; if (appSettings.hyper) sysName += ' [HYPER-DRIVE]'; 
-                ui.status.innerText = sysName; initGameBase(); 
+                state = { active: true, paused: false, mode: 'mission', frame: 0, score: 0, combo: 1, xp: 0, level: 1, xpNeeded: 100, runCoins: 0, kills: 0, shake: 0, currentStage: stageNum, bossesDefeated: stageNum - 1, difficulty: 1 + (stageNum - 1) * 0.4, nextBossLevel: 5, spawningBoss: false, warping: true, warpFrames: 0, hardcore: appSettings.hardcore, hyper: appSettings.hyper, stats: getBaseStats() };
+                applyClassStats(); state.playerClass = selectedClass;
+                state.stats.dmgMulti += (stageNum - 1) * 0.15; state.stats.fireRateMulti += (stageNum - 1) * 0.1; state.stats.maxHp += (stageNum - 1) * 30; state.stats.projCount += Math.floor((stageNum - 1) / 4);
+                let sysName = `SYSTEM: SECTOR ${stageNum} [${CLASS_DEFS[selectedClass].name}]`; if (stageNum === 14) sysName = 'SYSTEM: OMNIVERSAL ANOMALY DETECTED'; if (stageNum === 15) sysName = 'SYSTEM: [FATAL ERROR] GLITCH FOUND'; if (appSettings.hardcore) sysName += ' [NIGHTMARE]'; if (appSettings.hyper) sysName += ' [HYPER-DRIVE]';
+                ui.status.innerText = sysName; initGameBase();
             };
+            showClassSelect(() => {
             if (stageNum === 1) playCutscene('intro', bootMission); else if (stageNum === 2) playCutscene('boss2', bootMission); else if (stageNum === 3) playCutscene('boss3', bootMission); else if (stageNum === 4) playCutscene('boss4', bootMission); else if (stageNum === 5) playCutscene('boss5', bootMission); else if (stageNum === 6) playCutscene('boss6', bootMission); else if (stageNum === 7) playCutscene('boss7', bootMission); else if (stageNum === 8) playCutscene('boss8', bootMission); else if (stageNum === 9) playCutscene('boss9', bootMission); else if (stageNum === 10) playCutscene('boss10', bootMission); else if (stageNum === 11) playCutscene('boss11', bootMission); else if (stageNum === 12) playCutscene('boss12', bootMission); else if (stageNum === 13) playCutscene('boss13', bootMission); else if (stageNum === 14) playCutscene('boss14', bootMission); else if (stageNum === 15) playCutscene('boss15', bootMission); else bootMission();
+            });
         }
 
 
         function startInfinite() {
             ui.mainOverlay.classList.add('hidden');
-            showWeaponSelect(() => {
-                state = { active: true, paused: false, mode: 'infinite', frame: 0, score: 0, combo: 1, xp: 0, level: 1, xpNeeded: 100, runCoins: 0, kills: 0, shake: 0, currentStage: 1, bossesDefeated: 0, difficulty: 1, nextBossLevel: 5, spawningBoss: false, warping: true, warpFrames: 0, hardcore: appSettings.hardcore, hyper: appSettings.hyper, stats: getBaseStats() };
-                if (selectedWeapon) selectedWeapon.apply();
-                lastWaveLevel = 0; nextMilestoneIdx = 0; dashGhosts = [];
-                let sysName = `SYSTEM: APOCALYPSE`; if (appSettings.hardcore) sysName += ' [NIGHTMARE]'; if (appSettings.hyper) sysName += ' [HYPER-DRIVE]'; ui.status.innerText = sysName; initGameBase();
+            showClassSelect(() => {
+                showWeaponSelect(() => {
+                    state = { active: true, paused: false, mode: 'infinite', frame: 0, score: 0, combo: 1, xp: 0, level: 1, xpNeeded: 100, runCoins: 0, kills: 0, shake: 0, currentStage: 1, bossesDefeated: 0, difficulty: 1, nextBossLevel: 5, spawningBoss: false, warping: true, warpFrames: 0, hardcore: appSettings.hardcore, hyper: appSettings.hyper, stats: getBaseStats() };
+                    if (selectedWeapon) selectedWeapon.apply();
+                    applyClassStats(); state.playerClass = selectedClass;
+                    lastWaveLevel = 0; nextMilestoneIdx = 0; dashGhosts = [];
+                    let sysName = `SYSTEM: APOCALYPSE [${CLASS_DEFS[selectedClass].name}]`; if (appSettings.hardcore) sysName += ' [NIGHTMARE]'; if (appSettings.hyper) sysName += ' [HYPER-DRIVE]'; ui.status.innerText = sysName; initGameBase();
+                });
             });
         }
         // ==================== SANDBOX MODE ====================
@@ -4983,6 +4990,66 @@
                 }
             }, 800);
         }
+
+        // ==================== CLASS SYSTEM ====================
+        let selectedClass = 'striker';
+        const CLASS_DEFS = {
+            vanguard: { name:'VANGUARD', role:'TANK', color:'#00ffcc', icon:'shield', desc:'+80% HP, +30% Regen, -20% DMG, -15% Speed', passive:'TAUNT AURA: Enemies within 150px take 2 dmg/sec',
+                apply(s){s.maxHp*=1.8;s.regen=(s.regen||0)+0.03;s.dmgMulti*=0.8;s.speedMulti*=0.85;}},
+            striker: { name:'STRIKER', role:'DPS', color:'#ff0055', icon:'crosshair', desc:'+40% DMG, +20% Fire Rate, +15% Crit, -30% HP', passive:'Kills extend combo timer by 0.5s',
+                apply(s){s.dmgMulti*=1.4;s.fireRateMulti*=1.2;s.critChance=(s.critChance||0)+0.15;s.maxHp*=0.7;}},
+            aegis: { name:'AEGIS', role:'SUPPORT', color:'#ffcc00', icon:'plus', desc:'+50% HP, +30% Coins, -15% DMG', passive:'Co-op: Heal allies 3hp/s in 200px. Pickup radius +20%',
+                apply(s){s.maxHp*=1.5;s.coinMulti=(s.coinMulti||1)*1.3;s.dmgMulti*=0.85;}}
+        };
+        function showClassSelect(callback){
+            let ov=document.createElement('div');ov.id='class-select';
+            ov.style.cssText='position:absolute;top:0;left:0;width:100%;height:100%;z-index:26;background:rgba(0,0,0,0.95);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:15px;';
+            ov.innerHTML='<div style="font-size:36px;font-weight:900;color:#00ffcc;text-shadow:0 0 30px #00ffcc;letter-spacing:8px;margin-bottom:5px;">SELECT CLASS</div><div style="color:#888;font-size:13px;margin-bottom:10px;">Choose your combat specialization</div>';
+            let con=document.createElement('div');con.style.cssText='display:flex;gap:18px;flex-wrap:wrap;justify-content:center;';
+            for(let[id,cls]of Object.entries(CLASS_DEFS)){
+                let card=document.createElement('div');
+                card.style.cssText=`border:2px solid ${cls.color};padding:20px 18px;min-width:200px;max-width:240px;text-align:center;cursor:pointer;background:rgba(0,0,0,0.8);transition:all 0.2s;font-family:monospace;`;
+                card.innerHTML=`<div style="font-size:20px;font-weight:900;letter-spacing:3px;color:${cls.color};">${cls.name}</div><div style="font-size:10px;color:${cls.color}88;letter-spacing:4px;margin:2px 0 10px;">${cls.role}</div><div style="font-size:11px;color:#aaa;margin-bottom:8px;line-height:1.6;">${cls.desc}</div><div style="font-size:10px;color:${cls.color};border-top:1px solid ${cls.color}33;padding-top:8px;">${cls.passive}</div>`;
+                card.onmouseenter=()=>{card.style.boxShadow=`0 0 30px ${cls.color}50`;card.style.transform='scale(1.04)';};
+                card.onmouseleave=()=>{card.style.boxShadow='none';card.style.transform='scale(1)';};
+                card.onclick=()=>{selectedClass=id;playSound('powerup');ov.remove();callback();};
+                con.appendChild(card);
+            }
+            ov.appendChild(con);document.body.appendChild(ov);
+        }
+        function applyClassStats(){let cls=CLASS_DEFS[selectedClass];if(cls)cls.apply(state.stats);}
+        function updateVanguardAura(){if(selectedClass!=='vanguard'||!player||state.frame%6!==0)return;for(let i=entities.enemies.length-1;i>=0;i--){let e=entities.enemies[i];if(!e)continue;let dx=e.x-player.x,dy=e.y-player.y;if(dx>150||dx<-150||dy>150||dy<-150)continue;if(dx*dx+dy*dy<22500){e.hp-=0.2;if(e.hp<=0&&e.type!=='dummy')killEnemy(e);}}}
+        function drawVanguardAura(ctx){if(selectedClass!=='vanguard'||!player)return;ctx.save();ctx.strokeStyle='#00ffcc';ctx.lineWidth=1.5;ctx.globalAlpha=0.12+Math.sin(state.frame*0.05)*0.06;ctx.beginPath();ctx.arc(player.x,player.y,150,0,Math.PI*2);ctx.stroke();ctx.restore();}
+        function getAegisPickupBonus(){return selectedClass==='aegis'?1.2:1.0;}
+
+        // ==================== VOID CORRUPTION ZONES ====================
+        let corruptionZones=[];let playerStillFrames=0;
+        function updateCorruptionZones(){if(!player||state.warping)return;let moving=keys['KeyW']||keys['ArrowUp']||keys['KeyS']||keys['ArrowDown']||keys['KeyA']||keys['ArrowLeft']||keys['KeyD']||keys['ArrowRight']||(typeof joyData!=='undefined'&&joyData.active);if(moving)playerStillFrames=0;else playerStillFrames++;if(playerStillFrames>=120&&corruptionZones.length<3){let ok=true;for(let z of corruptionZones)if(Math.hypot(z.x-player.x,z.y-player.y)<80){ok=false;break;}if(ok){corruptionZones.push({x:player.x,y:player.y,radius:100,life:480,maxLife:480,grow:0});playerStillFrames=0;}}for(let i=corruptionZones.length-1;i>=0;i--){let z=corruptionZones[i];z.life--;if(z.grow<30)z.grow++;let r=z.radius*(z.grow/30);if(z.life<=0){corruptionZones.splice(i,1);continue;}let pd=Math.hypot(player.x-z.x,player.y-z.y);if(pd<r)player.hp-=0.05;for(let j=entities.enemies.length-1;j>=0;j--){let e=entities.enemies[j];if(!e)continue;if(Math.hypot(e.x-z.x,e.y-z.y)<r+e.radius){e.hp-=0.25;if(e.hp<=0&&e.type!=='dummy')killEnemy(e);}}if(activeBoss&&activeBoss.alpha>0.5&&Math.hypot(activeBoss.x-z.x,activeBoss.y-z.y)<r+activeBoss.radius)activeBoss.hp-=0.075;}}
+        function drawCorruptionZones(ctx){for(let z of corruptionZones){let r=z.radius*(z.grow/30),f=z.life<60?z.life/60:1;ctx.save();let rc=Math.floor(r*0.3);for(let j=0;j<rc;j++){let rx=z.x+(Math.random()-0.5)*r*2,ry=z.y+(Math.random()-0.5)*r*2;if(Math.hypot(rx-z.x,ry-z.y)>r)continue;ctx.globalAlpha=f*(0.1+Math.random()*0.25);ctx.fillStyle=Math.random()>0.5?'#aa00ff':'#ff00aa';ctx.fillRect(rx,ry,2+Math.random()*6,1+Math.random()*3);}ctx.globalAlpha=f*(0.3+Math.sin(state.frame*0.1)*0.15);ctx.strokeStyle='#aa00ff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(z.x,z.y,r,0,Math.PI*2);ctx.stroke();ctx.restore();}}
+
+        // ==================== GRAVITY WELLS ====================
+        let gravityWells=[];let gravWellCd=0;
+        function activateGravityWell(){if(gravWellCd>0||!player||state.warping||state.paused)return;gravityWells.push({x:player.x,y:player.y,life:180,maxLife:180,radius:200,particles:[]});gravWellCd=state.hardcore?1320:900;playSound('emp');shakeScreen(8);}
+        function updateGravityWells(){if(gravWellCd>0)gravWellCd--;for(let i=gravityWells.length-1;i>=0;i--){let w=gravityWells[i];w.life--;let ps=3.5;for(let e of entities.enemies){if(!e)continue;let d=Math.hypot(e.x-w.x,e.y-w.y);if(d<w.radius&&d>5){let f=ps*(1-d/w.radius);e.x+=(w.x-e.x)/d*f;e.y+=(w.y-e.y)/d*f;}}for(let b of entities.eBullets){if(!b)continue;let d=Math.hypot(b.x-w.x,b.y-w.y);if(d<w.radius&&d>5){let f=2.5*(1-d/w.radius);b.vx+=(w.x-b.x)/d*f*0.3;b.vy+=(w.y-b.y)/d*f*0.3;}}if(state.frame%2===0&&w.particles.length<20){let a=Math.random()*Math.PI*2,r2=w.radius*(0.3+Math.random()*0.7);w.particles.push({a,r:r2,life:40});}for(let j=w.particles.length-1;j>=0;j--){let p=w.particles[j];p.a+=0.12;p.r*=0.96;p.life--;if(p.life<=0||p.r<3)w.particles.splice(j,1);}if(w.life<=0){for(let j=entities.enemies.length-1;j>=0;j--){let e=entities.enemies[j];if(!e)continue;if(Math.hypot(e.x-w.x,e.y-w.y)<w.radius*0.6){e.hp-=50*state.stats.dmgMulti;if(e.hp<=0&&e.type!=='dummy')killEnemy(e);}}spawnParticles(w.x,w.y,'#8800ff',25,2);shakeScreen(10);gravityWells.splice(i,1);}}}
+        function drawGravityWells(ctx){for(let w of gravityWells){let lp=w.life/w.maxLife;ctx.save();ctx.globalAlpha=0.1*lp;ctx.fillStyle='#330066';ctx.beginPath();ctx.arc(w.x,w.y,w.radius,0,Math.PI*2);ctx.fill();ctx.globalAlpha=(0.35+Math.sin(state.frame*0.15)*0.15)*lp;ctx.strokeStyle='#8800ff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(w.x,w.y,w.radius,0,Math.PI*2);ctx.stroke();for(let p of w.particles){ctx.globalAlpha=(p.life/40)*0.6*lp;ctx.fillStyle='#cc44ff';ctx.fillRect(w.x+Math.cos(p.a)*p.r-2,w.y+Math.sin(p.a)*p.r-2,4,4);}ctx.globalAlpha=0.5*lp;ctx.fillStyle='#fff';ctx.fillRect(w.x-2,w.y-2,4,4);ctx.restore();}}
+
+        // ==================== SHIP FRAGMENTATION ====================
+        let hullFragments=[];
+        function spawnHullFragments(dmg){if(!player||hullFragments.length>=5)return;let count=Math.min(3,1+Math.floor(dmg/15));while(count>0&&hullFragments.length<5){let a=Math.random()*Math.PI*2;hullFragments.push({x:player.x,y:player.y,vx:Math.cos(a)*3,vy:Math.sin(a)*3,life:600,orbitAngle:Math.random()*Math.PI*2,orbitSpeed:0.03+Math.random()*0.02,color:player.baseColor,shootCd:0,dmg:Math.max(5,20*state.stats.dmgMulti*0.1)});count--;}}
+        function updateHullFragments(){if(!player)return;for(let i=hullFragments.length-1;i>=0;i--){let f=hullFragments[i];f.life--;if(f.life<=0||!state.active){hullFragments.splice(i,1);continue;}f.orbitAngle+=f.orbitSpeed;let tx=player.x+Math.cos(f.orbitAngle)*60,ty=player.y+Math.sin(f.orbitAngle)*60;f.x+=(tx-f.x)*0.12;f.y+=(ty-f.y)*0.12;f.shootCd--;if(f.shootCd<=0){let ne=null,nd=Infinity;for(let e of entities.enemies){if(!e)continue;let d=Math.hypot(e.x-f.x,e.y-f.y);if(d<nd){nd=d;ne=e;}}if(!ne&&activeBoss&&activeBoss.alpha>0.5)ne=activeBoss;if(ne&&nd<400){let da=Math.atan2(ne.y-f.y,ne.x-f.x);entities.bullets.push({x:f.x,y:f.y,vx:Math.cos(da)*18,vy:Math.sin(da)*18,radius:2,dmg:f.dmg,color:f.color,life:60,hitList:[],pierce:0,isCrit:false,isBomb:false});f.shootCd=30;}}}}
+        function drawHullFragments(ctx){for(let f of hullFragments){let fp=f.life<60?f.life/60:1;ctx.save();ctx.translate(f.x,f.y);ctx.rotate(f.orbitAngle*2);ctx.globalAlpha=fp;ctx.fillStyle=f.color;ctx.beginPath();ctx.moveTo(0,-5);ctx.lineTo(4,3);ctx.lineTo(-4,3);ctx.closePath();ctx.fill();ctx.globalAlpha=fp*0.4;ctx.fillStyle='#fff';ctx.fillRect(-1,-1,2,2);ctx.restore();ctx.globalAlpha=1;}}
+
+        // ==================== VOID RIFT PORTALS ====================
+        let voidPortals=[];let portalSpawnTimer=0;let portalSpawnInterval=2400;
+        function resetPortalTimer(){portalSpawnInterval=1800+Math.floor(Math.random()*900);portalSpawnTimer=portalSpawnInterval;}
+        function updateVoidPortals(){if(portalSpawnTimer>0)portalSpawnTimer--;if(portalSpawnTimer<=0&&voidPortals.length===0&&!activeBoss&&!state.spawningBoss&&!state.warping){let m=80,x1=m+Math.random()*(canvas.width-m*2),y1=m+Math.random()*(canvas.height-m*2),x2,y2;do{x2=m+Math.random()*(canvas.width-m*2);y2=m+Math.random()*(canvas.height-m*2);}while(Math.hypot(x2-x1,y2-y1)<200);let a={x:x1,y:y1,color:'#00ffcc',pair:null,life:720,maxLife:720,cd:0,ang:0};let b={x:x2,y:y2,color:'#ff0055',pair:null,life:720,maxLife:720,cd:0,ang:0};a.pair=b;b.pair=a;voidPortals.push(a,b);resetPortalTimer();}for(let i=voidPortals.length-1;i>=0;i--){let p=voidPortals[i];p.life--;p.ang+=0.05;if(p.cd>0)p.cd--;if(p.life<=0){voidPortals.splice(i,1);continue;}if(!p.pair||p.pair.life<=0)continue;if(p.cd<=0&&player&&Math.hypot(player.x-p.x,player.y-p.y)<25){player.x=p.pair.x;player.y=p.pair.y;p.cd=30;p.pair.cd=30;spawnParticles(p.x,p.y,p.color,10);spawnParticles(p.pair.x,p.pair.y,p.pair.color,10);playSound('dash');}for(let b of entities.bullets){if(!b||b._pcd>0)continue;if(Math.hypot(b.x-p.x,b.y-p.y)<20&&p.cd<=0){b.x=p.pair.x+(b.x-p.x);b.y=p.pair.y+(b.y-p.y);b._pcd=15;}}for(let b of entities.eBullets){if(!b||b._pcd>0)continue;if(Math.hypot(b.x-p.x,b.y-p.y)<20&&p.cd<=0){b.x=p.pair.x+(b.x-p.x);b.y=p.pair.y+(b.y-p.y);b._pcd=15;}}for(let e of entities.enemies){if(!e||e._pcd>0)continue;if(Math.hypot(e.x-p.x,e.y-p.y)<20&&p.cd<=0){e.x=p.pair.x;e.y=p.pair.y;e.frozen=30;e._pcd=60;}}}}
+        function drawVoidPortals(ctx){for(let i=0;i<voidPortals.length;i+=2){let a=voidPortals[i],b=voidPortals[i+1];if(!a||!b)continue;ctx.save();ctx.globalAlpha=0.06;ctx.strokeStyle='#aa00ff';ctx.lineWidth=1;ctx.setLineDash([4,8]);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.setLineDash([]);ctx.restore();}for(let p of voidPortals){let f=p.life<60?p.life/60:(p.life>p.maxLife-30?(p.maxLife-p.life)/30:1);ctx.save();ctx.globalAlpha=f*(0.3+Math.sin(state.frame*0.1)*0.1);ctx.strokeStyle=p.color;ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x,p.y,25+Math.sin(state.frame*0.08)*3,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=f*0.45;ctx.lineWidth=3;ctx.beginPath();ctx.arc(p.x,p.y,22,p.ang,p.ang+Math.PI*0.7);ctx.stroke();ctx.beginPath();ctx.arc(p.x,p.y,22,p.ang+Math.PI,p.ang+Math.PI+Math.PI*0.7);ctx.stroke();ctx.globalAlpha=f*0.12;ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,12,0,Math.PI*2);ctx.fill();ctx.globalAlpha=f*0.6;ctx.fillStyle='#fff';ctx.fillRect(p.x-2,p.y-2,4,4);ctx.restore();}}
+
+        // ==================== COMBO MORPHING ====================
+        let lastComboMorphLevel=0;
+        function getComboMorphLevel(){let c=state.combo;if(c>=15)return 5;if(c>=10)return 4;if(c>=7)return 3;if(c>=4)return 2;if(c>=2)return 1;return 0;}
+        function drawComboMorph(ctx){if(!player||state.warping)return;let lv=getComboMorphLevel(),px=player.x,py=player.y,bc=player.baseColor,ang=player.angle;if(lv<=0)return;ctx.save();if(lv>=1){let ex=8+lv*3,tx=px-Math.cos(ang)*18,ty=py-Math.sin(ang)*18;for(let t=0;t<ex;t++){ctx.globalAlpha=(1-t/ex)*0.3;ctx.fillStyle=bc;ctx.fillRect(tx-Math.cos(ang)*t*1.5+(Math.random()-0.5)*2-1,ty-Math.sin(ang)*t*1.5+(Math.random()-0.5)*2-1,3,3);}}if(lv>=2){ctx.globalAlpha=0.6;ctx.fillStyle=bc;let ppx=Math.cos(ang+Math.PI/2),ppy=Math.sin(ang+Math.PI/2);for(let s=-1;s<=1;s+=2){let wx=px+ppx*22*s-Math.cos(ang)*5,wy=py+ppy*22*s-Math.sin(ang)*5;ctx.save();ctx.translate(wx,wy);ctx.rotate(ang);ctx.fillRect(-4,-2,8,4);ctx.restore();}}if(lv>=3){ctx.globalAlpha=0.3;ctx.strokeStyle=bc;ctx.lineWidth=2;let ra=state.frame*0.04;ctx.beginPath();ctx.arc(px,py,32,ra,ra+Math.PI*0.6);ctx.stroke();ctx.beginPath();ctx.arc(px,py,32,ra+Math.PI,ra+Math.PI+Math.PI*0.6);ctx.stroke();}if(lv>=4){ctx.globalAlpha=0.55;ctx.fillStyle=bc;let ba=ang+Math.PI,ppx=Math.cos(ang+Math.PI/2),ppy=Math.sin(ang+Math.PI/2);for(let s=-1;s<=1;s+=2){let tx2=px+Math.cos(ba)*20+ppx*12*s,ty2=py+Math.sin(ba)*20+ppy*12*s;ctx.fillRect(tx2-3,ty2-3,6,6);}}if(lv>=5){ctx.globalAlpha=0.06+Math.sin(state.frame*0.06)*0.03;ctx.fillStyle=bc;ctx.beginPath();ctx.arc(px,py,45,0,Math.PI*2);ctx.fill();}ctx.globalAlpha=1;ctx.restore();}
+        function checkComboMorphDrop(){let cur=getComboMorphLevel();if(cur<lastComboMorphLevel&&lastComboMorphLevel>0&&player){spawnParticles(player.x,player.y,player.baseColor,(lastComboMorphLevel-cur)*10,2);shakeScreen(3+lastComboMorphLevel*2);}lastComboMorphLevel=cur;}
 
         // ==================== TUTORIAL STAGE ====================
         let tutorialState = { active: false, step: 0, stepTimer: 0, spawnedEnemies: false, spawnedPowerup: false };
