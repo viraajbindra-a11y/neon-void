@@ -865,12 +865,11 @@
             draw(ctx) {
                 let a = Math.max(0, this.life);
                 // Outer glow pass (larger, more transparent)
-                if (this.size > 2 && appSettings.graphics === 'high') {
-                    ctx.globalAlpha = a * 0.25;
+                if (this.size > 3 && appSettings.graphics === 'high') {
+                    ctx.globalAlpha = a * 0.2;
                     ctx.fillStyle = this.c;
-                    ctx.beginPath();
-                    ctx.arc(this.x + this.size * 0.5, this.y + this.size * 0.5, this.size * 1.8, 0, Math.PI * 2);
-                    ctx.fill();
+                    let gs = this.size * 1.5;
+                    ctx.fillRect(this.x - gs*0.3, this.y - gs*0.3, gs, gs);
                 }
                 // Core particle
                 ctx.globalAlpha = a;
@@ -911,12 +910,9 @@
                 let stretch = state.warping ? 50 : this.z;
                 ctx.fillRect(this.x, this.y, this.z, stretch);
                 // Brighter stars get a soft glow
-                if (this.z > 1.4 && appSettings.graphics === 'high') {
-                    ctx.globalAlpha = baseAlpha * twinkle * 0.25;
-                    ctx.beginPath();
-                    ctx.arc(this.x, this.y, this.z * 2, 0, Math.PI * 2);
-                    ctx.fillStyle = this.c;
-                    ctx.fill();
+                if (this.z > 1.8 && appSettings.graphics === 'high') {
+                    ctx.globalAlpha = baseAlpha * twinkle * 0.2;
+                    ctx.fillRect(this.x - this.z, this.y - this.z, this.z * 3, this.z * 3);
                 }
                 ctx.globalAlpha = 1;
             }
@@ -946,20 +942,22 @@
         }
         function drawNebulae(ctx) {
             if (appSettings.graphics === 'low' || nebulaClouds.length === 0) return;
+            if (appSettings.graphics === 'medium' && state.frame % 3 !== 0) return;
             ctx.save();
             ctx.globalCompositeOperation = 'screen';
             for (let n of nebulaClouds) {
-                let pulse = 0.8 + 0.2 * Math.sin(state.frame * 0.005 + n.phase);
-                let alpha = 0.06 * pulse;
-                let grad = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.radius);
-                grad.addColorStop(0, `rgba(${n.color.r}, ${n.color.g}, ${n.color.b}, ${alpha})`);
-                grad.addColorStop(0.5, `rgba(${n.color.r}, ${n.color.g}, ${n.color.b}, ${alpha * 0.4})`);
-                grad.addColorStop(1, 'rgba(0,0,0,0)');
-                ctx.fillStyle = grad;
+                let alpha = 0.05;
+                if (!n._grad || state.frame % 30 === 0) {
+                    n._grad = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.radius);
+                    n._grad.addColorStop(0, `rgba(${n.color.r}, ${n.color.g}, ${n.color.b}, ${alpha})`);
+                    n._grad.addColorStop(0.5, `rgba(${n.color.r}, ${n.color.g}, ${n.color.b}, ${alpha * 0.4})`);
+                    n._grad.addColorStop(1, 'rgba(0,0,0,0)');
+                }
+                ctx.fillStyle = n._grad;
                 ctx.fillRect(n.x - n.radius, n.y - n.radius, n.radius * 2, n.radius * 2);
                 n.y += n.drift;
-                if (n.y > canvas.height + n.radius) { n.y = -n.radius; n.x = Math.random() * canvas.width; }
-                if (n.y < -n.radius) { n.y = canvas.height + n.radius; n.x = Math.random() * canvas.width; }
+                if (n.y > canvas.height + n.radius) { n.y = -n.radius; n.x = Math.random() * canvas.width; n._grad = null; }
+                if (n.y < -n.radius) { n.y = canvas.height + n.radius; n.x = Math.random() * canvas.width; n._grad = null; }
             }
             ctx.restore();
         }
@@ -995,7 +993,7 @@
             if (drones.bomb > 0) {
                 let dx = px-25, dy = py-25 + bob;
                 ctx.save(); ctx.translate(dx, dy); ctx.rotate(spin);
-                if (appSettings.graphics === 'high') { ctx.shadowBlur = 12; ctx.shadowColor = '#ff4400'; }
+                if (appSettings.graphics === 'high') { ctx.shadowBlur = 6; ctx.shadowColor = '#ff4400'; }
                 ctx.fillStyle = '#ff4400';
                 ctx.fillRect(-7, -4, 14, 8);
                 ctx.fillStyle = '#cc3300';
@@ -1010,7 +1008,7 @@
             if (drones.laser > 0) {
                 let dx = px+25, dy = py-25 + bob;
                 ctx.save(); ctx.translate(dx, dy); ctx.rotate(-spin * 0.7);
-                if (appSettings.graphics === 'high') { ctx.shadowBlur = 12; ctx.shadowColor = '#00ff00'; }
+                if (appSettings.graphics === 'high') { ctx.shadowBlur = 6; ctx.shadowColor = '#00ff00'; }
                 ctx.fillStyle = '#00ff00';
                 ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(6, 0); ctx.lineTo(0, 8); ctx.lineTo(-6, 0); ctx.closePath(); ctx.fill();
                 ctx.strokeStyle = '#00ff0066'; ctx.lineWidth = 1;
@@ -1024,7 +1022,7 @@
             if (drones.mini > 0) {
                 let dx = px-25, dy = py+25 + bob;
                 ctx.save(); ctx.translate(dx, dy);
-                if (appSettings.graphics === 'high') { ctx.shadowBlur = 10; ctx.shadowColor = '#ffff00'; }
+                if (appSettings.graphics === 'high') { ctx.shadowBlur = 6; ctx.shadowColor = '#ffff00'; }
                 ctx.fillStyle = '#888';
                 ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI*2); ctx.fill();
                 ctx.strokeStyle = '#ffff00'; ctx.lineWidth = 1.5;
@@ -1041,7 +1039,7 @@
             if (drones.scatter > 0) {
                 let dx = px+25, dy = py+25 + bob;
                 ctx.save(); ctx.translate(dx, dy); ctx.rotate(spin);
-                if (appSettings.graphics === 'high') { ctx.shadowBlur = 12; ctx.shadowColor = '#ff00ff'; }
+                if (appSettings.graphics === 'high') { ctx.shadowBlur = 6; ctx.shadowColor = '#ff00ff'; }
                 ctx.fillStyle = '#ff00ff';
                 ctx.beginPath();
                 for (let i = 0; i < 5; i++) {
@@ -1061,7 +1059,7 @@
                 let dx = px, dy = py-35 + bob;
                 let pulse = 0.5 + Math.sin(state.frame * 0.15) * 0.3;
                 ctx.save(); ctx.translate(dx, dy);
-                if (appSettings.graphics === 'high') { ctx.shadowBlur = 15; ctx.shadowColor = '#00ffff'; }
+                if (appSettings.graphics === 'high') { ctx.shadowBlur = 8; ctx.shadowColor = '#00ffff'; }
                 ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 1.5; ctx.globalAlpha = pulse + 0.3;
                 ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI*2); ctx.stroke();
                 ctx.globalAlpha = 1;
@@ -1075,7 +1073,7 @@
             if (drones.sniper > 0) {
                 let dx = px, dy = py+35 + bob;
                 ctx.save(); ctx.translate(dx, dy); ctx.rotate(spin * 0.3);
-                if (appSettings.graphics === 'high') { ctx.shadowBlur = 12; ctx.shadowColor = '#ffffff'; }
+                if (appSettings.graphics === 'high') { ctx.shadowBlur = 6; ctx.shadowColor = '#ffffff'; }
                 ctx.fillStyle = '#ffffff';
                 ctx.fillRect(-2, -12, 4, 24); // barrel
                 ctx.fillStyle = '#aaa';
@@ -1091,7 +1089,7 @@
             if (drones.guardian > 0) {
                 let gt = state.frame * 0.1; let gCount = drones.guardian * 2;
                 ctx.strokeStyle = playerColor; ctx.lineWidth = 5;
-                if (appSettings.graphics === 'high') { ctx.shadowBlur = 15; ctx.shadowColor = playerColor; }
+                if (appSettings.graphics === 'high') { ctx.shadowBlur = 8; ctx.shadowColor = playerColor; }
                 for (let i = 0; i < gCount; i++) {
                     let a = gt + (i * Math.PI * 2 / gCount);
                     ctx.beginPath(); ctx.arc(px, py, 60, a, a + Math.PI/3); ctx.stroke();
@@ -1102,7 +1100,7 @@
             // Saw Drones — actual spinning sawblade
             if (drones.saw > 0) {
                 let st = state.frame * -0.15; let sCount = drones.saw * 2;
-                if (appSettings.graphics === 'high') { ctx.shadowBlur = 15; ctx.shadowColor = '#ff0000'; }
+                if (appSettings.graphics === 'high') { ctx.shadowBlur = 8; ctx.shadowColor = '#ff0000'; }
                 for (let i = 0; i < sCount; i++) {
                     let a = st + (i * Math.PI * 2 / sCount);
                     let sx = px + Math.cos(a) * 100; let sy = py + Math.sin(a) * 100;
@@ -2782,11 +2780,13 @@
                                     } 
                                 } 
                             } 
-                            if(!dead) { 
-                                for (let j=entities.enemies.length-1; j>=0; j--) { 
-                                    let e = entities.enemies[j]; 
-                                    if (!e || (e.type === 'ghost' && e.alpha < 0.5)) continue; 
-                                    if (Math.hypot(b.x-e.x, b.y-e.y) < e.radius) { 
+                            if(!dead) {
+                                for (let j=entities.enemies.length-1; j>=0; j--) {
+                                    let e = entities.enemies[j];
+                                    if (!e || (e.type === 'ghost' && e.alpha < 0.5)) continue;
+                                    let _dx=b.x-e.x,_dy=b.y-e.y,_r=e.radius;
+                                    if (_dx>_r||_dx<-_r||_dy>_r||_dy<-_r) continue;
+                                    if (_dx*_dx+_dy*_dy < _r*_r) {
                                         if (!b.hitList.includes(e)) {
                                             if (e.type === 'shielder' && e.shieldHp > 0) { e.shieldHp -= b.dmg; if (e.shieldHp <= 0) e.shieldHp = 0; } else { e.hp -= b.dmg; } b.hitList.push(e); flashEnemy(e);
                                             if (b.isCrit) { playSound('crit'); spawnText(b.x, b.y, "CRIT " + Math.floor(b.dmg), '#ff0000', 24); knockbackEnemy(e, b.x, b.y, 6); } else { spawnText(b.x, b.y, Math.floor(b.dmg), player.baseColor, 16); knockbackEnemy(e, b.x, b.y, 2); }
@@ -2899,7 +2899,8 @@
             if (state.frame % 30 === 0) checkScoreEggs();
             checkIdle();
             if (appSettings.autoFire && state.active && !state.paused) mouse.down = true;
-            ui.score.innerText = `SCORE: ${Math.floor(state.score)}`; ui.combo.innerText = `COMBO x${state.combo.toFixed(1)}`; ui.lvl.innerText = state.mode === 'training' ? (trainingMode === 'aim' ? 'AIM TRAINER' : trainingMode === 'manual' ? 'MANUAL AIM' : trainingMode === 'boss_practice' ? 'BOSS PRACTICE' : 'FREE PRACTICE') : state.mode === 'boss_rush' ? `BOSS ${Math.min(state.bossesDefeated + 1, 15)}/15 | ${Math.floor(state.frame/3600)}:${(Math.floor(state.frame/60)%60).toString().padStart(2,'0')}` : state.mode === 'sandbox' ? 'SANDBOX' : state.mode === 'arcade' ? `WAVE ${state.level} | ${'❤'.repeat(arcadeLives)}` : `LVL: ${state.level}`; ui.coins.innerText = `COINS: ${totalCoins + state.runCoins}`; ui.hp.style.width = `${Math.max(0, (player.hp/state.stats.maxHp)*100)}%`; ui.shield.style.width = `${Math.min(100, player.shield)}%`; ui.xp.style.width = `${(state.xp / state.xpNeeded)*100}%`;
+            if (state.frame % 3 === 0) { ui.score.innerText = `SCORE: ${Math.floor(state.score)}`; ui.combo.innerText = `COMBO x${state.combo.toFixed(1)}`; ui.lvl.innerText = state.mode === 'training' ? (trainingMode === 'aim' ? 'AIM TRAINER' : trainingMode === 'manual' ? 'MANUAL AIM' : trainingMode === 'boss_practice' ? 'BOSS PRACTICE' : 'FREE PRACTICE') : state.mode === 'boss_rush' ? `BOSS ${Math.min(state.bossesDefeated + 1, 15)}/15 | ${Math.floor(state.frame/3600)}:${(Math.floor(state.frame/60)%60).toString().padStart(2,'0')}` : state.mode === 'sandbox' ? 'SANDBOX' : state.mode === 'arcade' ? `WAVE ${state.level} | ${'❤'.repeat(arcadeLives)}` : `LVL: ${state.level}`; ui.coins.innerText = `COINS: ${totalCoins + state.runCoins}`; }
+            ui.hp.style.width = `${Math.max(0, (player.hp/state.stats.maxHp)*100)}%`; ui.shield.style.width = `${Math.min(100, player.shield)}%`; ui.xp.style.width = `${(state.xp / state.xpNeeded)*100}%`;
             if (appSettings.render3D && is3DActive) update3D();
             drawTutorialHighlight(ctx);
             requestAnimationFrame(update);
@@ -4109,7 +4110,7 @@
             }
         }
 
-        function initGameBase() { player = new Player(); activeBoss = null; asteroids = []; exhaustParticles = []; entities = { bullets: [], enemies: [], eBullets: [], particles: [], powerups: [], texts: [], stars: [], trails: [] }; let starCount = appSettings.graphics === 'low' ? 40 : 150; for(let i=0; i<starCount; i++) entities.stars.push(new Star()); initNebulae(); ui.mainOverlay.classList.add('hidden'); document.getElementById('mission-select').classList.add('hidden'); document.getElementById('shop-screen').classList.add('hidden'); document.getElementById('settings-screen').classList.add('hidden'); ui.boss.style.display = 'none'; ui.bossAlert.style.display = 'none'; ui.kills.innerText = "KILLS: 0"; mobileAutoShoot = false; document.getElementById('mob-shoot').style.background = 'rgba(0,255,204,0.2)'; document.getElementById('mob-shoot').style.color = '#00ffcc'; document.getElementById('mobile-controls').style.display = appSettings.mobile ? 'flex' : 'none'; if(audioCtx.state === 'suspended') audioCtx.resume(); killStreak = 0; lastScoreEggCheck = 0; idleFrames = 0; idleMessageShown = false; killFlavorCooldown = 0; lastComboMilestone = 0; muzzleFlashes = []; slowMoActive = false; slowMoFrames = 0; stopMenuMusic(); stopMenuBg(); showCountdown(); if (appSettings.music) startMusic(); update(); }
+        function initGameBase() { player = new Player(); activeBoss = null; asteroids = []; exhaustParticles = []; entities = { bullets: [], enemies: [], eBullets: [], particles: [], powerups: [], texts: [], stars: [], trails: [] }; let starCount = appSettings.graphics === 'low' ? 25 : appSettings.graphics === 'medium' ? 80 : 150; for(let i=0; i<starCount; i++) entities.stars.push(new Star()); initNebulae(); ui.mainOverlay.classList.add('hidden'); document.getElementById('mission-select').classList.add('hidden'); document.getElementById('shop-screen').classList.add('hidden'); document.getElementById('settings-screen').classList.add('hidden'); ui.boss.style.display = 'none'; ui.bossAlert.style.display = 'none'; ui.kills.innerText = "KILLS: 0"; mobileAutoShoot = false; document.getElementById('mob-shoot').style.background = 'rgba(0,255,204,0.2)'; document.getElementById('mob-shoot').style.color = '#00ffcc'; document.getElementById('mobile-controls').style.display = appSettings.mobile ? 'flex' : 'none'; if(audioCtx.state === 'suspended') audioCtx.resume(); killStreak = 0; lastScoreEggCheck = 0; idleFrames = 0; idleMessageShown = false; killFlavorCooldown = 0; lastComboMilestone = 0; muzzleFlashes = []; slowMoActive = false; slowMoFrames = 0; stopMenuMusic(); stopMenuBg(); showCountdown(); if (appSettings.music) startMusic(); update(); }
         
         function startMission(stageNum) { 
             let bootMission = () => {
@@ -5851,7 +5852,8 @@
             // Spawn exhaust when player is moving
             if (state.active && !state.paused && !state.warping) {
                 let isMoving = keys['KeyW'] || keys['ArrowUp'] || keys['KeyS'] || keys['ArrowDown'] || keys['KeyA'] || keys['ArrowLeft'] || keys['KeyD'] || keys['ArrowRight'] || joyData.active;
-                if (isMoving && state.frame % 2 === 0) {
+                let exhaustRate = appSettings.graphics === 'medium' ? 4 : 2;
+                if (isMoving && state.frame % exhaustRate === 0) {
                     let backAngle = player.angle + Math.PI;
                     let spread = (Math.random() - 0.5) * 0.8;
                     let spd = 2 + Math.random() * 3;
@@ -5866,6 +5868,7 @@
                     });
                 }
             }
+            if (exhaustParticles.length > 60) exhaustParticles.splice(0, exhaustParticles.length - 60);
             for (let i = exhaustParticles.length - 1; i >= 0; i--) {
                 let p = exhaustParticles[i];
                 p.x += p.vx; p.y += p.vy;
@@ -5875,7 +5878,7 @@
                 if (p.life <= 0) { exhaustParticles.splice(i, 1); continue; }
                 ctx.globalAlpha = p.life * 0.6;
                 ctx.fillStyle = p.color;
-                ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+                ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
             }
             ctx.globalAlpha = 1;
         }
@@ -6974,7 +6977,7 @@
                     let wModel = wSkin.model || 'spirit';
                     ctx.save();
                     ctx.translate(p.wisp.x, p.wisp.y);
-                    if (appSettings.graphics === 'high') { ctx.shadowBlur = 15; ctx.shadowColor = wc; }
+                    if (appSettings.graphics === 'high') { ctx.shadowBlur = 8; ctx.shadowColor = wc; }
                     ctx.fillStyle = wc; ctx.globalAlpha = 0.8;
                     ctx.beginPath(); ctx.ellipse(0, 0, 9, 6, 0, 0, Math.PI * 2); ctx.fill();
                     ctx.globalAlpha = 1; ctx.fillStyle = '#ffffffcc';
