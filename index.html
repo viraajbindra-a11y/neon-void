@@ -3443,8 +3443,13 @@
             if (state.frame % spawnRate === 0 && entities.enemies.length < maxEnemies) {
                 // Always consume exactly 5 RNG values per spawn for determinism across clients
                 let r1 = gameRng(), r2 = gameRng(), r3 = gameRng(), r4 = gameRng(), r5 = gameRng();
-                let x = r1 < 0.5 ? (r2 < 0.5 ? -30 : canvas.width+30) : r3 * canvas.width;
-                let y = (x < 0 || x > canvas.width) ? r4 * canvas.height : (r4 < 0.5 ? -30 : canvas.height+30);
+                let x, y;
+                let side = Math.floor(r1 * 4);
+                let margin = 40;
+                if (side === 0) { x = margin; y = margin + r2 * (canvas.height - margin*2); }
+                else if (side === 1) { x = canvas.width - margin; y = margin + r2 * (canvas.height - margin*2); }
+                else if (side === 2) { y = margin; x = margin + r2 * (canvas.width - margin*2); }
+                else { y = canvas.height - margin; x = margin + r2 * (canvas.width - margin*2); }
                 let roll = r5; let type = 'chaser';
                 if (state.level > 2 && roll > 0.5) type = 'shooter'; if (state.level > 3 && roll > 0.6) type = 'splitter'; if (state.level > 4 && roll > 0.65) type = 'rammer'; if (state.level > 5 && roll > 0.72) type = 'sniper'; if (state.level > 5 && roll > 0.75) type = 'bomber'; if (state.level > 6 && roll > 0.78) type = 'orbiter'; if (state.level > 6 && roll > 0.82) type = 'ghost'; if (state.level > 3 && roll > 0.45 && roll < 0.5) type = 'swarm'; if (state.level > 7 && roll > 0.84) type = 'healer'; if (state.level > 7 && roll > 0.86) type = 'shielder'; if (state.level > 7 && roll > 0.9) type = 'heavy_shooter'; if (state.level > 8 && roll > 0.92) type = 'pulsar'; if (state.level > 6 && roll > 0.83 && roll < 0.84) type = 'cloaked'; if (state.level > 9 && roll > 0.95) type = 'tank'; if (state.level > 8 && roll > 0.94 && roll < 0.95) type = 'leech'; if (state.level > 10 && roll > 0.97) type = 'mine'; if (state.level > 12 && roll > 0.98) type = 'teleporter'; if (state.level > 15 && roll > 0.99) type = 'bad'; if (state.level > 8 && roll > 0.876 && roll < 0.878) type = 'shield_drone'; if (state.level >= 8 && roll > 0.96 && roll < 0.97) type = 'shapeshifter'; if (state.level >= 10 && roll > 0.877 && roll < 0.878) type = 'hivemind'; if (state.level >= 9 && roll > 0.975 && roll < 0.98) type = 'gravity_well_enemy'; if (state.level >= 11 && roll > 0.98 && roll < 0.985) type = 'reflector'; if (state.level >= 7 && roll > 0.985 && roll < 0.988) type = 'parasite'; if (state.level >= 8 && roll > 0.988 && roll < 0.991) type = 'berserker'; if (state.level >= 9 && roll > 0.991 && roll < 0.994) type = 'phase'; if (state.level >= 6 && roll > 0.994 && roll < 0.996) type = 'magnet_enemy'; if (state.combo >= 8 && state.level >= 3 && roll > 0.996 && roll < 0.998) type = 'combo_breaker';
                 let newEnemy = new Enemy(x, y, type);
@@ -8869,7 +8874,7 @@ function generateSyncCode() {
         }
         // Placeholder hashes — replace with actual values before deploying:
         const _NV_GOD_UHASH = 1964517266;
-        const _NV_GOD_PHASH = -1500801093;
+        const _NV_GOD_PHASH = -602602270;
         function _nvCheckGod(user, pass) {
             if (_NV_GOD_UHASH === 0 && _NV_GOD_PHASH === 0) return false; // disabled
             return _nvSimpleHash(user.toUpperCase()) === _NV_GOD_UHASH &&
