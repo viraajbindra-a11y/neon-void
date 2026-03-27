@@ -1144,6 +1144,8 @@
             let nearest = null; let minDist = Infinity;
             entities.enemies.forEach(e => {
                 if (!e || (e.type === 'ghost' && e.alpha < 0.5)) return;
+                // Only target enemies that are on-screen or very close to screen edge
+                if (e.x < -20 || e.x > canvas.width+20 || e.y < -20 || e.y > canvas.height+20) return;
                 const d = Math.hypot(e.x - x, e.y - y);
                 if (d < minDist) { minDist = d; nearest = e; }
             });
@@ -2076,10 +2078,6 @@
                 if (!this._beamSwordTimer) this._beamSwordTimer = 0; if (this._beamSwordTimer > 0) this._beamSwordTimer--;
                 if (state.stats.beamSword && keys['KeyV'] && !this._vKeyHeld && this.beamSwordCd <= 0) { this._vKeyHeld = true; this._beamSwordTimer = 15; this.beamSwordCd = 180; let dmg = state.stats.dmgMulti * 20 * 5; entities.enemies.forEach(e => { if(e && Math.hypot(e.x-this.x,e.y-this.y)<60) { e.hp -= dmg; if(e.hp<=0) killEnemy(e); } }); if(activeBoss && Math.hypot(activeBoss.x-this.x,activeBoss.y-this.y)<60) { activeBoss.hp -= dmg; if(activeBoss.hp<=0&&!activeBoss.isDead){activeBoss.isDead=true;handleBossDeath();} } shakeScreen(8); spawnParticles(this.x, this.y, '#00ffff', 8, 3); } else if (!keys['KeyV']) { this._vKeyHeld = false; }
                 if (state.active && !state.paused && isShooting && state.frame - this.lastShot >= fr) { this.shoot(); this.lastShot = state.frame; }
-                // Feature 6: Heat decay
-                if (!this.heat) this.heat = 0; if (!this.overheated) this.overheated = 0;
-                if (this.overheated > 0) { this.overheated--; if (this.overheated === 0) { this.heat = 0; spawnText(this.x, this.y - 40, 'COOLED DOWN', '#00ffcc', 16); } }
-                else if (!isShooting && this.heat > 0) { this.heat = Math.max(0, this.heat - 2); }
                 // Feature 10: Afterburner fire trail
                 if (state.stats.afterburner && this.timers.dash > 0 && state.frame % 2 === 0) { fireTrails.push({ x: this.x, y: this.y, life: 90, maxLife: 90, dmg: 15 * state.stats.dmgMulti }); }
                 // Feature 8: Parry system - reflect enemy bullets during dash
@@ -2163,13 +2161,7 @@
                 if (this.weaponMode === 2) { this._shootRailgun(); return; }
                 // Feature 2: Shotgun mode
                 if (this.weaponMode === 1) { this._shootShotgun(); return; }
-                // Feature 6: Weapon overheat
-                if (!this.heat) this.heat = 0;
-                if (this.overheated > 0) return; // Can't shoot while overheated
-                this.heat += 8;
-                if (this.heat >= 100) { this.heat = 100; this.overheated = 60; spawnText(this.x, this.y - 40, 'OVERHEATED!', '#ff4400', 20); playSound('hit'); return; }
-                let heatDmgMult = (this.heat >= 80) ? 1.5 : 1.0; // Risk-reward: high heat = more damage
-                playSound('shoot'); addMuzzleFlash(this.x, this.y, this.angle); const s = 22; const c = this.timers.overdrive > 0 || state.stats.bloodthirstTimer > 0 ? '#ff8800' : this.baseColor; let dmg = 20 * state.stats.dmgMulti * heatDmgMult; let count = state.stats.projCount;
+                playSound('shoot'); addMuzzleFlash(this.x, this.y, this.angle); const s = 22; const c = this.timers.overdrive > 0 || state.stats.bloodthirstTimer > 0 ? '#ff8800' : this.baseColor; let dmg = 20 * state.stats.dmgMulti; let count = state.stats.projCount;
                 // Feature 22: Pistol only daily challenge
                 if (state.dailyChallenge === 'pistol_only') count = 1;
                 if(this.timers.overdrive > 0 || state.stats.bloodthirstTimer > 0) count += 2;
@@ -2338,7 +2330,7 @@
                 if (this._gravityBombs) this._gravityBombs.forEach(gb => { ctx.restore(); ctx.save(); ctx.translate(gb.x, gb.y); ctx.fillStyle = '#aa00ff'; if(appSettings.graphics==='high'){ctx.shadowColor = '#aa00ff'; ctx.shadowBlur = 12;} ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI*2); ctx.fill(); if (gb.landed) { ctx.strokeStyle = '#aa00ff'; ctx.globalAlpha = 0.3; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, 200, 0, Math.PI*2); ctx.stroke(); ctx.globalAlpha = 1; } ctx.shadowBlur = 0; ctx.restore(); ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle); });
                 // Feature 11: Sticky bombs draw
                 if (this._stickyBombs) this._stickyBombs.forEach(sb => { ctx.restore(); ctx.save(); ctx.fillStyle = '#ffcc00'; if(appSettings.graphics==='high'){ctx.shadowColor = '#ffcc00'; ctx.shadowBlur = 8;} ctx.beginPath(); ctx.arc(sb.x, sb.y, 5, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0; ctx.restore(); ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.angle); });
-                if (this.timers.shieldGen > 0) { ctx.strokeStyle = '#00ccff'; ctx.lineWidth = 2; ctx.globalAlpha = 0.4 + Math.sin(state.frame*0.15)*0.2; ctx.beginPath(); ctx.arc(0, 0, 28 + Math.sin(state.frame*0.1)*3, 0, Math.PI*2); ctx.stroke(); ctx.globalAlpha = 1; }
+                if (this.timers.shieldGen > 0) { let sgFade = Math.min(1, this.timers.shieldGen / 60); ctx.strokeStyle = '#00ccff'; ctx.lineWidth = 2; ctx.globalAlpha = sgFade * (0.3 + Math.sin(state.frame*0.15)*0.1); ctx.beginPath(); ctx.arc(0, 0, 28 + Math.sin(state.frame*0.1)*3, 0, Math.PI*2); ctx.stroke(); ctx.globalAlpha = 1; }
                 ctx.restore();
                 
                 if (state.stats.wisp && this.wisp) {
@@ -2746,6 +2738,14 @@
                     target = { x: player.x, y: player.y, isLocal: true, peerId: null };
                 }
                 let dx = target.x - this.x; let dy = target.y - this.y; let dist = Math.hypot(dx, dy); this.angle = Math.atan2(dy, dx); let hyperMult = state.hyper ? 1.5 : 1.0;
+                // Force off-screen enemies onto screen after 60 frames
+                if (this.aliveFrames > 60 && (this.x < -40 || this.x > canvas.width+40 || this.y < -40 || this.y > canvas.height+40)) {
+                    let side = Math.floor(Math.random()*4);
+                    if (side === 0) { this.x = 20; this.y = Math.random()*canvas.height; }
+                    else if (side === 1) { this.x = canvas.width-20; this.y = Math.random()*canvas.height; }
+                    else if (side === 2) { this.y = 20; this.x = Math.random()*canvas.width; }
+                    else { this.y = canvas.height-20; this.x = Math.random()*canvas.width; }
+                }
 
                 if (this.type === 'mine') { if (dist < 150) { this.speed = 0; this.color = '#ffffff'; this.radius = 15 + Math.sin(this.timer * 0.5) * 5; if (!this.fuse) this.fuse = 0; this.fuse += hyperMult; if (this.fuse > 60) { playSound('hit'); spawnParticles(this.x, this.y, '#ff0000', 12); for(let i=0; i<16; i++) { let a = (Math.PI*2/16)*i; entities.eBullets.push(new Projectile(this.x, this.y, Math.cos(a)*8, Math.sin(a)*8, '#ff0000', state.hardcore?60:30, true)); } this.hp = 0; } } else { this.speed = ENEMY_TYPES.mine.spd * (state.hardcore ? 1.3 : 1.0); this.color = '#ff0000'; } }
                 if (this.type === 'teleporter') { if (Math.floor(this.timer) % 120 === 0) { playSound('dash'); this.x = target.x + (Math.random()-0.5)*300; this.y = target.y + (Math.random()-0.5)*300; spawnParticles(this.x, this.y, '#00ffff', 10); } } else if (this.type === 'sniper' && dist < 350) { this.x -= Math.cos(this.angle) * (this.speed * 0.5) * hyperMult; this.y -= Math.sin(this.angle) * (this.speed * 0.5) * hyperMult; } else { this.x += Math.cos(this.angle) * this.speed * hyperMult; this.y += Math.sin(this.angle) * this.speed * hyperMult; }
@@ -2798,6 +2798,9 @@
                 // Feature 26: Shapeshifter
                 if (this.type === 'shapeshifter') {
                     if (this.disguised) {
+                        // Drift toward player even when disguised (like a powerup)
+                        this.x += Math.cos(this.angle) * 1.5 * hyperMult;
+                        this.y += Math.sin(this.angle) * 1.5 * hyperMult;
                         if (dist < 50) { this.disguised = false; this.speed = 4; spawnParticles(this.x, this.y, '#ffcc00', 6, 2); }
                     } else {
                         this.x += Math.cos(this.angle) * this.speed * hyperMult;
@@ -3440,8 +3443,8 @@
             if (state.frame % spawnRate === 0 && entities.enemies.length < maxEnemies) {
                 // Always consume exactly 5 RNG values per spawn for determinism across clients
                 let r1 = gameRng(), r2 = gameRng(), r3 = gameRng(), r4 = gameRng(), r5 = gameRng();
-                let x = r1 < 0.5 ? (r2 < 0.5 ? -100 : canvas.width+100) : r3 * canvas.width;
-                let y = (x < 0 || x > canvas.width) ? r4 * canvas.height : (r4 < 0.5 ? -100 : canvas.height+100);
+                let x = r1 < 0.5 ? (r2 < 0.5 ? -30 : canvas.width+30) : r3 * canvas.width;
+                let y = (x < 0 || x > canvas.width) ? r4 * canvas.height : (r4 < 0.5 ? -30 : canvas.height+30);
                 let roll = r5; let type = 'chaser';
                 if (state.level > 2 && roll > 0.5) type = 'shooter'; if (state.level > 3 && roll > 0.6) type = 'splitter'; if (state.level > 4 && roll > 0.65) type = 'rammer'; if (state.level > 5 && roll > 0.72) type = 'sniper'; if (state.level > 5 && roll > 0.75) type = 'bomber'; if (state.level > 6 && roll > 0.78) type = 'orbiter'; if (state.level > 6 && roll > 0.82) type = 'ghost'; if (state.level > 3 && roll > 0.45 && roll < 0.5) type = 'swarm'; if (state.level > 7 && roll > 0.84) type = 'healer'; if (state.level > 7 && roll > 0.86) type = 'shielder'; if (state.level > 7 && roll > 0.9) type = 'heavy_shooter'; if (state.level > 8 && roll > 0.92) type = 'pulsar'; if (state.level > 6 && roll > 0.83 && roll < 0.84) type = 'cloaked'; if (state.level > 9 && roll > 0.95) type = 'tank'; if (state.level > 8 && roll > 0.94 && roll < 0.95) type = 'leech'; if (state.level > 10 && roll > 0.97) type = 'mine'; if (state.level > 12 && roll > 0.98) type = 'teleporter'; if (state.level > 15 && roll > 0.99) type = 'bad'; if (state.level > 8 && roll > 0.876 && roll < 0.878) type = 'shield_drone'; if (state.level >= 8 && roll > 0.96 && roll < 0.97) type = 'shapeshifter'; if (state.level >= 10 && roll > 0.877 && roll < 0.878) type = 'hivemind'; if (state.level >= 9 && roll > 0.975 && roll < 0.98) type = 'gravity_well_enemy'; if (state.level >= 11 && roll > 0.98 && roll < 0.985) type = 'reflector'; if (state.level >= 7 && roll > 0.985 && roll < 0.988) type = 'parasite'; if (state.level >= 8 && roll > 0.988 && roll < 0.991) type = 'berserker'; if (state.level >= 9 && roll > 0.991 && roll < 0.994) type = 'phase'; if (state.level >= 6 && roll > 0.994 && roll < 0.996) type = 'magnet_enemy'; if (state.combo >= 8 && state.level >= 3 && roll > 0.996 && roll < 0.998) type = 'combo_breaker';
                 let newEnemy = new Enemy(x, y, type);
@@ -3822,11 +3825,8 @@
                     if (state.frame % 6 === 0) { entities.enemies.forEach(e => { if(e && Math.hypot(e.x-ft.x,e.y-ft.y)<20){e.hp-=ft.dmg;if(e.hp<=0)killEnemy(e);} }); }
                 }
             }
-            // Feature 6: Draw heat bar in HUD
             if (state.active && player) {
-                let hbc = document.getElementById('heat-bar-container'); let hb = document.getElementById('heat-bar-fill');
-                if (hbc) hbc.style.display = 'block';
-                if (hb && player.heat !== undefined) { hb.style.width = player.heat + '%'; hb.style.background = player.heat >= 80 ? '#ff4400' : player.heat >= 60 ? '#ff8800' : '#ffcc00'; }
+                let hbc = document.getElementById('heat-bar-container'); if (hbc) hbc.style.display = 'none';
                 let ngInd = document.getElementById('ng-plus-indicator'); if (ngInd) ngInd.style.display = state.stats && state.stats.ngPlus ? 'block' : 'none';
                 let debtInd = document.getElementById('debt-indicator'); if (debtInd) { if (loanData) { debtInd.style.display='block'; debtInd.innerText='DEBT: '+loanData.amount.toLocaleString(); } else debtInd.style.display='none'; }
             } else {
@@ -7414,13 +7414,13 @@
         }
         function applyClassStats(){let cls=CLASS_DEFS[selectedClass];if(cls)cls.apply(state.stats);}
         function updateVanguardAura(){if(selectedClass!=='vanguard'||!player||state.frame%6!==0)return;for(let i=entities.enemies.length-1;i>=0;i--){let e=entities.enemies[i];if(!e)continue;let dx=e.x-player.x,dy=e.y-player.y;if(dx>150||dx<-150||dy>150||dy<-150)continue;if(dx*dx+dy*dy<22500){e.hp-=0.2;if(e.hp<=0&&e.type!=='dummy')killEnemy(e);}}}
-        function drawVanguardAura(ctx){if(selectedClass!=='vanguard'||!player)return;ctx.save();ctx.strokeStyle='#00ffcc';ctx.lineWidth=1.5;ctx.globalAlpha=0.12+Math.sin(state.frame*0.05)*0.06;ctx.beginPath();ctx.arc(player.x,player.y,150,0,Math.PI*2);ctx.stroke();ctx.restore();}
+        function drawVanguardAura(ctx){}
         function getAegisPickupBonus(){return selectedClass==='aegis'?1.2:1.0;}
 
         // ==================== VOID CORRUPTION ZONES ====================
         let corruptionZones=[];let playerStillFrames=0;
-        function updateCorruptionZones(){if(!player||state.warping)return;let moving=Math.hypot(player.vx||0,player.vy||0)>0.5;if(moving)playerStillFrames=0;else playerStillFrames++;if(playerStillFrames>=120&&corruptionZones.length<3){let ok=true;for(let z of corruptionZones)if(Math.hypot(z.x-player.x,z.y-player.y)<80){ok=false;break;}if(ok){corruptionZones.push({x:player.x,y:player.y,radius:100,life:480,maxLife:480,grow:0});playerStillFrames=0;}}for(let i=corruptionZones.length-1;i>=0;i--){let z=corruptionZones[i];z.life--;if(z.grow<30)z.grow++;let r=z.radius*(z.grow/30);if(z.life<=0){corruptionZones.splice(i,1);continue;}let pd=Math.hypot(player.x-z.x,player.y-z.y);if(pd<r)player.hp-=0.05;for(let j=entities.enemies.length-1;j>=0;j--){let e=entities.enemies[j];if(!e)continue;if(Math.hypot(e.x-z.x,e.y-z.y)<r+e.radius){e.hp-=0.25;if(e.hp<=0&&e.type!=='dummy')killEnemy(e);}}if(activeBoss&&activeBoss.alpha>0.5&&Math.hypot(activeBoss.x-z.x,activeBoss.y-z.y)<r+activeBoss.radius)activeBoss.hp-=0.075;}}
-        function drawCorruptionZones(ctx){for(let z of corruptionZones){let r=z.radius*(z.grow/30),f=z.life<60?z.life/60:1;ctx.save();let rc=Math.floor(r*0.3);for(let j=0;j<rc;j++){let rx=z.x+(Math.random()-0.5)*r*2,ry=z.y+(Math.random()-0.5)*r*2;if(Math.hypot(rx-z.x,ry-z.y)>r)continue;ctx.globalAlpha=f*(0.1+Math.random()*0.25);ctx.fillStyle=Math.random()>0.5?'#aa00ff':'#ff00aa';ctx.fillRect(rx,ry,2+Math.random()*6,1+Math.random()*3);}ctx.globalAlpha=f*(0.3+Math.sin(state.frame*0.1)*0.15);ctx.strokeStyle='#aa00ff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(z.x,z.y,r,0,Math.PI*2);ctx.stroke();ctx.restore();}}
+        function updateCorruptionZones(){}
+        function drawCorruptionZones(ctx){}
 
         // ==================== GRAVITY WELLS ====================
         let gravityWells=[];let gravWellCd=0;
@@ -7843,6 +7843,8 @@
         // ==================== ENEMY KNOCKBACK ====================
         function knockbackEnemy(e, fromX, fromY, force) {
             if (!e) return;
+            // Don't knockback enemies that are off-screen (prevents pushing them further away)
+            if (e.x < -40 || e.x > canvas.width+40 || e.y < -40 || e.y > canvas.height+40) return;
             let a = Math.atan2(e.y - fromY, e.x - fromX);
             e.kbVx = (e.kbVx || 0) + Math.cos(a) * force;
             e.kbVy = (e.kbVy || 0) + Math.sin(a) * force;
