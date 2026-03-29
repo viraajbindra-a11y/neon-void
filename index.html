@@ -3665,6 +3665,8 @@
                                     if (_dx>_r||_dx<-_r||_dy>_r||_dy<-_r) continue;
                                     if (_dx*_dx+_dy*_dy < _r*_r) {
                                         if (!b.hitList.includes(e)) {
+                                            // Feature 35: Phase enemy - can't be hit when invisible (check BEFORE damage)
+                                            if (e.type === 'phase' && !e.phaseVisible) { continue; }
                                             // Feature 13: Shield drone reduces damage to nearby enemies
                                             let shieldDroneDmgMult = 1.0;
                                             entities.enemies.forEach(sd => { if(sd && sd.type==='shield_drone' && sd !== e && Math.hypot(sd.x-e.x,sd.y-e.y)<40) shieldDroneDmgMult = 0.5; });
@@ -3672,8 +3674,6 @@
                                             if (e.type === 'shielder' && e.shieldHp > 0) { e.shieldHp -= actualDmg; if (e.shieldHp <= 0) e.shieldHp = 0; } else { e.hp -= actualDmg; }
                                             // Feature 15: Cloaked enemy damagedTimer
                                             if (e.type === 'cloaked') e.damagedTimer = 30;
-                                            // Feature 35: Phase enemy - can't be hit when invisible
-                                            if (e.type === 'phase' && !e.phaseVisible) { continue; }
                                             // Feature 29: Reflector - 40% chance to reflect bullet
                                             if (e.type === 'reflector' && Math.random() < 0.4) { b.vx = -b.vx; b.vy = -b.vy; b.isEnemy = true; b.hitList = []; entities.eBullets.push(new Projectile(b.x, b.y, b.vx, b.vy, '#88ffff', state.hardcore?40:20, true)); dead = true; break; }
                                             // Feature 27: Hivemind - split damage across group
@@ -12602,11 +12602,11 @@ function openMasteryPanel(){
 // ---- FEATURE 69: BLUEPRINT DROPS ----
 var blueprints=secureLoad('neonVoidBlueprints', []);
 var BLUEPRINTS={
-  'Laser Boost':{desc:'+20% laser damage',apply:function(s){if(s.damage)s.damage*=1.2;}},
+  'Laser Boost':{desc:'+20% damage',apply:function(s){if(s.dmgMulti)s.dmgMulti*=1.2;}},
   'Shield Regen':{desc:'+0.5 shield regen/s',apply:function(s){s.shieldRegen=(s.shieldRegen||0)+0.5;}},
-  'Speed Surge':{desc:'+15% move speed',apply:function(s){if(s.speed)s.speed*=1.15;}},
-  'Fire Rate+':{desc:'+10% fire rate',apply:function(s){if(s.fireRate)s.fireRate*=0.9;}},
-  'Coin Magnet':{desc:'+25% pickup radius',apply:function(s){s.pickupRadius=(s.pickupRadius||30)*1.25;}},
+  'Speed Surge':{desc:'+15% move speed',apply:function(s){if(s.speedMulti)s.speedMulti*=1.15;}},
+  'Fire Rate+':{desc:'+10% fire rate',apply:function(s){if(s.fireRateMulti)s.fireRateMulti*=1.1;}},
+  'Coin Magnet':{desc:'+25% coin multiplier',apply:function(s){s.coinMulti=(s.coinMulti||1)*1.25;}},
   'Double XP':{desc:'2x XP (next mission)',apply:function(s){s._blueprintDoubleXP=true;}}
 };
 function tryBlueprintDrop(){
@@ -13017,7 +13017,7 @@ window.openAchievementsPanel = function(){
 
   // Hook startMission
   var _osm=typeof startMission==='function'?startMission:null;
-  if(_osm)startMission=function(n){try{applySeasonalTheme();}catch(_){}startReplayRecording();resetComboAnn();_osm(n);setTimeout(function(){try{if(typeof player!=='undefined'&&player&&typeof getBaseStats==='function'){var s=getBaseStats();applyBlueprints(s);}}catch(_){}},300);};
+  if(_osm)startMission=function(n){try{applySeasonalTheme();}catch(_){}startReplayRecording();resetComboAnn();_osm(n);setTimeout(function(){try{if(typeof state!=='undefined'&&state.stats){applyBlueprints(state.stats);}}catch(_){}},300);};
 
   // Hook startInfinite
   var _osi=typeof startInfinite==='function'?startInfinite:null;
