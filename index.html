@@ -5357,7 +5357,7 @@
                 state = { active: true, paused: false, mode: 'mission', frame: 0, score: 0, combo: 1, xp: 0, level: 1, xpNeeded: 100, runCoins: 0, kills: 0, shake: 0, currentStage: stageNum, bossesDefeated: stageNum - 1, difficulty: 1 + (stageNum - 1) * 0.4, nextBossLevel: 5, spawningBoss: false, warping: true, warpFrames: 0, hardcore: appSettings.hardcore, hyper: appSettings.hyper, stats: getBaseStats() };
                 applyClassStats(); state.playerClass = selectedClass;
                 state.stats.dmgMulti += (stageNum - 1) * 0.15; state.stats.fireRateMulti += (stageNum - 1) * 0.1; state.stats.maxHp += (stageNum - 1) * 30; state.stats.projCount += Math.floor((stageNum - 1) / 4);
-                let sysName = `SYSTEM: SECTOR ${stageNum} [${CLASS_DEFS[selectedClass].name}]`; if (stageNum === 14) sysName = 'SYSTEM: OMNIVERSAL ANOMALY DETECTED'; if (stageNum === 15) sysName = 'SYSTEM: [FATAL ERROR] GLITCH FOUND'; if (appSettings.hardcore) sysName += ' [NIGHTMARE]'; if (appSettings.hyper) sysName += ' [HYPER-DRIVE]';
+                let sysName = `SYSTEM: SECTOR ${stageNum}`; if (stageNum === 14) sysName = 'SYSTEM: OMNIVERSAL ANOMALY DETECTED'; if (stageNum === 15) sysName = 'SYSTEM: [FATAL ERROR] GLITCH FOUND'; if (appSettings.hardcore) sysName += ' [NIGHTMARE]'; if (appSettings.hyper) sysName += ' [HYPER-DRIVE]';
                 ui.status.innerText = sysName; initGameBase();
             };
             showClassSelect(() => {
@@ -5374,7 +5374,7 @@
                     if (selectedWeapon) selectedWeapon.apply();
                     applyClassStats(); state.playerClass = selectedClass;
                     lastWaveLevel = 0; nextMilestoneIdx = 0; dashGhosts = [];
-                    let sysName = `SYSTEM: APOCALYPSE [${CLASS_DEFS[selectedClass].name}]`; if (appSettings.hardcore) sysName += ' [NIGHTMARE]'; if (appSettings.hyper) sysName += ' [HYPER-DRIVE]'; ui.status.innerText = sysName; initGameBase();
+                    let sysName = `SYSTEM: APOCALYPSE`; if (appSettings.hardcore) sysName += ' [NIGHTMARE]'; if (appSettings.hyper) sysName += ' [HYPER-DRIVE]'; ui.status.innerText = sysName; initGameBase();
                 });
             });
         }
@@ -6743,7 +6743,7 @@
                     initGameBase();
                     setTimeout(() => startTournamentRound(), 1500);
                 });
-            });
+            }, true);
         }
 
         function startTournamentRound() {
@@ -7397,7 +7397,9 @@
             aegis: { name:'AEGIS', role:'SUPPORT', color:'#ffcc00', icon:'plus', desc:'+50% HP, +30% Coins, -15% DMG', passive:'Co-op: Heal allies 3hp/s in 200px. Pickup radius +20%',
                 apply(s){s.maxHp*=1.5;s.coinMulti=(s.coinMulti||1)*1.3;s.dmgMulti*=0.85;}}
         };
-        function showClassSelect(callback){
+        function showClassSelect(callback, showUI){
+            // Classes only shown in multiplayer modes; single-player uses default 'striker'
+            if (!showUI) { selectedClass = 'striker'; callback(); return; }
             let ov=document.createElement('div');ov.id='class-select';
             ov.style.cssText='position:absolute;top:0;left:0;width:100%;height:100%;z-index:26;background:rgba(0,0,0,0.95);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:15px;';
             ov.innerHTML='<div style="font-size:36px;font-weight:900;color:#00ffcc;text-shadow:0 0 30px #00ffcc;letter-spacing:8px;margin-bottom:5px;">SELECT CLASS</div><div style="color:#888;font-size:13px;margin-bottom:10px;">Choose your combat specialization</div>';
