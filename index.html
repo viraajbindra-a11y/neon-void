@@ -5751,8 +5751,8 @@
                 loanData.gamesLeft--;
                 if (loanData.gamesLeft <= 0) {
                     // Default! Lose a random purchased upgrade
-                    let pu = secureLoad('neonVoidPurchased', []);
-                    if (pu.length > 0) { let lost = pu.splice(Math.floor(Math.random()*pu.length),1)[0]; secureSave('neonVoidPurchased', pu); purchasedUpgrades = pu; setTimeout(()=>alert(`LOAN DEFAULTED! You lost the upgrade: ${lost}!`), 800); }
+                    let pu = secureLoad('neonVoidUpgrades', []);
+                    if (pu.length > 0) { let lost = pu.splice(Math.floor(Math.random()*pu.length),1)[0]; secureSave('neonVoidUpgrades', pu); purchasedUpgrades = pu; setTimeout(()=>alert(`LOAN DEFAULTED! You lost the upgrade: ${lost}!`), 800); }
                     loanData = null; localStorage.removeItem('neonVoidLoan');
                 } else {
                     secureSave('neonVoidLoan', loanData);
@@ -6273,7 +6273,7 @@
             infectionState.roundTimer++;
             entities.enemies = [];
             // Check tag: if any remote player (simulated) touches us
-            let remotePlayers = mpState.peers ? Object.values(mpState.peers) : [];
+            let remotePlayers = mpState.players ? Object.values(mpState.players) : [];
             for (let rp of remotePlayers) {
                 if (!rp || !rp.x) continue;
                 let isInfected = infectionState.infected.includes(rp.id || 'remote');
@@ -11178,6 +11178,7 @@ function generateSyncCode() {
         function toggle3D(enable) {
             if (enable && !is3DActive) {
                 init3D();
+                if (!is3DActive) return; // THREE.js not available, don't hide 2D canvas
                 // Smooth transition: fade out 2D canvas
                 canvas.style.transition = 'opacity 0.5s ease';
                 canvas.style.opacity = '0';
@@ -12798,7 +12799,7 @@ function drawCrosshair(mx,my){
 }
 (function(){
   if(typeof canvas==='undefined')return;
-  canvas.addEventListener('mousemove',function(ev){if(typeof state==='undefined'||!state.running||state.paused)return;var rect=canvas.getBoundingClientRect();window._crosshairX=ev.clientX-rect.left;window._crosshairY=ev.clientY-rect.top;});
+  canvas.addEventListener('mousemove',function(ev){if(typeof state==='undefined'||!state.active||state.paused)return;var rect=canvas.getBoundingClientRect();window._crosshairX=ev.clientX-rect.left;window._crosshairY=ev.clientY-rect.top;});
 })();
 
 // ---- FEATURE 79: BACKGROUND THEMES ----
@@ -12964,7 +12965,7 @@ window.openAchievementsPanel = function(){
   if(typeof ACHIEVEMENTS!=='undefined'){
     var ol=document.createElement('div');ol.id='ach-overlay';ol.style.cssText='position:fixed;inset:0;background:#06060c;z-index:99999;color:#fff;font-family:monospace;padding:40px;overflow-y:auto;';
     var html='<h2 style="color:#ffcc00;text-align:center">ACHIEVEMENTS</h2><div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center">';
-    for(var i=0;i<ACHIEVEMENTS.length;i++){var a=ACHIEVEMENTS[i];html+='<div style="background:'+(a.unlocked?'#111800':'#0a0a0a')+';border:1px solid '+(a.unlocked?'#ffcc00':'#333')+';padding:10px;min-width:160px;max-width:200px;text-align:center"><div style="color:'+(a.unlocked?'#ffcc00':'#555')+';font-weight:bold;font-size:13px">'+(a.unlocked?'[X] ':'')+a.name+'</div><div style="color:#aaa;font-size:11px;margin-top:4px">'+a.desc+'</div></div>';}
+    for(var i=0;i<ACHIEVEMENTS.length;i++){var a=ACHIEVEMENTS[i];var isUnlocked=!!secureLoad('neonVoidAch_'+a.id,'');html+='<div style="background:'+(isUnlocked?'#111800':'#0a0a0a')+';border:1px solid '+(isUnlocked?'#ffcc00':'#333')+';padding:10px;min-width:160px;max-width:200px;text-align:center"><div style="color:'+(isUnlocked?'#ffcc00':'#555')+';font-weight:bold;font-size:13px">'+(isUnlocked?'[X] ':'')+a.name+'</div><div style="color:#aaa;font-size:11px;margin-top:4px">'+a.desc+'</div></div>';}
     html+='</div><div style="text-align:center;margin-top:20px"><button onclick="document.getElementById(\'ach-overlay\').remove()" style="background:#555;color:#fff;border:none;padding:8px 24px;cursor:pointer">CLOSE</button></div>';
     ol.innerHTML=html;document.body.appendChild(ol);
   } else { alert('No achievements data found.'); }
@@ -12995,15 +12996,15 @@ window.openAchievementsPanel = function(){
   // Hook saveRunCoins
   var _osc=typeof saveRunCoins==='function'?saveRunCoins:null;
   if(_osc)window.saveRunCoins=function(){
-    try{var bonus=getVIPCoinBonus();if(bonus>0&&typeof state!=='undefined'&&state.coins){var extra=Math.round(state.coins*bonus);state.coins+=extra;typeof spawnText==='function'&&spawnText('VIP +'+extra,canvas.width/2,50,{color:'#ffd700',size:16,life:120});}}catch(_){}
-    if(window._bmCoins2x&&typeof state!=='undefined'&&state.coins){state.coins=Math.round(state.coins*2);window._bmCoins2x=false;}
+    try{var bonus=getVIPCoinBonus();if(bonus>0&&typeof state!=='undefined'&&state.runCoins){var extra=Math.round(state.runCoins*bonus);state.runCoins+=extra;typeof spawnText==='function'&&spawnText('VIP +'+extra,canvas.width/2,50,{color:'#ffd700',size:16,life:120});}}catch(_){}
+    if(window._bmCoins2x&&typeof state!=='undefined'&&state.runCoins){state.runCoins=Math.round(state.runCoins*2);window._bmCoins2x=false;}
     _osc();
-    try{var earned=typeof state!=='undefined'&&state.coins?state.coins:0;lifetimeCoins+=earned;secureSave('neonVoidLifetimeCoins', lifetimeCoins);updateVIPBadge();}catch(_){}
+    try{var earned=typeof state!=='undefined'&&state.runCoins?state.runCoins:0;lifetimeCoins+=earned;secureSave('neonVoidLifetimeCoins', lifetimeCoins);updateVIPBadge();}catch(_){}
   };
 
   // Hook checkAchievements
   var _oca=typeof checkAchievements==='function'?checkAchievements:null;
-  if(_oca){var _prevUnl=0;checkAchievements=function(){_oca();try{var cur=0;if(typeof ACHIEVEMENTS!=='undefined')for(var i=0;i<ACHIEVEMENTS.length;i++)if(ACHIEVEMENTS[i].unlocked)cur++;if(cur>_prevUnl){addGems(cur-_prevUnl);_prevUnl=cur;}}catch(_){};};}
+  if(_oca){var _prevUnl=0;checkAchievements=function(){_oca();try{var cur=0;if(typeof ACHIEVEMENTS!=='undefined')for(var i=0;i<ACHIEVEMENTS.length;i++)if(secureLoad('neonVoidAch_'+ACHIEVEMENTS[i].id,''))cur++;if(cur>_prevUnl){addGems(cur-_prevUnl);_prevUnl=cur;}}catch(_){};};}
 
   // Hook gameOver
   var _ogo=typeof gameOver==='function'?gameOver:null;
@@ -13015,7 +13016,7 @@ window.openAchievementsPanel = function(){
 
   // Hook update
   var _ou=typeof update==='function'?update:null;
-  if(_ou){var _tt=0;update=function(ts){_ou(ts);try{if(appSettings.graphics!=='low')drawBGTheme();if(typeof window._crosshairX!=='undefined'&&typeof state!=='undefined'&&state.running&&!state.paused&&appSettings.graphics!=='low')drawCrosshair(window._crosshairX,window._crosshairY);if(appSettings.graphics!=='low')updateDrawEmotes();if(typeof player!=='undefined'&&player&&player.hp<(player.maxHp||100)*0.25){_tt++;if(_tt%90===0&&appSettings.graphics!=='low')playTensionNote();}else{_tt=0;}recordReplayFrame();}catch(_){}};};
+  if(_ou){var _tt=0;update=function(ts){_ou(ts);try{if(appSettings.graphics!=='low')drawBGTheme();if(typeof window._crosshairX!=='undefined'&&typeof state!=='undefined'&&state.active&&!state.paused&&appSettings.graphics!=='low')drawCrosshair(window._crosshairX,window._crosshairY);if(appSettings.graphics!=='low')updateDrawEmotes();if(typeof player!=='undefined'&&player&&player.hp<(player.maxHp||100)*0.25){_tt++;if(_tt%90===0&&appSettings.graphics!=='low')playTensionNote();}else{_tt=0;}recordReplayFrame();}catch(_){}};};
 
   // Hook startMission
   var _osm=typeof startMission==='function'?startMission:null;
@@ -13035,7 +13036,7 @@ window.openAchievementsPanel = function(){
 
 // Keybinds during gameplay
 document.addEventListener('keydown',function(ev){
-  if(typeof state==='undefined'||!state.running||state.paused)return;
+  if(typeof state==='undefined'||!state.active||state.paused)return;
   if(ev.key==='e'||ev.key==='E'){ev.preventDefault();openEmoteWheel();}
   if(ev.key==='Tab'){ev.preventDefault();triggerEmote('wave');}
 });
