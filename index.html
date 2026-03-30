@@ -2738,6 +2738,16 @@
                     return;
                 }
 
+                // Horde defense: enemies march toward the base, not the player
+                if (this._hordeEnemy) {
+                    let hDx = 60 - this.x, hDy = canvas.height/2 - this.y;
+                    let hDist = Math.hypot(hDx, hDy);
+                    if (hDist > 0) { this.x += (hDx/hDist) * this.speed * (state.hyper ? 1.5 : 1.0); this.y += (hDy/hDist) * this.speed * 0.3 * (state.hyper ? 1.5 : 1.0); }
+                    this.angle = Math.atan2(hDy, hDx);
+                    this.timer += (state.hyper ? 1.5 : 1.0);
+                    this.aliveFrames = (this.aliveFrames || 0) + 1;
+                    return;
+                }
                 // Target closest player in co-op, else local player
                 let target;
                 if (mpState.active && mpState.mode === 'coop') {
@@ -3689,6 +3699,7 @@
                                             // Feature 27: Hivemind - split damage across group (INSTEAD of normal damage)
                                             if (e.type === 'hivemind' && e.hivemindGroup) { let hmGroup = entities.enemies.filter(he=>he&&he!==e&&he.type==='hivemind'&&he.hivemindGroup===e.hivemindGroup); let splitDmg = actualDmg / (hmGroup.length + 1); e.hp -= splitDmg; hmGroup.forEach(he=>{he.hp-=splitDmg; flashEnemy(he);}); b.hitList.push(e); if(b.pierce<=0){dead=true;break;}else{b.pierce--;} continue; }
                                             if (e.type === 'shielder' && e.shieldHp > 0) { e.shieldHp -= actualDmg; if (e.shieldHp <= 0) e.shieldHp = 0; } else { e.hp -= actualDmg; }
+                                            if (b.slows) { e.frozen = Math.max(e.frozen || 0, 60); }
                                             b.hitList.push(e); flashEnemy(e);
                                             if (b.isCrit) { playSound('crit'); spawnText(b.x, b.y, "CRIT " + Math.floor(b.dmg), '#ff0000', 24); knockbackEnemy(e, b.x, b.y, 6); } else { spawnText(b.x, b.y, Math.floor(b.dmg), player.baseColor, 16); knockbackEnemy(e, b.x, b.y, 2); }
                                             spawnParticles(b.x, b.y, e.color, 5); if (state.stats.explosive || b.isBomb) triggerExplosion(b.x, b.y, b.dmg * (b.isBomb?2:1));
@@ -6411,6 +6422,7 @@
                         let et = types[Math.min(Math.floor(hordeState.wave/4), types.length-1)];
                         let e = new Enemy(canvas.width + 60 + Math.random()*200, 60 + Math.random()*(canvas.height-120), et);
                         e.hp *= (1 + hordeState.wave * 0.15); e.maxHp = e.hp;
+                        e._hordeEnemy = true;
                         entities.enemies.push(e);
                     }
                     spawnText(canvas.width/2, canvas.height/2, `WAVE ${hordeState.wave}!`, '#ff0055', 28);
@@ -6418,13 +6430,10 @@
                     hordeState.waveActive = true;
                 }
             }
-            // Move enemies toward base (left side)
+            // Check enemies reaching the base
             for (let i = entities.enemies.length - 1; i >= 0; i--) {
                 let e = entities.enemies[i];
                 if (!e) continue;
-                let baseDx = 60 - e.x, baseDy = canvas.height/2 - e.y;
-                let bd = Math.hypot(baseDx, baseDy);
-                if (bd > 0) { e.x += (baseDx/bd) * 0.5; e.y += (baseDy/bd) * 0.5; }
                 // Base damage
                 if (e.x < 80) {
                     hordeState.baseHp -= 10; state.shake = 8;
@@ -12164,7 +12173,17 @@ if(mp.grappleHook){let gh=mp.grappleHook;mx.strokeStyle=COLORS.neon;mx.lineWidth
 "use strict";
 
     // Tutorial stage - separate script to avoid scope issues
-    window.needsTutorial = function() { return !secureLoad('neonVoidTutorialDone', ''); };
+    window.needsTutorial = function() {
+        if (secureLoad('neonVoidTutorialDone', '')) return false;
+        // Skip tutorial for returning players who have any progress
+        let hasProgress = (parseInt(secureLoad('neonVoidTotalKills', 0)) || 0) > 0
+            || (parseInt(secureLoad('neonVoidStage', 0)) || 0) > 1
+            || (parseInt(secureLoad('neonVoidCoins', 0)) || 0) > 0;
+        let ups = secureLoad('neonVoidUpgrades', []); if (typeof ups === 'string') try { ups = JSON.parse(ups); } catch(e) { ups = []; }
+        if (Array.isArray(ups) && ups.length > 0) hasProgress = true;
+        if (hasProgress) { secureSave('neonVoidTutorialDone', '1'); return false; }
+        return true;
+    };
     window.startTutorialStage = function() {
         if (!window.needsTutorial()) return;
         // Create fullscreen tutorial overlay with step-by-step gameplay
