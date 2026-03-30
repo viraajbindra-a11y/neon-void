@@ -3585,12 +3585,12 @@
                         if (activeBoss) { activeBoss.update(); if (f === framesToRun - 1) activeBoss.draw(ctx); } 
                         if (activeOrbitalStrike) { activeOrbitalStrike.update(); if (f === framesToRun - 1) activeOrbitalStrike.draw(ctx); if (activeOrbitalStrike.life <= 0) activeOrbitalStrike = null; }
                         
-                        const updateArr = (arr, collisionLogic = null) => { 
-                            for(let i=arr.length-1; i>=0; i--) { 
-                                let e = arr[i]; 
+                        const updateArr = (arr, collisionLogic = null) => {
+                            for(let i=arr.length-1; i>=0; i--) {
+                                let e = arr[i];
                                 if (!e) continue;
-                                e.update(); 
-                                if (f === framesToRun - 1) e.draw(ctx); 
+                                if (e.update) e.update();
+                                if (f === framesToRun - 1 && e.draw) e.draw(ctx);
                                 if(collisionLogic && collisionLogic(e, i)) continue; 
                                 if(e.life !== undefined && e.life <= 0) arr.splice(i,1); 
                                 else if(e.x < -300 || e.x > canvas.width+300 || e.y < -300 || e.y > canvas.height+300) arr.splice(i,1); 
@@ -5460,7 +5460,7 @@
         function sbSpawnPowerup() {
             let types = ['heal','shield','overdrive','nuke','freeze','magnet','multishot','rapidfire'];
             let t = types[Math.floor(Math.random()*types.length)];
-            entities.powerups.push({ x: player.x + (Math.random()-0.5)*200, y: player.y + (Math.random()-0.5)*200, type: t, radius: 15, glow: 0 });
+            let p = new Powerup(player.x + (Math.random()-0.5)*200, player.y + (Math.random()-0.5)*200); p.type = t; p.color = t === 'heal' ? '#00ff00' : t === 'shield' ? '#aa00ff' : t === 'freeze' ? '#00ffff' : t === 'magnet' ? '#ff00ff' : '#ffcc00'; entities.powerups.push(p);
         }
         function sbClearAll() { entities.enemies = []; entities.eBullets = []; if(activeBoss) { activeBoss = null; ui.boss.style.display='none'; } }
         function sbNuke() { entities.enemies.forEach(e => { if(e) spawnParticles(e.x,e.y,'#ff0000',5); }); entities.enemies = []; entities.eBullets = []; entities.bullets = []; if(activeBoss) { spawnParticles(activeBoss.x,activeBoss.y,'#ff0000',10); activeBoss = null; ui.boss.style.display='none'; } playSound('hit'); state.shake = 30; }
@@ -7495,7 +7495,7 @@
         function tutSpawnPickup() {
             if (!player) return;
             let px = player.x + 150, py = player.y - 100;
-            entities.powerups.push({ x: px, y: py, type: 'heal', radius: 10, life: 9999, glow: 0 });
+            let tp = new Powerup(px, py); tp.type = 'heal'; tp.color = '#00ff00'; tp.life = 9999; entities.powerups.push(tp);
             // Watch for pickup collection
             let checkInt = setInterval(() => {
                 if (!tutorialState.active) { clearInterval(checkInt); return; }
