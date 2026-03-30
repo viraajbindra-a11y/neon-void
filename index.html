@@ -3148,7 +3148,7 @@
         ];
 
 
-        function addXp(amt) { state.xp += amt * state.combo; let levelsGained = 0; while (state.xp >= state.xpNeeded) { state.xp -= state.xpNeeded; state.level++; state.xpNeeded = Math.floor(state.xpNeeded * 1.5); levelsGained++; } if (levelsGained > 0) { state.pendingLevels = (state.pendingLevels || 0) + levelsGained - 1; triggerLevelUp(); } }
+        function addXp(amt) { let xpMult = (state.stats && state.stats.xpMulti) ? state.stats.xpMulti : 1; if (state.stats && state.stats._blueprintDoubleXP) xpMult *= 2; state.xp += amt * state.combo * xpMult; let levelsGained = 0; while (state.xp >= state.xpNeeded) { state.xp -= state.xpNeeded; state.level++; state.xpNeeded = Math.floor(state.xpNeeded * 1.5); levelsGained++; } if (levelsGained > 0) { state.pendingLevels = (state.pendingLevels || 0) + levelsGained - 1; triggerLevelUp(); } }
         
         function triggerLevelUp() {
             // Level-up burst effect
@@ -5768,7 +5768,7 @@
             }
         }
         
-        function gameOver() { state.active = false; saveRunCoins(); triggerChroma(6); if (sandboxPanel) { sandboxPanel.remove(); sandboxPanel = null; }
+        function gameOver() { state.active = false; state.paused = false; saveRunCoins(); triggerChroma(6); if (sandboxPanel) { sandboxPanel.remove(); sandboxPanel = null; } let rogPick = document.getElementById('rogue-pick'); if (rogPick) rogPick.remove(); let hordeUI = document.getElementById('horde-ui'); if (hordeUI) hordeUI.remove();
             // Feature 18: Nemesis system - save what killed player
             try {
                 if (entities.eBullets.length > 0 && entities.enemies.length > 0) {
@@ -6404,7 +6404,7 @@
                     let count = 8 + hordeState.wave * 3;
                     hordeState.waveEnemies = count; hordeState.waveKills = 0;
                     for (let i = 0; i < count; i++) {
-                        let types = ['chaser','shooter','tank','speed','rammer'];
+                        let types = ['chaser','shooter','tank','swarm','rammer'];
                         let et = types[Math.min(Math.floor(hordeState.wave/4), types.length-1)];
                         let e = new Enemy(canvas.width + 60 + Math.random()*200, 60 + Math.random()*(canvas.height-120), et);
                         e.hp *= (1 + hordeState.wave * 0.15); e.maxHp = e.hp;
@@ -6442,7 +6442,9 @@
                     for (let e of entities.enemies) { if (!e) continue; let d = Math.hypot(e.x-turr.x, e.y-turr.y); if (d < minD) { minD = d; target = e; } }
                     if (target) {
                         let a = Math.atan2(target.y - turr.y, target.x - turr.x);
-                        let bul = { x: turr.x, y: turr.y, vx: Math.cos(a)*turr.bulletSpd, vy: Math.sin(a)*turr.bulletSpd, dmg: turr.dmg, life: 80, color: turr.color, explosive: !!turr.explosive, slows: !!turr.slows, isTurretBullet: true };
+                        let bul = new Projectile(turr.x, turr.y, Math.cos(a)*turr.bulletSpd, Math.sin(a)*turr.bulletSpd, turr.color, turr.dmg);
+                        bul.life = 80; bul.isBomb = !!turr.explosive; bul.isTurretBullet = true;
+                        if (turr.slows) bul.slows = true;
                         entities.bullets.push(bul);
                         turr.fireCd = turr.fireRate;
                     }
@@ -12792,7 +12794,7 @@ function applyKillEffect(e){
   if(!e)return;
   if(typeof appSettings!=='undefined'&&appSettings.graphics==='low')return;
   var x=e.x,y=e.y;
-  if(killEffectMode==='burst'){for(var i=0;i<8;i++){var a=Math.PI*2*i/8;typeof spawnParticles==='function'&&spawnParticles(x,y,1,{vx:Math.cos(a)*4,vy:Math.sin(a)*4,color:'#ffff00',life:40});}}
+  if(killEffectMode==='burst'){typeof spawnParticles==='function'&&spawnParticles(x,y,'#ffff00',8,2);}
   else if(killEffectMode==='nova'){
     var r=0,life=20,iv=setInterval(function(){r+=10;life--;if(typeof ctx!=='undefined'){ctx.save();ctx.strokeStyle='rgba(255,120,0,'+(life/20)+')';ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.stroke();ctx.restore();}if(life<=0)clearInterval(iv);},16);
   } else if(killEffectMode==='thunder'){
