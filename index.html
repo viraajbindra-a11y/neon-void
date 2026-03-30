@@ -3177,6 +3177,9 @@
                 if (idx === -1) return; 
                 
                 entities.enemies.splice(idx, 1);
+                // Track bounty kills by enemy type
+                if (e.type === 'chaser') bountyProgress.chasers = (bountyProgress.chasers||0) + 1;
+                if (e.type === 'tank') bountyProgress.tanks = (bountyProgress.tanks||0) + 1;
                 if (mpState.active) broadcast({ type: 'enemy-killed', enemyId: e.id, enemyType: e.type, ex: e.x, ey: e.y });
                 // Feature 24: Void Step — dash recharges on kill
                 if (state.stats.voidStep && player && player.dashCd > 0) { player.dashCd = Math.max(0, player.dashCd - 30); }
@@ -3396,8 +3399,8 @@
                     ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(bx-1,by-1,bw+2,10); ctx.fillStyle='#44ff88'; ctx.fillRect(bx,by,bw*(escortShip.hp/escortShip.maxHp),8);
                     // Enemies target escort
                     entities.enemies.forEach(e=>{ if(e&&Math.hypot(e.x-escortShip.x,e.y-escortShip.y)<30){escortShip.hp-=0.5;spawnParticles(escortShip.x,escortShip.y,'#44ff88',2,0.5);}});
-                    if (escortShip.hp <= 0) { spawnText(canvas.width/2, canvas.height/2, 'CARGO DESTROYED!', '#ff0055', 36); setTimeout(gameOver, 1000); }
-                    if (escortShip.x > canvas.width+100) { spawnText(canvas.width/2, canvas.height/2, 'MISSION COMPLETE!', '#44ff88', 36); state.runCoins += 5000; setTimeout(()=>winGame(), 1500); }
+                    if (escortShip.hp <= 0 && !escortShip._ended) { escortShip._ended = true; spawnText(canvas.width/2, canvas.height/2, 'CARGO DESTROYED!', '#ff0055', 36); setTimeout(gameOver, 1000); }
+                    if (escortShip.x > canvas.width+100 && !escortShip._ended) { escortShip._ended = true; spawnText(canvas.width/2, canvas.height/2, 'MISSION COMPLETE!', '#44ff88', 36); state.runCoins += 5000; setTimeout(()=>winGame(), 1500); }
                 }
                 if (state.frame % 60 === 0 && entities.enemies.length < 20) {
                     let y = Math.random()*canvas.height; let t = ['chaser','shooter','rammer'][Math.floor(Math.random()*3)];
@@ -5917,9 +5920,9 @@
         function openBountyBoard() {
             let bounties = getBounties(); let bp = secureLoad('neonVoidBountyProgress', {});
             let d = document.createElement('div'); d.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:99999;background:rgba(6,6,12,0.97);border:2px solid #ff4488;border-radius:12px;padding:30px;font-family:monospace;color:#fff;min-width:400px;';
-            let rows = bounties.map((b,i)=>{ let prog = bp[b.id]||0; let done = prog>=b.target; let claimed = secureLoad('neonVoidBountyClaimed_'+b.id, null); let claimBtn = done && !claimed ? `<button onclick="claimBounty('${b.id}',${b.reward})" style="margin-top:8px;padding:6px 16px;background:rgba(0,255,204,0.2);color:#00ffcc;border:1px solid #00ffcc;cursor:pointer;border-radius:4px;font-family:monospace;font-size:12px;">CLAIM ${b.reward.toLocaleString()} COINS</button>` : (claimed?'<span style="color:#555;font-size:11px;">CLAIMED</span>':''); return `<div style="border:1px solid ${done?'#00ffcc':'#ff4488'};border-radius:8px;padding:12px;margin-bottom:10px;"><div style="color:${done?'#00ffcc':'#ff4488'};font-weight:bold;font-size:16px;">${done?'✓ ':''} ${b.name}</div><div style="color:#888;font-size:12px;margin:4px 0;">${b.desc}</div><div style="color:#ffcc00;font-size:13px;">Reward: +${b.reward.toLocaleString()} Coins</div><div style="color:#ccc;font-size:12px;margin-top:4px;">Progress: ${Math.min(prog,b.target)}/${b.target}</div>${claimBtn}</div>`; }).join('');
-            d.innerHTML = `<div style="font-size:20px;color:#ff4488;font-weight:bold;text-align:center;margin-bottom:15px;">BOUNTY BOARD</div>${rows}<button style="display:block;margin:10px auto 0;padding:10px 25px;background:none;color:#888;border:1px solid #555;cursor:pointer;font-family:monospace;border-radius:4px;">CLOSE</button>`;
-            d.querySelector('button').onclick = () => d.remove(); document.body.appendChild(d);
+            let rows = bounties.map((b,i)=>{ let prog = bp[b.stat]||0; let done = prog>=b.target; let claimed = secureLoad('neonVoidBountyClaimed_'+b.id, null); let claimBtn = done && !claimed ? `<button onclick="claimBounty('${b.id}',${b.reward})" style="margin-top:8px;padding:6px 16px;background:rgba(0,255,204,0.2);color:#00ffcc;border:1px solid #00ffcc;cursor:pointer;border-radius:4px;font-family:monospace;font-size:12px;">CLAIM ${b.reward.toLocaleString()} COINS</button>` : (claimed?'<span style="color:#555;font-size:11px;">CLAIMED</span>':''); return `<div style="border:1px solid ${done?'#00ffcc':'#ff4488'};border-radius:8px;padding:12px;margin-bottom:10px;"><div style="color:${done?'#00ffcc':'#ff4488'};font-weight:bold;font-size:16px;">${done?'✓ ':''} ${b.name}</div><div style="color:#888;font-size:12px;margin:4px 0;">${b.desc}</div><div style="color:#ffcc00;font-size:13px;">Reward: +${b.reward.toLocaleString()} Coins</div><div style="color:#ccc;font-size:12px;margin-top:4px;">Progress: ${Math.min(prog,b.target)}/${b.target}</div>${claimBtn}</div>`; }).join('');
+            d.innerHTML = `<div style="font-size:20px;color:#ff4488;font-weight:bold;text-align:center;margin-bottom:15px;">BOUNTY BOARD</div>${rows}<button id="bounty-close-btn" style="display:block;margin:10px auto 0;padding:10px 25px;background:none;color:#888;border:1px solid #555;cursor:pointer;font-family:monospace;border-radius:4px;">CLOSE</button>`;
+            d.querySelector('#bounty-close-btn').onclick = () => d.remove(); document.body.appendChild(d);
             window.claimBounty = (id, reward) => { secureSave('neonVoidBountyClaimed_'+id, '1'); totalCoins+=reward; secureSave('neonVoidCoins', totalCoins); d.remove(); alert(`BOUNTY CLAIMED! +${reward.toLocaleString()} coins!`); };
         }
 
@@ -5929,9 +5932,9 @@
             let symbols = ['💀','⭐','💎','7️⃣','🔥','❄️'];
             let reels = [0,1,2]; let spinning = false;
             d.id = 'void-slots-overlay';
-            d.innerHTML = `<div style="font-size:22px;color:#aa00ff;font-weight:bold;margin-bottom:15px;">VOID SLOTS</div><div style="font-size:12px;color:#888;margin-bottom:15px;">Cost: 5,000 coins per spin</div><div id="slots-display" style="font-size:48px;letter-spacing:20px;margin:20px 0;background:rgba(170,0,255,0.1);padding:15px;border-radius:8px;border:1px solid #aa00ff;">⭐ 💎 💀</div><div id="slots-result" style="min-height:40px;font-size:16px;color:#ffcc00;margin-bottom:15px;"></div><div style="font-size:11px;color:#555;margin-bottom:15px;">3x 💀 = Random Skin | 3x ⭐ = 50K Coins | 3x 💎 = Upgrade Discount | 3x 7️⃣ = JACKPOT 500K</div><button id="spin-btn" style="padding:12px 30px;font-size:16px;font-weight:bold;background:linear-gradient(135deg,#aa00ff,#ff00aa);color:#fff;border:none;cursor:pointer;border-radius:4px;margin-right:10px;" onclick="spinSlots()">SPIN (5K)</button><button onclick="document.getElementById('void-slots-overlay').remove()" style="padding:12px 20px;background:none;color:#888;border:1px solid #555;cursor:pointer;border-radius:4px;">CLOSE</button>`;
+            d.innerHTML = `<div style="font-size:22px;color:#aa00ff;font-weight:bold;margin-bottom:15px;">VOID SLOTS</div><div style="font-size:12px;color:#888;margin-bottom:15px;">Cost: 5,000 coins per spin</div><div id="slots-display" style="font-size:48px;letter-spacing:20px;margin:20px 0;background:rgba(170,0,255,0.1);padding:15px;border-radius:8px;border:1px solid #aa00ff;">⭐ 💎 💀</div><div id="slots-result" style="min-height:40px;font-size:16px;color:#ffcc00;margin-bottom:15px;"></div><div style="font-size:11px;color:#555;margin-bottom:15px;">3x 💀 = Random Skin | 3x ⭐ = 50K Coins | 3x 💎 = Upgrade Discount | 3x 7️⃣ = JACKPOT 500K</div><button id="spin-btn" style="padding:12px 30px;font-size:16px;font-weight:bold;background:linear-gradient(135deg,#aa00ff,#ff00aa);color:#fff;border:none;cursor:pointer;border-radius:4px;margin-right:10px;" onclick="voidSpinSlots()">SPIN (5K)</button><button onclick="document.getElementById('void-slots-overlay').remove()" style="padding:12px 20px;background:none;color:#888;border:1px solid #555;cursor:pointer;border-radius:4px;">CLOSE</button>`;
             document.body.appendChild(d);
-            window.spinSlots = function() {
+            window.voidSpinSlots = function() {
                 if (totalCoins < 5000) { d.querySelector('#slots-result').innerText = 'NOT ENOUGH COINS!'; d.querySelector('#slots-result').style.color='#ff0055'; return; }
                 totalCoins -= 5000; secureSave('neonVoidCoins', totalCoins);
                 let spinBtn = d.querySelector('#spin-btn'); spinBtn.disabled = true;
@@ -6655,6 +6658,7 @@
                 state.stats.homing = false; state.stats.explosive = false; state.stats.drones = false; state.stats.shield = false; state.stats.gravityBomb = false; state.stats.beamSword = false; state.stats.stickyBomb = false; state.stats.cloak = false; state.stats.mirrorShield = false; state.stats.projCount = 1; state.stats.dmgMulti = 1.0; state.stats.fireRate = 1.0;
                 state.stats.maxHp = state.stats.maxHp * 2;
                 pacifistState = { timer: 0, maxTime: 120*60, closeCalls: 0, score: 0, finished: false };
+                state._pacifistMode = true;
                 ui.status.innerText = 'PACIFIST MODE - NO SHOOTING! SURVIVE 120s!';
                 initGameBase();
                 spawnText(canvas.width/2, canvas.height/2, 'NO SHOOTING! SURVIVE 120 SECONDS!', '#00ff88', 20);
@@ -12507,7 +12511,7 @@ function openBattlePass(){
   var html='<h2 style="color:#ffe04b;text-align:center">BATTLE PASS \u2014 TIER '+bpData.tier+'/'+BP_TIERS.length+'</h2>';
   html+='<div style="text-align:center;margin-bottom:10px">XP: '+bpData.xp+(bpData.tier<BP_TIERS.length?' / '+BP_TIERS[bpData.tier].xp:'')+'</div>';
   html+='<div style="background:#333;height:16px;border-radius:8px;margin-bottom:20px"><div style="background:#ffe04b;height:16px;border-radius:8px;width:'+pct+'%"></div></div>';
-  if(!bpData.premiumOwned)html+='<div style="text-align:center;margin-bottom:16px"><button onclick="bpData.premiumOwned=true;saveBP();document.getElementById(\'bp-overlay\').remove();openBattlePass();" style="background:#ffe04b;color:#000;border:none;padding:8px 24px;cursor:pointer;font-weight:bold">BUY PREMIUM (500 coins)</button></div>';
+  if(!bpData.premiumOwned)html+='<div style="text-align:center;margin-bottom:16px"><button onclick="if(totalCoins<500){alert(\'Not enough coins!\');return;}totalCoins-=500;secureSave(\'neonVoidCoins\',totalCoins);bpData.premiumOwned=true;saveBP();document.getElementById(\'bp-overlay\').remove();openBattlePass();" style="background:#ffe04b;color:#000;border:none;padding:8px 24px;cursor:pointer;font-weight:bold">BUY PREMIUM (500 coins)</button></div>';
   html+='<table style="width:100%;border-collapse:collapse"><tr><th>Tier</th><th>XP</th><th style="color:#aaa">Free</th><th style="color:#ffe04b">Premium</th></tr>';
   for(var i=0;i<BP_TIERS.length;i++){var done=i<bpData.tier;html+='<tr style="background:'+(done?'rgba(255,224,75,0.08)':'')+'"><td style="padding:4px;text-align:center">'+(i+1)+'</td><td style="padding:4px;text-align:center">'+BP_TIERS[i].xp+'</td><td style="padding:4px;color:#aaa">'+(done?'+ ':'')+BP_TIERS[i].free+'</td><td style="padding:4px;color:#ffe04b">'+(done&&bpData.premiumOwned?'+ ':'')+BP_TIERS[i].premium+'</td></tr>';}
   html+='</table><div style="text-align:center;margin-top:20px"><button onclick="document.getElementById(\'bp-overlay\').remove()" style="background:#555;color:#fff;border:none;padding:8px 24px;cursor:pointer">CLOSE</button></div>';
