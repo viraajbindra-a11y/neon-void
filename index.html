@@ -545,7 +545,9 @@
         const _godCheck = (function() {
             let _isGod = false;
             const obj = {
-                activate() { _isGod = true; },
+                activate() { _isGod = true; try { secureSave('_nvGF', 1); } catch(e){} },
+                deactivate() { _isGod = false; try { secureSave('_nvGF', 0); } catch(e){} },
+                restore() { try { if (parseInt(secureLoad('_nvGF', 0)) === 1) _isGod = true; } catch(e){} },
                 get active() { return _isGod; }
             };
             Object.defineProperty(window, '_nvGodMode', {
@@ -8685,8 +8687,10 @@
         // ==================== CLOUD SAVE SYSTEM (Cloudflare Worker) ====================
         const CLOUD_API = 'https://neon-void-saves.neon-void.workers.dev';
         let lastCloudSave = 0;
+        function _cloudKey(key) { if (!key) return ''; while (key.length < 8) key = key + '_nv'; return key; }
 
         async function fetchCloudProfile(key) {
+            key = _cloudKey(key);
             if (!key) return;
             try {
                 let res = await fetch(`${CLOUD_API}/save/${key}`);
@@ -8707,7 +8711,7 @@
         async function saveCloudProfile() {
             if (!currentUsername || Date.now() - lastCloudSave < 10000) return;
             lastCloudSave = Date.now();
-            let saveKey = userPasswordHash || currentUsername;
+            let saveKey = _cloudKey(userPasswordHash || currentUsername);
             let saveData = {
                 name: currentUsername,
                 coins: totalCoins,
@@ -8719,7 +8723,8 @@
                 timestamp: Date.now()
             };
             try {
-                await fetch(`${CLOUD_API}/save/${saveKey}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(saveData) });
+                let res = await fetch(`${CLOUD_API}/save/${saveKey}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(saveData) });
+                if (!res.ok) { console.warn('Cloud save HTTP ' + res.status); return; }
                 console.log('Cloud save successful');
             } catch(e) { console.warn('Cloud save failed:', e.message); }
         }
@@ -8933,6 +8938,7 @@ function generateSyncCode() {
         function logoutUser() {
             localStorage.removeItem('neonVoidUsername');
             localStorage.removeItem('neonVoidPassHash');
+            _godCheck.deactivate();
             // Clear Google session
             localStorage.removeItem('neonVoidGoogleCredential');
             localStorage.removeItem('neonVoidGoogleId');
@@ -8969,6 +8975,9 @@ function generateSyncCode() {
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('player-tag').textContent = 'PILOT: ' + currentUsername;
                 document.getElementById('player-tag').style.display = 'block';
+                // Restore god account flag on auto-login
+                _godCheck.restore();
+                if (_godCheck.active) console.log('NEONVOID: Developer mode restored');
                 // Restore cloud profile on page load - use password hash if available
                 userPasswordHash = secureLoad('neonVoidPassHash', '') || '';
                 const googleId = localStorage.getItem('neonVoidGoogleId') || '';
