@@ -3627,7 +3627,7 @@
                         updateArr(entities.powerups, (p, i) => { if (state.stats.magnet) { let pd = Math.hypot(player.x-p.x, player.y-p.y); if(pd < grabRadius && pd > 0){ p.x += (player.x-p.x)/pd * 8; p.y += (player.y-p.y)/pd * 8; } } if (Math.hypot(player.x-p.x, player.y-p.y) < player.radius+p.r) { playSound('powerup'); flashPowerup(p.color);
                         // Feature 25: Earn forge materials
                         try { let mats=secureLoad('neonVoidMaterials', {}); mats[p.type]=(mats[p.type]||0)+1; secureSave('neonVoidMaterials', mats); } catch(e) {}
-                        if (p.type === 'nuke') triggerNuke(); else if (p.type === 'emp') triggerEMP(); else if (p.type === 'blackhole') triggerBlackHole(); else if (p.type === 'invincibility') player.timers.invuln = 600; else if (p.type === 'orbital_strike') triggerOrbitalStrike(); else if (p.type === 'heal') player.hp = Math.min(state.stats.maxHp, player.hp + 50); else if (p.type === 'shield') player.shield = 100; else if (p.type === 'nuke_shield') { player.shield = 150; player.nukeShield = true; } else player.timers[p.type] = 400; spawnParticles(p.x, p.y, p.color, 8); spawnText(p.x, p.y, p.type.toUpperCase(), p.color, 20); tryPowerupLine(p.x, p.y); entities.powerups.splice(i,1); return true; } return false; });
+                        if (p.type === 'nuke') triggerNuke(); else if (p.type === 'emp') triggerEMP(); else if (p.type === 'blackhole') triggerBlackHole(); else if (p.type === 'invincibility') player.timers.invuln = 600; else if (p.type === 'orbital_strike') triggerOrbitalStrike(); else if (p.type === 'heal') player.hp = Math.min(state.stats.maxHp, player.hp + 50); else if (p.type === 'shield') { if (state.dailyChallenge !== 'no_shields') player.shield = 100; } else if (p.type === 'nuke_shield') { if (state.dailyChallenge !== 'no_shields') { player.shield = 150; player.nukeShield = true; } } else player.timers[p.type] = 400; spawnParticles(p.x, p.y, p.color, 8); spawnText(p.x, p.y, p.type.toUpperCase(), p.color, 20); tryPowerupLine(p.x, p.y); entities.powerups.splice(i,1); return true; } return false; });
                         
                         updateArr(entities.bullets, (b, i) => { 
                             let dead = false; 
@@ -3672,13 +3672,13 @@
                                             let shieldDroneDmgMult = 1.0;
                                             entities.enemies.forEach(sd => { if(sd && sd.type==='shield_drone' && sd !== e && Math.hypot(sd.x-e.x,sd.y-e.y)<40) shieldDroneDmgMult = 0.5; });
                                             let actualDmg = b.dmg * shieldDroneDmgMult;
-                                            if (e.type === 'shielder' && e.shieldHp > 0) { e.shieldHp -= actualDmg; if (e.shieldHp <= 0) e.shieldHp = 0; } else { e.hp -= actualDmg; }
                                             // Feature 15: Cloaked enemy damagedTimer
                                             if (e.type === 'cloaked') e.damagedTimer = 30;
-                                            // Feature 29: Reflector - 40% chance to reflect bullet
+                                            // Feature 29: Reflector - 40% chance to reflect bullet (check BEFORE damage)
                                             if (e.type === 'reflector' && Math.random() < 0.4) { b.vx = -b.vx; b.vy = -b.vy; b.isEnemy = true; b.hitList = []; entities.eBullets.push(new Projectile(b.x, b.y, b.vx, b.vy, '#88ffff', state.hardcore?40:20, true)); dead = true; break; }
-                                            // Feature 27: Hivemind - split damage across group
+                                            // Feature 27: Hivemind - split damage across group (INSTEAD of normal damage)
                                             if (e.type === 'hivemind' && e.hivemindGroup) { let hmGroup = entities.enemies.filter(he=>he&&he!==e&&he.type==='hivemind'&&he.hivemindGroup===e.hivemindGroup); let splitDmg = actualDmg / (hmGroup.length + 1); e.hp -= splitDmg; hmGroup.forEach(he=>{he.hp-=splitDmg; flashEnemy(he);}); b.hitList.push(e); if(b.pierce<=0){dead=true;break;}else{b.pierce--;} continue; }
+                                            if (e.type === 'shielder' && e.shieldHp > 0) { e.shieldHp -= actualDmg; if (e.shieldHp <= 0) e.shieldHp = 0; } else { e.hp -= actualDmg; }
                                             b.hitList.push(e); flashEnemy(e);
                                             if (b.isCrit) { playSound('crit'); spawnText(b.x, b.y, "CRIT " + Math.floor(b.dmg), '#ff0000', 24); knockbackEnemy(e, b.x, b.y, 6); } else { spawnText(b.x, b.y, Math.floor(b.dmg), player.baseColor, 16); knockbackEnemy(e, b.x, b.y, 2); }
                                             spawnParticles(b.x, b.y, e.color, 5); if (state.stats.explosive || b.isBomb) triggerExplosion(b.x, b.y, b.dmg * (b.isBomb?2:1));
@@ -5838,6 +5838,8 @@
             if (checkId === 'pistol_only' && state.bossesDefeated > 0) completed = true;
             if (checkId === 'glass_cannon' && state.bossesDefeated > 0) completed = true;
             if (checkId === 'combo_king' && state.combo >= 8 && player && state.bossesDefeated > 0) completed = true;
+            if (checkId === 'pacifist' && state.frame >= 18000 && player) completed = true;
+            if (checkId === 'no_shields' && state.bossesDefeated > 0 && player && player.shield === 0) completed = true;
             if (completed) {
                 let dateStr = new Date().toISOString().slice(0,10); secureSave('neonVoidDaily_'+dateStr, '1');
                 let reward = state.dailyChallengeReward || dc.reward;
@@ -7458,7 +7460,7 @@
             { id:'move', msg:'MOVE YOUR SHIP', sub:'Use WASD or Arrow Keys to fly around', mobSub:'Use the joystick to fly around', check:()=> player && Math.hypot(player.vx,player.vy) > 1.5, need:120 },
             { id:'aim', msg:'YOUR WEAPONS ARE ONLINE', sub:'Your ship auto-fires at the nearest enemy. Move to aim!', mobSub:'Tap FIRE to shoot. Aim with the joystick.', auto:180 },
             { id:'kill', msg:'DESTROY THE TARGET', sub:'Eliminate the training drone ahead of you', mobSub:'Eliminate the training drone', check:()=> state && state.kills >= 1, need:1, onEnter:'tutSpawnDrone' },
-            { id:'dash', msg:'EVASIVE MANEUVERS', sub:'Press SHIFT or Right-Click to DASH through danger', mobSub:'Tap DASH to dodge through danger', check:()=> player && player.dashCooldown > 0, need:1, onEnter:'tutSpawnBullets' },
+            { id:'dash', msg:'EVASIVE MANEUVERS', sub:'Press SHIFT or Right-Click to DASH through danger', mobSub:'Tap DASH to dodge through danger', check:()=> player && player.dashCd > 0, need:1, onEnter:'tutSpawnBullets' },
             { id:'pickup', msg:'COLLECT THE POWER-UP', sub:'Fly into the glowing orb to grab it', mobSub:'Fly into the glowing orb', check:()=> tutorialState._pickedUp, need:1, onEnter:'tutSpawnPickup' },
             { id:'combo', msg:'CHAIN KILLS FOR COMBOS', sub:'Kill fast to build your score multiplier!', mobSub:'Kill fast to build your multiplier!', check:()=> state && state.kills >= 5, need:1, onEnter:'tutSpawnWave' },
             { id:'done', msg:'TRAINING COMPLETE', sub:'You\'re ready for Sector 1. Good luck out there, pilot.', auto:180 }
