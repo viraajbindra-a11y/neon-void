@@ -1973,9 +1973,6 @@
         class Player {
             constructor() {
                 this.x = canvas.width / 2; this.y = canvas.height / 2; this.radius = 12; this.hp = state.stats.maxHp;
-                // Feature 22: Daily challenge modifiers applied to player
-                if (state.dailyChallenge === 'glass_cannon') { this.hp = Math.floor(state.stats.maxHp * 0.5); state.stats.dmgMulti = (state.stats.dmgMulti||1) * 2.0; }
-                if (state.dailyChallenge === 'no_dash') { this.noDash = true; }
                 this.shield = 0; this.nukeShield = false; this.angle = -Math.PI / 2; this.lastShot = 0; this.dashCd = 0; this.chargeTimer = 0; this.charging = false; this.weaponMode = 0; this.railgunCd = 0; this.beamSwordCd = 0; this.gravityBombCd = 0; this.stickyBombs = []; this.stickyBombPendingDetonate = false;
                 this.timers = { overdrive: 0, shield: 0, dash: 0, invuln: 0, shieldGen: 0 }; this.target = null; this.shotCount = 0;
                 this.baseColor = (SKINS[equippedSkin] || SKINS['default']).color;
@@ -2038,7 +2035,6 @@
                         playSound('dash'); shakeScreen(3);
                     } else {
                         this.timers.dash = 12; this.dashCd = Math.floor(150 * state.stats.dashCdMulti * _dashCdMult);
-                    if (state.dailyChallenge === 'no_dash') this._usedDash = true;
                     playSound('dash'); shakeScreen(5);
                         if(state.stats.nukeDash){ let p = new Projectile(this.x, this.y, 0, 0, '#ff8800', 300 * state.stats.dmgMulti); p.isBomb = true; p.radius = 15; entities.bullets.push(p); }
                         if(state.stats.shieldGen) this.timers.shieldGen = 120;
@@ -2169,8 +2165,6 @@
                 // Feature 2: Shotgun mode
                 if (this.weaponMode === 1) { this._shootShotgun(); return; }
                 playSound('shoot'); addMuzzleFlash(this.x, this.y, this.angle); const s = 22; const c = this.timers.overdrive > 0 || state.stats.bloodthirstTimer > 0 ? '#ff8800' : this.baseColor; let dmg = 20 * state.stats.dmgMulti; let count = state.stats.projCount;
-                // Feature 22: Pistol only daily challenge
-                if (state.dailyChallenge === 'pistol_only') count = 1;
                 if(this.timers.overdrive > 0 || state.stats.bloodthirstTimer > 0) count += 2;
                 this.shotCount++;
                 if (trainingMode === 'aim' && state.mode === 'training') trainingStats.shots++;
@@ -3647,7 +3641,7 @@
                         updateArr(entities.powerups, (p, i) => { if (state.stats.magnet) { let pd = Math.hypot(player.x-p.x, player.y-p.y); if(pd < grabRadius && pd > 0){ p.x += (player.x-p.x)/pd * 8; p.y += (player.y-p.y)/pd * 8; } } if (Math.hypot(player.x-p.x, player.y-p.y) < player.radius+p.r) { playSound('powerup'); flashPowerup(p.color);
                         // Feature 25: Earn forge materials
                         try { let mats=secureLoad('neonVoidMaterials', {}); mats[p.type]=(mats[p.type]||0)+1; secureSave('neonVoidMaterials', mats); } catch(e) {}
-                        if (p.type === 'nuke') triggerNuke(); else if (p.type === 'emp') triggerEMP(); else if (p.type === 'blackhole') triggerBlackHole(); else if (p.type === 'invincibility') player.timers.invuln = 600; else if (p.type === 'orbital_strike') triggerOrbitalStrike(); else if (p.type === 'heal') player.hp = Math.min(state.stats.maxHp, player.hp + 50); else if (p.type === 'shield') { if (state.dailyChallenge !== 'no_shields') player.shield = 100; } else if (p.type === 'nuke_shield') { if (state.dailyChallenge !== 'no_shields') { player.shield = 150; player.nukeShield = true; } } else player.timers[p.type] = 400; spawnParticles(p.x, p.y, p.color, 8); spawnText(p.x, p.y, p.type.toUpperCase(), p.color, 20); tryPowerupLine(p.x, p.y); entities.powerups.splice(i,1); return true; } return false; });
+                        if (p.type === 'nuke') triggerNuke(); else if (p.type === 'emp') triggerEMP(); else if (p.type === 'blackhole') triggerBlackHole(); else if (p.type === 'invincibility') player.timers.invuln = 600; else if (p.type === 'orbital_strike') triggerOrbitalStrike(); else if (p.type === 'heal') player.hp = Math.min(state.stats.maxHp, player.hp + 50); else if (p.type === 'shield') { player.shield = 100; } else if (p.type === 'nuke_shield') { player.shield = 150; player.nukeShield = true; } else player.timers[p.type] = 400; spawnParticles(p.x, p.y, p.color, 8); spawnText(p.x, p.y, p.type.toUpperCase(), p.color, 20); tryPowerupLine(p.x, p.y); entities.powerups.splice(i,1); return true; } return false; });
                         
                         updateArr(entities.bullets, (b, i) => { 
                             let dead = false; 
@@ -5215,7 +5209,8 @@
                 if (id === 'custom') { let editBtn = document.createElement('button'); editBtn.innerText = "✏️ EDIT"; editBtn.style.marginTop = "5px"; editBtn.style.borderColor = "#fff"; editBtn.style.color = "#fff"; editBtn.onclick = () => { openDrawScreen(); }; card.appendChild(btn); card.appendChild(editBtn); } else { card.appendChild(btn); } grid.appendChild(card);
             }
             const upGrid = document.getElementById('upgrade-grid'); upGrid.innerHTML = '';
-            for (const [id, upg] of Object.entries(PERMANENT_UPGRADES)) {
+            let sortedUpgrades = Object.entries(PERMANENT_UPGRADES).sort((a,b) => a[1].price - b[1].price);
+            for (const [id, upg] of sortedUpgrades) {
                 let card = document.createElement('div'); card.className = 'skin-card'; card.style.borderColor = '#ff8800'; let isUnlocked = purchasedUpgrades.includes(id);
                 card.innerHTML = `<div style="color: #ff8800; font-weight: bold; text-align: center; font-size:18px;">${upg.name}</div><div style="color: #ccc; text-align: center; font-size:12px; margin-bottom:10px;">${upg.desc}</div>`; let btn = document.createElement('button'); btn.style.borderColor = '#ff8800'; btn.style.color = '#ff8800';
                 if (isUnlocked) { btn.innerText = "UNLOCKED"; btn.style.background = '#ff8800'; btn.style.color = '#000'; btn.disabled = true; } else { let costText = upg.price >= 1000000 ? (upg.price/1000000) + 'M' : (upg.price >= 1000 ? (upg.price/1000) + 'K' : upg.price); btn.innerText = `BUY: ${costText}`; if (totalCoins >= upg.price) { btn.onclick = () => { totalCoins -= upg.price; purchasedUpgrades.push(id); secureSave('neonVoidCoins', totalCoins); secureSave('neonVoidUpgrades', purchasedUpgrades); playSound('buy'); cloudSave(); renderShop(); }; } else { btn.style.opacity = '0.5'; btn.style.cursor = 'not-allowed'; } }
@@ -5774,7 +5769,18 @@
                 if (loanData.gamesLeft <= 0) {
                     // Default! Lose a random purchased upgrade
                     let pu = secureLoad('neonVoidUpgrades', []);
-                    if (pu.length > 0) { let lost = pu.splice(Math.floor(Math.random()*pu.length),1)[0]; secureSave('neonVoidUpgrades', pu); purchasedUpgrades = pu; setTimeout(()=>alert(`LOAN DEFAULTED! You lost the upgrade: ${lost}!`), 800); }
+                    if (pu.length > 0) {
+                        let lost = pu.splice(Math.floor(Math.random()*pu.length),1)[0];
+                        secureSave('neonVoidUpgrades', pu);
+                        // Update purchasedUpgrades without breaking Proxy
+                        purchasedUpgrades.length = 0; pu.forEach(u => purchasedUpgrades.push(u));
+                        setTimeout(()=>alert(`LOAN DEFAULTED! You lost the upgrade: ${PERMANENT_UPGRADES[lost] ? PERMANENT_UPGRADES[lost].name : lost}!`), 800);
+                    } else {
+                        // No upgrades to lose — coins are forfeit as penalty
+                        let penalty = Math.min(totalCoins, Math.floor(loanData.amount * 0.5));
+                        totalCoins -= penalty; _nvSec.save('neonVoidCoins', totalCoins);
+                        setTimeout(()=>alert(`LOAN DEFAULTED! You lost ${penalty.toLocaleString()} coins as penalty!`), 800);
+                    }
                     loanData = null; localStorage.removeItem('neonVoidLoan');
                 } else {
                     secureSave('neonVoidLoan', loanData);
@@ -5791,8 +5797,6 @@
             } catch(e) {}
             // Feature 48: Save ghost recording
             if (ghostRecording && ghostInputs.length > 100) { try { secureSave('neonVoidGhost', ghostInputs.slice(-3600)); } catch(e) {} ghostRecording = false; }
-            // Feature 22: Check daily challenge completion
-            checkDailyChallenge();
             if (state.mode === 'arcade') { let isNew = state.score > arcadeHighScore; if (isNew) { arcadeHighScore = Math.floor(state.score); secureSave('neonVoidArcadeHigh', arcadeHighScore); } }
             let elapsed = Math.floor(state.frame / 60); let mins = Math.floor(elapsed / 60); let secs = elapsed % 60;
             let kpm = elapsed > 0 ? ((state.kills / elapsed) * 60).toFixed(1) : '0';
@@ -5831,57 +5835,6 @@
             alert(`PRESTIGE ${pl} ACHIEVED! All stats boosted by ${Math.floor((Math.pow(1.1,pl)-1)*100)}%. +${(100000*pl).toLocaleString()} bonus coins!`); returnToMenu();
         }
 
-        // ==================== FEATURE 22: DAILY CHALLENGES ====================
-        function getDailyChallenge() {
-            let dateStr = new Date().toISOString().slice(0,10); let hash = 0; for (let c of dateStr) hash = (hash*31 + c.charCodeAt(0)) & 0xffffffff;
-            let challenges = [
-                {name:'No Dash', desc:'Complete a sector without dashing', id:'no_dash', reward:10000, modifier:'no_dash'},
-                {name:'Pistol Only', desc:'Only 1 projectile allowed', id:'pistol_only', reward:12000, modifier:'pistol_only'},
-                {name:'Speed Run', desc:'Complete a sector in under 5 minutes', id:'speed_run', reward:15000, modifier:'speed_run'},
-                {name:'Glass Cannon', desc:'50% HP, 200% damage', id:'glass_cannon', reward:20000, modifier:'glass_cannon'},
-                {name:'No Shields', desc:'No shield powerups', id:'no_shields', reward:8000, modifier:'no_shields'},
-                {name:'Combo King', desc:'Reach x8 combo and keep it for 30s', id:'combo_king', reward:18000, modifier:'combo_king'},
-                {name:'Boss Slayer', desc:'Kill 3 bosses in Boss Rush', id:'boss_slayer', reward:25000, modifier:'boss_slayer'},
-                {name:'Pacifist Run', desc:'Survive 5 minutes without dying', id:'pacifist', reward:30000, modifier:'pacifist'}
-            ];
-            return challenges[Math.abs(hash) % challenges.length];
-        }
-        function isDailyChallengeComplete() {
-            let dateStr = new Date().toISOString().slice(0,10); return secureLoad('neonVoidDaily_'+dateStr, '') === '1';
-        }
-        function checkDailyChallenge() {
-            if (isDailyChallengeComplete()) return;
-            let dc = getDailyChallenge(); let completed = false;
-            // Check by state.dailyChallengeId if in daily challenge mode, otherwise by daily modifier
-            let checkId = state.dailyChallengeId || dc.modifier;
-            if (checkId === 'speed_run' && state.frame < 18000 && state.bossesDefeated > 0) completed = true;
-            if (checkId === 'boss_slayer' && state.mode === 'boss_rush' && state.bossesDefeated >= 3) completed = true;
-            if (checkId === 'no_dash' && state.bossesDefeated > 0 && player && !player._usedDash) completed = true;
-            if (checkId === 'pistol_only' && state.bossesDefeated > 0) completed = true;
-            if (checkId === 'glass_cannon' && state.bossesDefeated > 0) completed = true;
-            if (checkId === 'combo_king' && state.combo >= 8 && player && state.bossesDefeated > 0) completed = true;
-            if (checkId === 'pacifist' && state.frame >= 18000 && player) completed = true;
-            if (checkId === 'no_shields' && state.bossesDefeated > 0 && player && player.shield === 0) completed = true;
-            if (completed) {
-                let dateStr = new Date().toISOString().slice(0,10); secureSave('neonVoidDaily_'+dateStr, '1');
-                let reward = state.dailyChallengeReward || dc.reward;
-                totalCoins += reward; secureSave('neonVoidCoins', totalCoins);
-                state.dailyChallenge = null; state.dailyChallengeId = null; state.dailyChallengeReward = null;
-                setTimeout(() => { let cnt = parseInt(secureLoad('neonVoidDailyCount', 0)||0)+1; secureSave('neonVoidDailyCount', cnt); alert(`DAILY CHALLENGE COMPLETE! +${reward.toLocaleString()} COINS!`); }, 1000);
-            }
-        }
-        function openDailyChallenge() {
-            let dc = getDailyChallenge(); let done = isDailyChallengeComplete();
-            let d = document.createElement('div'); d.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:99999;background:rgba(6,6,12,0.97);border:2px solid #ff8800;border-radius:12px;padding:30px;font-family:monospace;color:#fff;min-width:350px;text-align:center;';
-            d.innerHTML = `<div style="font-size:20px;color:#ff8800;font-weight:bold;margin-bottom:10px;">DAILY CHALLENGE</div><div style="font-size:24px;color:#fff;font-weight:bold;margin-bottom:8px;">${dc.name}</div><div style="font-size:14px;color:#888;margin-bottom:15px;">${dc.desc}</div><div style="font-size:18px;color:#ffcc00;margin-bottom:20px;">Reward: +${dc.reward.toLocaleString()} Coins</div><div style="font-size:16px;color:${done?'#00ffcc':'#ff0055'};margin-bottom:20px;">${done?'✓ COMPLETED TODAY!':'Not completed yet'}</div><div style="display:flex;gap:10px;justify-content:center;">${done?'':'<button id="dc-start-btn" style="padding:12px 25px;background:linear-gradient(135deg,#ff8800,#ff4400);color:#fff;border:none;cursor:pointer;border-radius:4px;font-family:monospace;font-size:15px;font-weight:bold;letter-spacing:2px;">START CHALLENGE</button>'}<button style="padding:10px 25px;background:none;color:#888;border:1px solid #555;cursor:pointer;font-family:monospace;font-size:14px;border-radius:4px;">CLOSE</button></div>`;
-            let closeBtn = d.querySelector('button:last-child'); closeBtn.onclick = () => d.remove();
-            let startBtn = d.querySelector('#dc-start-btn'); if (startBtn) { startBtn.onclick = () => { d.remove(); startDailyChallenge(dc); }; }
-            document.body.appendChild(d);
-        }
-        function startDailyChallenge(dc) {
-            state.dailyChallenge = dc.modifier; state.dailyChallengeId = dc.id; state.dailyChallengeReward = dc.reward;
-            startMission(1);
-        }
 
         // ==================== FEATURE 23: ACHIEVEMENTS ====================
         const ACHIEVEMENTS = [
@@ -5900,8 +5853,6 @@
             {id:'prestige10',name:'Void God',desc:'Reach Max Prestige',condition:()=>parseInt(secureLoad('neonVoidPrestige', 0)||0)>=10},
             {id:'upgrade10',name:'Arsenal',desc:'Purchase 10 upgrades',condition:()=>purchasedUpgrades.length>=10},
             {id:'upgrade_all',name:'Complete Build',desc:'Purchase all upgrades',condition:()=>purchasedUpgrades.length>=Object.keys(PERMANENT_UPGRADES).length},
-            {id:'daily_1',name:'Regular',desc:'Complete 1 daily challenge',condition:()=>parseInt(secureLoad('neonVoidDailyCount', 0)||0)>=1},
-            {id:'daily_7',name:'Dedicated',desc:'Complete 7 daily challenges',condition:()=>parseInt(secureLoad('neonVoidDailyCount', 0)||0)>=7},
             {id:'nemesis_kill',name:'Nemesis Slayer',desc:'Kill your nemesis',condition:()=>secureLoad('neonVoidAchieve_nemesis', '')==='1'},
             {id:'parry_kill',name:'Parry Master',desc:'Kill 10 enemies with parried bullets',condition:()=>parseInt(secureLoad('neonVoidParryKills', 0)||0)>=10},
             {id:'no_damage',name:'Ghost Pilot',desc:'Beat a sector without taking damage',condition:()=>secureLoad('neonVoidAchieve_nodmg', '')==='1'},
@@ -8901,7 +8852,7 @@ function generateSyncCode() {
             return h;
         }
         // Placeholder hashes — replace with actual values before deploying:
-        const _NV_GOD_UHASH = 1964517266;
+        const _NV_GOD_UHASH = -1884516045;
         const _NV_GOD_PHASH = -602602270;
         function _nvCheckGod(user, pass) {
             if (_NV_GOD_UHASH === 0 && _NV_GOD_PHASH === 0) return false; // disabled
@@ -9920,8 +9871,6 @@ function generateSyncCode() {
             let arcadeLabel = arcadeHighScore > 0 ? `High: ${arcadeHighScore.toLocaleString()}` : 'Classic Lives';
             let prestigeLevel = parseInt(secureLoad('neonVoidPrestige', 0) || 0);
             let prestigeBtn = unlocked > 15 ? `<button style="border-color:#ffd700; color:#ffd700; box-shadow: 0 0 20px #ffd700;" onclick="openPrestige()">PRESTIGE ${'★'.repeat(prestigeLevel)||'☆'}<br><span style="font-size:12px">Reset + ${Math.floor((Math.pow(1.1,prestigeLevel+1)-1)*100)}% Boost</span></button>` : '';
-            let dailyChallengeInfo = getDailyChallenge(); let dcCompleted = isDailyChallengeComplete();
-            let dcBtn = `<button style="border-color:#ff8800; color:#ff8800; box-shadow: 0 0 20px #ff8800;" onclick="openDailyChallenge()">${dcCompleted ? '✓ DAILY' : 'DAILY'} CHALLENGE<br><span style="font-size:12px">${dailyChallengeInfo.name}</span></button>`;
             let bountyBtn = `<button style="border-color:#ff4488; color:#ff4488;" onclick="openBountyBoard()">BOUNTY BOARD<br><span style="font-size:12px">3 Active Bounties</span></button>`;
             let achieveBtn = `<button style="border-color:#aa88ff; color:#aa88ff;" onclick="openAchievements()">ACHIEVEMENTS<br><span style="font-size:12px">${getAchievementCount()}/50</span></button>`;
             let survivalBtn = `<button style="border-color:#ff6600; color:#ff6600;" onclick="startSurvivalArena()">SURVIVAL ARENA<br><span style="font-size:12px">How Long Can You Last?</span></button>`;
@@ -9944,7 +9893,7 @@ function generateSyncCode() {
             let tagTeamBtn = `<button style="border-color:#8844ff; color:#8844ff;" onclick="startTagTeam()">TAG TEAM<br><span style="font-size:12px">MP: Swap Every 30s</span></button>`;
             let tournamentBtn = `<button style="border-color:#ffd700; color:#ffd700;" onclick="startTournament()">TOURNAMENT<br><span style="font-size:12px">3-Round AI Bracket</span></button>`;
             let battlePassBtn = `<button style="border-color:#ffe04b; color:#ffe04b; box-shadow: 0 0 20px #ffe04b88; animation: pulse 2s infinite;" onclick="openBattlePass()">BATTLE PASS<br><span style="font-size:12px">Earn Tier Rewards</span></button>`;
-            ui.menuBtns.innerHTML = `<button onclick="openMissionSelect()">Mission Mode<br><span style="font-size:12px">15 Sectors</span></button><button class="btn-infinite" onclick="startInfinite()">Infinite Mode<br><span style="font-size:12px">Endless Scaling</span></button><button style="border-color:#ff0055; color:#ff0055; box-shadow: 0 0 20px #ff0055;" onclick="startBossRush()">Boss Rush<br><span style="font-size:12px">${rushLabel}</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00; animation: pulse 2s infinite;" onclick="startArcade()">Arcade Mode<br><span style="font-size:12px">${arcadeLabel}</span></button><button style="border-color:#44ccff; color:#44ccff; box-shadow: 0 0 20px #44ccff;" onclick="startSandbox()">Sandbox<br><span style="font-size:12px">God Mode</span></button>${secretBtn}${paradoxBtn}${prestigeBtn}<button style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;" onclick="startTraining()">Training Camp<br><span style="font-size:12px">Test Weapons</span></button><button style="border-color:#00ffcc; color:#00ffcc; box-shadow: 0 0 20px #00ffcc;" onclick="openMultiplayer()">Multiplayer<br><span style="font-size:12px">Co-Op & Race</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00;" onclick="openShop()">The Hangar<br><span style="font-size:12px">Black Market</span></button><button style="border-color:#aa00ff; color:#aa00ff; box-shadow: 0 0 20px #aa00ff;" onclick="openLeaderboard()">Leaderboards<br><span style="font-size:12px">Top Pilots</span></button>${dcBtn}${bountyBtn}${achieveBtn}${survivalBtn}${rogueBtn}${escortBtn}${raceBtn}${pvpBtn}${ctfBtn}${editorBtn}${infectionBtn}${hordeBtn}${speedrunBtn}${mirrorBtn}${chaosBtn}${oneHitBtn}${bulletHellBtn}${pacifistBtn}${tagTeamBtn}${tournamentBtn}${battlePassBtn}<button style="border-color:#fff; color:#fff;" onclick="openSettings()">Settings<br><span style="font-size:12px">Sys Config</span></button>`;
+            ui.menuBtns.innerHTML = `<button onclick="openMissionSelect()">Mission Mode<br><span style="font-size:12px">15 Sectors</span></button><button class="btn-infinite" onclick="startInfinite()">Infinite Mode<br><span style="font-size:12px">Endless Scaling</span></button><button style="border-color:#ff0055; color:#ff0055; box-shadow: 0 0 20px #ff0055;" onclick="startBossRush()">Boss Rush<br><span style="font-size:12px">${rushLabel}</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00; animation: pulse 2s infinite;" onclick="startArcade()">Arcade Mode<br><span style="font-size:12px">${arcadeLabel}</span></button><button style="border-color:#44ccff; color:#44ccff; box-shadow: 0 0 20px #44ccff;" onclick="startSandbox()">Sandbox<br><span style="font-size:12px">God Mode</span></button>${secretBtn}${paradoxBtn}${prestigeBtn}<button style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;" onclick="startTraining()">Training Camp<br><span style="font-size:12px">Test Weapons</span></button><button style="border-color:#00ffcc; color:#00ffcc; box-shadow: 0 0 20px #00ffcc;" onclick="openMultiplayer()">Multiplayer<br><span style="font-size:12px">Co-Op & Race</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00;" onclick="openShop()">The Hangar<br><span style="font-size:12px">Black Market</span></button><button style="border-color:#aa00ff; color:#aa00ff; box-shadow: 0 0 20px #aa00ff;" onclick="openLeaderboard()">Leaderboards<br><span style="font-size:12px">Top Pilots</span></button>${bountyBtn}${achieveBtn}${survivalBtn}${rogueBtn}${escortBtn}${raceBtn}${pvpBtn}${ctfBtn}${editorBtn}${infectionBtn}${hordeBtn}${speedrunBtn}${mirrorBtn}${chaosBtn}${oneHitBtn}${bulletHellBtn}${pacifistBtn}${tagTeamBtn}${tournamentBtn}${battlePassBtn}<button style="border-color:#fff; color:#fff;" onclick="openSettings()">Settings<br><span style="font-size:12px">Sys Config</span></button>`;
             document.getElementById('menu-coin-display').style.display = 'block';
             document.getElementById('mobile-controls').style.display = 'none';
         };
@@ -12542,7 +12491,7 @@ function openBattlePass(){
   var html='<h2 style="color:#ffe04b;text-align:center">BATTLE PASS \u2014 TIER '+bpData.tier+'/'+BP_TIERS.length+'</h2>';
   html+='<div style="text-align:center;margin-bottom:10px">XP: '+bpData.xp+(bpData.tier<BP_TIERS.length?' / '+BP_TIERS[bpData.tier].xp:'')+'</div>';
   html+='<div style="background:#333;height:16px;border-radius:8px;margin-bottom:20px"><div style="background:#ffe04b;height:16px;border-radius:8px;width:'+pct+'%"></div></div>';
-  if(!bpData.premiumOwned)html+='<div style="text-align:center;margin-bottom:16px"><button onclick="if(totalCoins<500){alert(\'Not enough coins!\');return;}totalCoins-=500;secureSave(\'neonVoidCoins\',totalCoins);bpData.premiumOwned=true;saveBP();document.getElementById(\'bp-overlay\').remove();openBattlePass();" style="background:#ffe04b;color:#000;border:none;padding:8px 24px;cursor:pointer;font-weight:bold">BUY PREMIUM (500 coins)</button></div>';
+  if(!bpData.premiumOwned)html+='<div style="text-align:center;margin-bottom:16px"><button onclick="if(totalCoins<500){alert(\'Not enough coins!\');return;}totalCoins-=500;secureSave(\'neonVoidCoins\',totalCoins);bpData.premiumOwned=true;for(var rt=0;rt<bpData.tier;rt++){claimBPTierReward(rt,true);}saveBP();document.getElementById(\'bp-overlay\').remove();openBattlePass();" style="background:#ffe04b;color:#000;border:none;padding:8px 24px;cursor:pointer;font-weight:bold">BUY PREMIUM (500 coins)</button></div>';
   html+='<table style="width:100%;border-collapse:collapse"><tr><th>Tier</th><th>XP</th><th style="color:#aaa">Free</th><th style="color:#ffe04b">Premium</th></tr>';
   for(var i=0;i<BP_TIERS.length;i++){var done=i<bpData.tier;html+='<tr style="background:'+(done?'rgba(255,224,75,0.08)':'')+'"><td style="padding:4px;text-align:center">'+(i+1)+'</td><td style="padding:4px;text-align:center">'+BP_TIERS[i].xp+'</td><td style="padding:4px;color:#aaa">'+(done?'+ ':'')+BP_TIERS[i].free+'</td><td style="padding:4px;color:#ffe04b">'+(done&&bpData.premiumOwned?'+ ':'')+BP_TIERS[i].premium+'</td></tr>';}
   html+='</table><div style="text-align:center;margin-top:20px"><button onclick="document.getElementById(\'bp-overlay\').remove()" style="background:#555;color:#fff;border:none;padding:8px 24px;cursor:pointer">CLOSE</button></div>';
