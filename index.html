@@ -1295,7 +1295,7 @@
                         let e = entities.enemies[i]; if (!e) continue;
                         if (Math.abs(e.x - this.x) < this.width / 2 + e.radius) { if (e.type === 'bad') e.hp -= 500 * state.stats.dmgMulti; else killEnemy(e); }
                     }
-                    if (activeBoss && Math.abs(activeBoss.x - this.x) < this.width / 2 + activeBoss.radius) { activeBoss.hp -= 200 * state.stats.dmgMulti; if (activeBoss.hp <= 0 && !activeBoss.isDead) { activeBoss.isDead = true; handleBossDeath(); } }
+                    if (activeBoss && Math.abs(activeBoss.x - this.x) < this.width / 2 + activeBoss.radius) { activeBoss.hp -= 200 * state.stats.dmgMulti; if (activeBoss.hp <= 0 && !activeBoss.isDead) { if (activeBoss.variant === 'gauntlet' && (!activeBoss.gauntletPhase || activeBoss.gauntletPhase < 4)) { /* gauntlet phase reset handled in boss.update() */ } else { activeBoss.isDead = true; handleBossDeath(); } } }
                 }
             }
             draw(ctx) {
@@ -1448,7 +1448,7 @@
                     // Collision (only for local player)
                     if (doCollisions) {
                         for (let ei = entities.enemies.length - 1; ei >= 0; ei--) { let e = entities.enemies[ei]; if (e && Math.hypot(e.x - sx, e.y - sy) < e.radius + 15) { e.hp -= 5 * state.stats.dmgMulti; if(e.hp <= 0) killEnemy(e); } }
-                        if (activeBoss && Math.hypot(activeBoss.x - sx, activeBoss.y - sy) < activeBoss.radius + 15) { activeBoss.hp -= 5 * state.stats.dmgMulti; if (activeBoss.hp <= 0 && !activeBoss.isDead) { activeBoss.isDead = true; handleBossDeath(); } }
+                        if (activeBoss && Math.hypot(activeBoss.x - sx, activeBoss.y - sy) < activeBoss.radius + 15) { activeBoss.hp -= 5 * state.stats.dmgMulti; if (activeBoss.hp <= 0 && !activeBoss.isDead) { if (activeBoss.variant === 'gauntlet' && (!activeBoss.gauntletPhase || activeBoss.gauntletPhase < 4)) { /* gauntlet phase reset handled in boss.update() */ } else { activeBoss.isDead = true; handleBossDeath(); } } }
                     }
                 }
                 ctx.shadowBlur = 0;
@@ -3380,7 +3380,7 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
         function applyBossVariant(boss) {
             // Boss Rush: 100% chance of a variant. Normal/Infinite: 15% chance.
             let chance = (state.mode === 'boss_rush') ? 1.0 : 0.15;
-            if (state.mode !== 'normal' && state.mode !== 'infinite' && state.mode !== 'boss_rush') return;
+            if (state.mode !== 'normal' && state.mode !== 'infinite' && state.mode !== 'boss_rush' && state.mode !== 'mission') return;
             if (Math.random() < chance) {
                 boss.variant = BOSS_VARIANTS[Math.floor(Math.random()*BOSS_VARIANTS.length)];
                 // PACIFIST special setup
@@ -3616,7 +3616,7 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
                 let targetStage = state.currentStage === 20 ? 20 : state.currentStage + 1;
                 if (targetStage > unlocked && targetStage <= 20) secureSave('neonVoidStage', targetStage); 
                 let defeatKey = 'defeat' + state.currentStage;
-                if (state.currentStage === 16) { secureSave('neonVoidStage', '16'); }
+                // Stage 16 special save removed (was overwriting unlock progress)
                 if (STORY[defeatKey]) {
                     setTimeout(() => { playCutscene(defeatKey, () => { if (state.currentStage >= 20) winGame(); else stageCleared(); }); }, 2000);
                 } else {
@@ -3760,7 +3760,7 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
                             }
                             if (activeBoss && activeBoss.alpha > 0.5 && Math.hypot(activeBoss.x - player.x, activeBoss.y - player.y) < gRadius + activeBoss.radius + 10) { 
                                 activeBoss.hp -= 3 * state.stats.dmgMulti * state.stats.guardian; 
-                                if (activeBoss.hp <= 0 && !activeBoss.isDead) { activeBoss.isDead = true; handleBossDeath(); } 
+                                if (activeBoss.hp <= 0 && !activeBoss.isDead) { if (activeBoss.variant === 'gauntlet' && (!activeBoss.gauntletPhase || activeBoss.gauntletPhase < 4)) { /* gauntlet phase reset handled in boss.update() */ } else { activeBoss.isDead = true; handleBossDeath(); } } 
                             } 
                         }
                         
@@ -3794,7 +3794,7 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
                                         activeBoss.hp -= b.dmg; b.hitList.push(activeBoss); 
                                         if (b.isCrit) { playSound('crit'); spawnText(b.x, b.y, "CRIT " + Math.floor(b.dmg), '#ff0000', 24); } else { spawnText(b.x, b.y, Math.floor(b.dmg), player.baseColor, 16); } 
                                         spawnParticles(b.x, b.y, activeBoss.color, 5); if (state.stats.explosive || b.isBomb) triggerExplosion(b.x, b.y, b.dmg * (b.isBomb?2:1)); 
-                                        if (activeBoss.hp <= 0 && !activeBoss.isDead) { activeBoss.isDead = true; handleBossDeath(); } 
+                                        if (activeBoss.hp <= 0 && !activeBoss.isDead) { if (activeBoss.variant === 'gauntlet' && (!activeBoss.gauntletPhase || activeBoss.gauntletPhase < 4)) { /* gauntlet phase reset handled in boss.update() */ } else { activeBoss.isDead = true; handleBossDeath(); } } 
                                         if (b.pierce <= 0) dead = true; else b.pierce--; 
                                     } 
                                 } 
@@ -5374,7 +5374,7 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
             for (const [id, upg] of sortedUpgrades) {
                 let card = document.createElement('div'); card.className = 'skin-card'; card.style.borderColor = '#ff8800'; let isUnlocked = purchasedUpgrades.includes(id);
                 card.innerHTML = `<div style="color: #ff8800; font-weight: bold; text-align: center; font-size:18px;">${upg.name}</div><div style="color: #ccc; text-align: center; font-size:12px; margin-bottom:10px;">${upg.desc}</div>`; let btn = document.createElement('button'); btn.style.borderColor = '#ff8800'; btn.style.color = '#ff8800';
-                if (isUnlocked) { btn.innerText = "UNLOCKED"; btn.style.background = '#ff8800'; btn.style.color = '#000'; btn.disabled = true; } else { let costText = upg.price >= 1000000 ? (upg.price/1000000) + 'M' : (upg.price >= 1000 ? (upg.price/1000) + 'K' : upg.price); btn.innerText = `BUY: ${costText}`; if (totalCoins >= upg.price) { btn.onclick = () => { totalCoins -= upg.price; purchasedUpgrades.push(id); secureSave('neonVoidCoins', totalCoins); secureSave('neonVoidUpgrades', purchasedUpgrades); playSound('buy'); cloudSave(); renderShop(); }; } else { btn.style.opacity = '0.5'; btn.style.cursor = 'not-allowed'; } }
+                if (isUnlocked) { btn.innerText = "UNLOCKED"; btn.style.background = '#ff8800'; btn.style.color = '#000'; btn.disabled = true; } else { let hasDiscount = secureLoad('neonVoidSlotDiscount', '0') === '1'; let finalPrice = hasDiscount ? Math.floor(upg.price * 0.8) : upg.price; let costText = finalPrice >= 1000000 ? (finalPrice/1000000) + 'M' : (finalPrice >= 1000 ? (finalPrice/1000) + 'K' : finalPrice); btn.innerText = hasDiscount ? `BUY: ${costText} (20% OFF!)` : `BUY: ${costText}`; if (hasDiscount) btn.style.textShadow = '0 0 8px #88ccff'; if (totalCoins >= finalPrice) { btn.onclick = () => { totalCoins -= finalPrice; if (hasDiscount) { secureSave('neonVoidSlotDiscount', '0'); } purchasedUpgrades.push(id); secureSave('neonVoidCoins', totalCoins); secureSave('neonVoidUpgrades', purchasedUpgrades); playSound('buy'); cloudSave(); renderShop(); }; } else { btn.style.opacity = '0.5'; btn.style.cursor = 'not-allowed'; } }
                 card.appendChild(btn); upGrid.appendChild(card);
             }
             // Wisp skin shop
@@ -5588,7 +5588,7 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
                     <div style="color:#ff8800;font-weight:bold;margin-bottom:6px;">SPAWN</div>
                     <select id="sb-enemy-type" style="width:100%;background:#111;color:#fff;border:1px solid #444;padding:3px;margin-bottom:4px;">
                         <option value="chaser">Chaser</option><option value="shooter">Shooter</option><option value="sniper">Sniper</option>
-                        <option value="speed">Speed</option><option value="tank">Tank</option><option value="splitter">Splitter</option>
+                        <option value="rammer">Speed</option><option value="tank">Tank</option><option value="splitter">Splitter</option>
                         <option value="rammer">Rammer</option><option value="orbiter">Orbiter</option><option value="ghost">Ghost</option>
                         <option value="bomber">Bomber</option><option value="mine">Mine</option><option value="teleporter">Teleporter</option>
                         <option value="healer">Healer</option><option value="shielder">Shielder</option><option value="heavy_shooter">Heavy Shooter</option>
@@ -5596,7 +5596,7 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
                     </select>
                     <button onclick="sbSpawnEnemy()" style="width:100%;padding:4px;background:#ff8800;color:#000;border:none;cursor:pointer;font-weight:bold;margin-bottom:4px;">SPAWN ENEMY</button>
                     <select id="sb-boss-type" style="width:100%;background:#111;color:#fff;border:1px solid #444;padding:3px;margin-bottom:4px;">
-                        ${Array.from({length:15}, (_,i) => `<option value="${i}">Boss ${i+1}</option>`).join('')}
+                        ${Array.from({length:BOSSES.length}, (_,i) => `<option value="${i}">Boss ${i+1}: ${BOSSES[i].name}</option>`).join('')}
                     </select>
                     <button onclick="sbSpawnBoss()" style="width:100%;padding:4px;background:#ff0055;color:#fff;border:none;cursor:pointer;font-weight:bold;margin-bottom:4px;">SPAWN BOSS</button>
                     <button onclick="sbSpawnPowerup()" style="width:100%;padding:4px;background:#ffcc00;color:#000;border:none;cursor:pointer;font-weight:bold;margin-bottom:4px;">SPAWN POWERUP</button>
@@ -6005,7 +6005,7 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
             {id:'beat_sector1',name:'Initiated',desc:'Beat Sector 1',condition:()=>parseInt(secureLoad('neonVoidStage', 0)||0)>=2},
             {id:'beat_sector5',name:'Veteran',desc:'Beat Sector 5',condition:()=>parseInt(secureLoad('neonVoidStage', 0)||0)>=6},
             {id:'beat_sector10',name:'Elite Pilot',desc:'Beat Sector 10',condition:()=>parseInt(secureLoad('neonVoidStage', 0)||0)>=11},
-            {id:'beat_sector20',name:'Void Master',desc:'Beat all 20 Sectors',condition:()=>parseInt(secureLoad('neonVoidStage', 0)||0)>=21},
+            {id:'beat_sector20',name:'Void Master',desc:'Beat all 20 Sectors',condition:()=>parseInt(secureLoad('neonVoidStage', 0)||0)>=20},
             {id:'combo_10',name:'Combo Artist',desc:'Reach x10 combo',condition:()=>secureLoad('neonVoidAchieve_combo_10', '')===1||secureLoad('neonVoidAchieve_combo_10', '')==='1'},
             {id:'coins_1m',name:'Void Millionaire',desc:'Have 1M+ coins',condition:()=>parseInt(secureLoad('neonVoidCoins', 0)||0)>=1000000},
             {id:'bosses_5',name:'Boss Hunter',desc:'Defeat 5 bosses total',condition:()=>parseInt(secureLoad('neonVoidTotalBosses', 0)||0)>=5},
@@ -6628,7 +6628,7 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
                 applyClassStats(); state.playerClass = selectedClass;
                 speedrunState = { startTime: performance.now(), sectorSplits: [], running: true, finished: false };
                 state.noPause = true;
-                ui.status.innerText = 'SPEEDRUN - SECTORS 1-15 - NO PAUSING';
+                ui.status.innerText = 'SPEEDRUN - SECTORS 1-20 - NO PAUSING';
                 initGameBase();
                 spawnText(canvas.width/2, canvas.height/2, 'SPEEDRUN STARTED!', '#ffd700', 26);
             });
@@ -6927,7 +6927,7 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
                 state = { active: true, paused: false, mode: 'pacifist', frame: 0, score: 0, combo: 1, xp: 0, level: 1, xpNeeded: 99999, runCoins: 0, kills: 0, shake: 0, currentStage: 1, bossesDefeated: 0, difficulty: 1, nextBossLevel: 9999, spawningBoss: false, warping: true, warpFrames: 0, hardcore: false, hyper: false, stats: getBaseStats() };
                 applyClassStats(); state.playerClass = selectedClass;
                 // Pacifist: strip all hangar upgrades - reset to clean base stats
-                state.stats.homing = false; state.stats.explosive = false; state.stats.drones = false; state.stats.shield = false; state.stats.gravityBomb = false; state.stats.beamSword = false; state.stats.stickyBomb = false; state.stats.cloak = false; state.stats.mirrorShield = false; state.stats.projCount = 1; state.stats.dmgMulti = 1.0; state.stats.fireRate = 1.0;
+                state.stats.homing = false; state.stats.explosive = false; state.stats.bombDrones = 0; state.stats.laserDrones = 0; state.stats.miniDrones = 0; state.stats.scatterDrones = 0; state.stats.empDrones = 0; state.stats.shieldGen = false; state.stats.gravityBomb = false; state.stats.beamSword = false; state.stats.stickyBombs = false; state.stats.mirrorShield = false; state.stats.projCount = 1; state.stats.dmgMulti = 1.0; state.stats.fireRateMulti = 1.0;
                 state.stats.maxHp = state.stats.maxHp * 2;
                 pacifistState = { timer: 0, maxTime: 120*60, closeCalls: 0, score: 0, finished: false };
                 state._pacifistMode = true;
@@ -7583,7 +7583,7 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
                     spawnParticles(activeBoss.x, activeBoss.y, activeBoss.color, 100, 5);
                     shakeScreen(50);
                     spawnText(activeBoss.x, activeBoss.y, 'CRITICAL HIT -' + c.dmgDealt.toLocaleString(), '#ff0000', 28);
-                    if (activeBoss.hp <= 0 && !activeBoss.isDead) { activeBoss.isDead = true; handleBossDeath(); }
+                    if (activeBoss.hp <= 0 && !activeBoss.isDead) { if (activeBoss.variant === 'gauntlet' && (!activeBoss.gauntletPhase || activeBoss.gauntletPhase < 4)) { /* gauntlet phase reset handled in boss.update() */ } else { activeBoss.isDead = true; handleBossDeath(); } }
                 }
                 state.paused = false;
                 // Small delay to ensure state is clean before resuming game loop
@@ -9004,7 +9004,7 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
                 state = { active: true, paused: false, mode: 'boss_rush', frame: 0, score: 0, combo: 1, xp: 0, level: 50, xpNeeded: 99999, runCoins: 0, kills: 0, shake: 0, currentStage: 1, bossesDefeated: 0, difficulty: 1, nextBossLevel: 999, spawningBoss: false, warping: true, warpFrames: 0, hardcore: appSettings.hardcore, hyper: appSettings.hyper, stats: getBaseStats() };
                 if (selectedWeapon) selectedWeapon.apply();
                 state.stats.maxHp += 500; state.stats.dmgMulti *= 1.5;
-                let sysName = 'BOSS RUSH: ALL 15'; if (appSettings.hardcore) sysName += ' [NIGHTMARE]'; if (appSettings.hyper) sysName += ' [HYPER-DRIVE]';
+                let sysName = 'BOSS RUSH: ALL 20'; if (appSettings.hardcore) sysName += ' [NIGHTMARE]'; if (appSettings.hyper) sysName += ' [HYPER-DRIVE]';
                 ui.status.innerText = sysName; initGameBase();
             });
         }
@@ -9017,7 +9017,7 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
             if (isNewBest) secureSave('neonVoidBossRushBest', elapsed);
             ui.mainOverlay.classList.remove('hidden'); ui.mainOverlay.classList.add('win-theme'); ui.boss.style.display = 'none'; document.getElementById('mobile-controls').style.display = 'none'; document.getElementById('menu-coin-display').style.display = 'none';
             ui.mainTitle.innerText = "BOSS RUSH COMPLETE"; ui.mainTitle.style.webkitTextStroke = "3px #ffcc00"; ui.mainTitle.style.textShadow = "0 0 50px #ffcc00";
-            ui.mainDesc.innerHTML = `ALL 15 BOSSES DESTROYED<br><br>TIME: <span style="color:#ffcc00; font-size:36px;">${mins}m ${secs.toString().padStart(2,'0')}s</span>${isNewBest ? '<br><span style="color:#00ff00; font-size:20px;">NEW PERSONAL BEST!</span>' : `<br><span style="color:#888;">Best: ${Math.floor(bestRush/60)}m ${(bestRush%60).toString().padStart(2,'0')}s</span>`}<br><br>COINS EARNED: <span style="color:#ffcc00; font-size:24px;">+${state.runCoins.toLocaleString()}</span>`;
+            ui.mainDesc.innerHTML = `ALL 20 BOSSES DESTROYED<br><br>TIME: <span style="color:#ffcc00; font-size:36px;">${mins}m ${secs.toString().padStart(2,'0')}s</span>${isNewBest ? '<br><span style="color:#00ff00; font-size:20px;">NEW PERSONAL BEST!</span>' : `<br><span style="color:#888;">Best: ${Math.floor(bestRush/60)}m ${(bestRush%60).toString().padStart(2,'0')}s</span>`}<br><br>COINS EARNED: <span style="color:#ffcc00; font-size:24px;">+${state.runCoins.toLocaleString()}</span>`;
             ui.menuBtns.innerHTML = `<button onclick="startBossRush()">Retry Boss Rush</button><button onclick="returnToMenu()">Main Menu</button>`;
         }
 
@@ -9379,7 +9379,7 @@ function generateSyncCode() {
                 // Max sector
                 _nvSec.save('neonVoidStage', 20);
                 // All achievements
-                try { let achKeys = Object.keys(typeof ACHIEVEMENTS !== 'undefined' ? ACHIEVEMENTS : {}); if (achKeys.length) _nvSec.save('neonVoidAchievements', achKeys); } catch(e){}
+                try { let achKeys = (typeof ACHIEVEMENTS !== 'undefined' && Array.isArray(ACHIEVEMENTS)) ? ACHIEVEMENTS.map(a => a.id) : Object.keys(typeof ACHIEVEMENTS !== 'undefined' ? ACHIEVEMENTS : {}); if (achKeys.length) _nvSec.save('neonVoidAchievements', achKeys); } catch(e){}
                 // Max kills/score
                 _nvSec.save('neonVoidTotalKills', 999999);
                 _nvSec.save('neonVoidHighScore', 999999999);
