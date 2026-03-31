@@ -2923,12 +2923,12 @@
                 if (this.hp < this.maxHp && this.type !== 'mine' && this.type !== 'ghost' && this.type !== 'dummy') { ctx.rotate(-this.angle); ctx.fillStyle = 'red'; ctx.fillRect(-15, -this.radius - 10, 30 * (this.hp/this.maxHp), 4); } ctx.restore();
             }
         }
-        const BOSSES = [ { type: "SENTRY", name: "SENTRY", col: "#ff4400", hp: 6500, size: 50 }, { type: "VORTEX", name: "VORTEX", col: "#aa00ff", hp: 12000, size: 60 }, { type: "REAVER", name: "REAVER", col: "#ffffff", hp: 18000, size: 55 }, { type: "NEBULA", name: "NEBULA WEAVER", col: "#00ffff", hp: 26000, size: 70 }, { type: "TITAN", name: "TITAN CORE", col: "#ffcc00", hp: 35000, size: 80 }, { type: "WRAITH", name: "WRAITH", col: "#ff0055", hp: 50000, size: 80 }, { type: "ORACLE", name: "ORACLE", col: "#00ffcc", hp: 65000, size: 75 }, { type: "SINGULARITY", name: "SINGULARITY", col: "#4444ff", hp: 90000, size: 60 }, { type: "OMEGA", name: "OMEGA CORE", col: "#ff0000", hp: 120000, size: 90 }, { type: "VOID", name: "VOID GOD", col: "#ffffff", hp: 165000, size: 120 }, { type: "SUN_GOD", name: "TRUE SUN GOD", col: "#ffff00", hp: 325000, size: 150 }, { type: "VTSG", name: "VENGEFUL TRUE SUN GOD", col: "#ff0000", hp: 1000000, size: 180 }, { type: "BAD_BOSS", name: "B.A.D. LEVIATHAN", col: "#800080", hp: 2500000, size: 250 }, { type: "SECRET", name: "THE OMNIVERSE", col: "#ffffff", hp: 8000000, size: 200 }, { type: "GLITCH", name: "THE GLITCH", col: "#00ff00", hp: 20000000, size: 100 }, { type: "PARADOX", name: "CHRONOS PARADOX", col: "#ff00ff", hp: 40000000, size: 130 } ];
+        const BOSSES = [ { type: "SENTRY", name: "SENTRY", col: "#ff4400", hp: 6500, size: 50 }, { type: "VORTEX", name: "VORTEX", col: "#aa00ff", hp: 12000, size: 60 }, { type: "REAVER", name: "REAVER", col: "#ffffff", hp: 18000, size: 55 }, { type: "NEBULA", name: "NEBULA WEAVER", col: "#00ffff", hp: 26000, size: 70 }, { type: "TITAN", name: "TITAN CORE", col: "#ffcc00", hp: 35000, size: 80 }, { type: "WRAITH", name: "WRAITH", col: "#ff0055", hp: 50000, size: 80 }, { type: "ORACLE", name: "ORACLE", col: "#00ffcc", hp: 65000, size: 75 }, { type: "SINGULARITY", name: "SINGULARITY", col: "#4444ff", hp: 90000, size: 60 }, { type: "OMEGA", name: "OMEGA CORE", col: "#ff0000", hp: 120000, size: 90 }, { type: "VOID", name: "VOID GOD", col: "#ffffff", hp: 165000, size: 120 }, { type: "SUN_GOD", name: "TRUE SUN GOD", col: "#ffff00", hp: 325000, size: 150 }, { type: "VTSG", name: "VENGEFUL TRUE SUN GOD", col: "#ff0000", hp: 1000000, size: 180 }, { type: "BAD_BOSS", name: "B.A.D. LEVIATHAN", col: "#800080", hp: 2500000, size: 250 }, { type: "SECRET", name: "THE OMNIVERSE", col: "#ffffff", hp: 8000000, size: 200 }, { type: "GLITCH", name: "THE GLITCH", col: "#00ff00", hp: 20000000, size: 100 }, { type: "PARADOX", name: "CHRONOS PARADOX", col: "#ff00ff", hp: 40000000, size: 130 }, { type: "OMEGA", name: "ENTROPY CORE", col: "#ff8800", hp: 65000000, size: 140 }, { type: "VOID", name: "VOID EMPEROR", col: "#cc00ff", hp: 100000000, size: 160 }, { type: "SECRET", name: "THE ARCHITECT", col: "#00ffcc", hp: 150000000, size: 200 }, { type: "GLITCH", name: "FINAL PROTOCOL", col: "#ff0055", hp: 250000000, size: 120 } ];
 
 
         class Boss {
             constructor(idx) {
-                const cfg = BOSSES[idx % BOSSES.length]; let loopScale = state.mode === 'infinite' ? 1 + (Math.floor(idx / 15) * 1.5) : 1; let hpMult = state.hardcore ? 2.0 : 1.0;
+                const cfg = BOSSES[idx % BOSSES.length]; let loopScale = state.mode === 'infinite' ? 1 + (Math.floor(idx / 20) * 1.5) : 1; let hpMult = state.hardcore ? 2.0 : 1.0;
                 this.type = cfg.type; this.name = cfg.name + (loopScale > 1 ? ` MK-${Math.floor(loopScale)}` : ''); this.color = cfg.col; this.radius = cfg.size; this.maxHp = cfg.hp * loopScale * hpMult; this.hp = this.maxHp;
                 this.x = canvas.width/2; this.y = -300; this.targetY = 200; this.angle = 0; this.timer = 0; this.phase = 1; this.frozen = 0; this.isDead = false; this.alpha = 1.0;
                 
@@ -3345,7 +3345,7 @@
         // Feature 50: Secret Boss - spawn when player has all 3 items at sector 15
         function checkSecretBoss() {
             let items = secureLoad('neonVoidSecretItems', [false,false,false]);
-            if (items[0] && items[1] && items[2] && state.currentStage >= 15 && !activeBoss) {
+            if (items[0] && items[1] && items[2] && state.currentStage >= 20 && !activeBoss) {
                 setTimeout(() => {
                     if (!activeBoss) {
                         activeBoss = new Boss(0); activeBoss.name = 'THE HARBINGER';
@@ -3502,21 +3502,21 @@
             }
             if(state.mode === 'mission') { 
                 let unlockedRaw = secureLoad('neonVoidStage', '1'); let unlocked = parseInt(unlockedRaw); if(isNaN(unlocked) || unlocked < 1) unlocked = 1; 
-                let targetStage = state.currentStage === 15 ? 15 : state.currentStage + 1; 
-                if (targetStage > unlocked && targetStage <= 15) secureSave('neonVoidStage', targetStage); 
+                let targetStage = state.currentStage === 20 ? 20 : state.currentStage + 1;
+                if (targetStage > unlocked && targetStage <= 20) secureSave('neonVoidStage', targetStage); 
                 let defeatKey = 'defeat' + state.currentStage;
                 if (state.currentStage === 16) { secureSave('neonVoidStage', '16'); }
                 if (STORY[defeatKey]) {
-                    setTimeout(() => { playCutscene(defeatKey, () => { if (state.currentStage >= 15) winGame(); else stageCleared(); }); }, 2000);
+                    setTimeout(() => { playCutscene(defeatKey, () => { if (state.currentStage >= 20) winGame(); else stageCleared(); }); }, 2000);
                 } else {
-                    setTimeout(() => { if (state.currentStage >= 15) winGame(); else stageCleared(); }, 2000);
+                    setTimeout(() => { if (state.currentStage >= 20) winGame(); else stageCleared(); }, 2000);
                 }
             } else if (state.mode === 'boss_rush') {
-                if (state.bossesDefeated >= 15) {
+                if (state.bossesDefeated >= 20) {
                     bossRushComplete();
                 } else {
                     activeBoss = null; ui.boss.style.display = 'none';
-                    spawnText(canvas.width/2, canvas.height/2, `BOSS ${state.bossesDefeated}/15`, '#ffcc00', 36);
+                    spawnText(canvas.width/2, canvas.height/2, `BOSS ${state.bossesDefeated}/20`, '#ffcc00', 36);
                     // Show upgrade screen between bosses
                     setTimeout(() => {
                         triggerLevelUp();
@@ -5050,12 +5050,12 @@
             document.getElementById('menu-coin-display').innerText = `TOTAL COINS: ${totalCoins}`;
 
             let unlockedRaw = secureLoad('neonVoidStage', '1'); let unlocked = parseInt(unlockedRaw); if(isNaN(unlocked) || unlocked < 1) unlocked = 1;
-            let secretBtn = unlocked > 14 ? `<button onclick="startMission(15)" style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;">T H E  G L I T C H<br><span style="font-size:12px">THE END</span></button>` : `<button style="border-color:#555; color:#555; cursor:not-allowed;">LOCKED<br><span style="font-size:12px">Beat Sector 14</span></button>`;
+            let secretBtn = unlocked > 19 ? `<button onclick="startMission(20)" style="border-color:#ffd700; color:#ffd700; box-shadow: 0 0 20px #ffd700;">FINAL PROTOCOL<br><span style="font-size:12px">THE TRUE END</span></button>` : `<button style="border-color:#555; color:#555; cursor:not-allowed;">LOCKED<br><span style="font-size:12px">Beat Sector 19</span></button>`;
             let paradoxBtn = unlocked > 15 ? `<button onclick="startSecretBoss()" style="border-color:#ff00ff; color:#ff00ff; box-shadow: 0 0 30px #ff00ff; animation: pulse 1s infinite;">S E C T O R  ???<br><span style="font-size:12px">CHRONOS PARADOX</span></button>` : '';
             let rushBest = parseInt(secureLoad('neonVoidBossRushBest', 0)) || 0;
-            let rushLabel = rushBest > 0 ? `Best: ${Math.floor(rushBest/60)}m ${(rushBest%60).toString().padStart(2,'0')}s` : 'All 15 Bosses';
+            let rushLabel = rushBest > 0 ? `Best: ${Math.floor(rushBest/60)}m ${(rushBest%60).toString().padStart(2,'0')}s` : 'All 20 Bosses';
 
-            ui.menuBtns.innerHTML = `<button onclick="openMissionSelect()">Mission Mode<br><span style="font-size:12px">15 Sectors</span></button><button class="btn-infinite" onclick="startInfinite()">Infinite Mode<br><span style="font-size:12px">Endless Scaling</span></button><button style="border-color:#ff0055; color:#ff0055; box-shadow: 0 0 20px #ff0055;" onclick="startBossRush()">Boss Rush<br><span style="font-size:12px">${rushLabel}</span></button>${secretBtn}${paradoxBtn}<button style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;" onclick="startTraining()">Training Camp<br><span style="font-size:12px">Test Weapons</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00;" onclick="openShop()">The Hangar<br><span style="font-size:12px">Upgrades &amp; Shop</span></button><button style="border-color:#fff; color:#fff;" onclick="openSettings()">Settings<br><span style="font-size:12px">Sys Config</span></button>
+            ui.menuBtns.innerHTML = `<button onclick="openMissionSelect()">Mission Mode<br><span style="font-size:12px">20 Sectors</span></button><button class="btn-infinite" onclick="startInfinite()">Infinite Mode<br><span style="font-size:12px">Endless Scaling</span></button><button style="border-color:#ff0055; color:#ff0055; box-shadow: 0 0 20px #ff0055;" onclick="startBossRush()">Boss Rush<br><span style="font-size:12px">${rushLabel}</span></button>${secretBtn}${paradoxBtn}<button style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;" onclick="startTraining()">Training Camp<br><span style="font-size:12px">Test Weapons</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00;" onclick="openShop()">The Hangar<br><span style="font-size:12px">Upgrades &amp; Shop</span></button><button style="border-color:#fff; color:#fff;" onclick="openSettings()">Settings<br><span style="font-size:12px">Sys Config</span></button>
 <div style="width:100%;margin-top:10px;padding-top:8px;border-top:1px solid #333;">
   <div style="color:#888;font-size:11px;font-family:monospace;text-align:center;margin-bottom:6px;letter-spacing:2px;">MORE MODES</div>
   <div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;max-height:160px;overflow-y:auto;padding:4px;">
@@ -5110,10 +5110,11 @@
             cleanupMenuAnims();
             ui.mainOverlay.classList.add('hidden'); document.getElementById('mission-select').classList.remove('hidden'); const grid = document.getElementById('stage-grid'); grid.innerHTML = '';
             let unlockedRaw = secureLoad('neonVoidStage', '1'); let unlocked = parseInt(unlockedRaw); if(isNaN(unlocked) || unlocked < 1) unlocked = 1;
-            for(let i=1; i<=15; i++) {
+            let sectorColors = {12:'#ff0000',13:'#800080',14:'#ffffff',15:'#00ff00',16:'#ff8800',17:'#cc00ff',18:'#00ffcc',19:'#ff0055',20:'#ffd700'};
+            for(let i=1; i<=20; i++) {
                 let btn = document.createElement('button'); btn.className = 'grid-button'; btn.innerHTML = `SECTOR ${i}<br><span style="font-size:14px; margin-top:5px;">${BOSSES[i-1].name}</span>`;
-                if (i === 12) { btn.style.color = '#ff0000'; btn.style.borderColor = '#ff0000'; } if (i === 13) { btn.style.color = '#800080'; btn.style.borderColor = '#800080'; } if (i === 14) { btn.style.color = '#ffffff'; btn.style.borderColor = '#ffffff'; } if (i === 15) { btn.style.color = '#00ff00'; btn.style.borderColor = '#00ff00'; }
-                if (i <= unlocked) { if (i < 12) { btn.style.borderColor = '#00ffcc'; btn.style.color = '#00ffcc'; btn.style.boxShadow = '0 0 15px #00ffcc'; } else if (i === 12) { btn.style.boxShadow = '0 0 30px #ff0000'; } else if (i === 13) { btn.style.boxShadow = '0 0 40px #800080'; } else if (i === 14) { btn.style.boxShadow = '0 0 50px #ffffff'; } else if (i === 15) { btn.style.boxShadow = '0 0 60px #00ff00'; } btn.onclick = () => startMission(i); } 
+                let sc = sectorColors[i]; if (sc) { btn.style.color = sc; btn.style.borderColor = sc; }
+                if (i <= unlocked) { if (!sc) { btn.style.borderColor = '#00ffcc'; btn.style.color = '#00ffcc'; btn.style.boxShadow = '0 0 15px #00ffcc'; } else { btn.style.boxShadow = `0 0 ${20 + i*2}px ${sc}`; } btn.onclick = () => startMission(i); }
                 else { btn.style.borderColor = '#555'; btn.style.color = '#555'; btn.style.boxShadow = 'none'; btn.style.cursor = 'not-allowed'; btn.innerHTML += '<br><span style="font-size:12px; color:red; margin-top:5px;">[LOCKED]</span>'; } grid.appendChild(btn);
             }
         }
@@ -5374,7 +5375,7 @@
                 state = { active: true, paused: false, mode: 'mission', frame: 0, score: 0, combo: 1, xp: 0, level: 1, xpNeeded: 100, runCoins: 0, kills: 0, shake: 0, currentStage: stageNum, bossesDefeated: stageNum - 1, difficulty: 1 + (stageNum - 1) * 0.4, nextBossLevel: 5, spawningBoss: false, warping: true, warpFrames: 0, hardcore: appSettings.hardcore, hyper: appSettings.hyper, stats: getBaseStats() };
                 applyClassStats(); state.playerClass = selectedClass;
                 state.stats.dmgMulti += (stageNum - 1) * 0.15; state.stats.fireRateMulti += (stageNum - 1) * 0.1; state.stats.maxHp += (stageNum - 1) * 30; state.stats.projCount += Math.floor((stageNum - 1) / 4);
-                let sysName = `SYSTEM: SECTOR ${stageNum}`; if (stageNum === 14) sysName = 'SYSTEM: OMNIVERSAL ANOMALY DETECTED'; if (stageNum === 15) sysName = 'SYSTEM: [FATAL ERROR] GLITCH FOUND'; if (appSettings.hardcore) sysName += ' [NIGHTMARE]'; if (appSettings.hyper) sysName += ' [HYPER-DRIVE]';
+                let sysName = `SYSTEM: SECTOR ${stageNum}`; if (stageNum === 14) sysName = 'SYSTEM: OMNIVERSAL ANOMALY DETECTED'; if (stageNum === 15) sysName = 'SYSTEM: [FATAL ERROR] GLITCH FOUND'; if (stageNum === 16) sysName = 'SYSTEM: ENTROPY CASCADE'; if (stageNum === 17) sysName = 'SYSTEM: VOID EMPEROR DOMAIN'; if (stageNum === 18) sysName = 'SYSTEM: THE ARCHITECT AWAKENS'; if (stageNum === 19) sysName = 'SYSTEM: [CRITICAL] FINAL PROTOCOL'; if (stageNum === 20) sysName = 'SYSTEM: [TOTAL ANNIHILATION]'; if (appSettings.hardcore) sysName += ' [NIGHTMARE]'; if (appSettings.hyper) sysName += ' [HYPER-DRIVE]';
                 ui.status.innerText = sysName; initGameBase();
             };
             showClassSelect(() => {
@@ -5844,11 +5845,11 @@
             {id:'beat_sector1',name:'Initiated',desc:'Beat Sector 1',condition:()=>parseInt(secureLoad('neonVoidStage', 0)||0)>=2},
             {id:'beat_sector5',name:'Veteran',desc:'Beat Sector 5',condition:()=>parseInt(secureLoad('neonVoidStage', 0)||0)>=6},
             {id:'beat_sector10',name:'Elite Pilot',desc:'Beat Sector 10',condition:()=>parseInt(secureLoad('neonVoidStage', 0)||0)>=11},
-            {id:'beat_sector15',name:'Void Master',desc:'Beat all 15 Sectors',condition:()=>parseInt(secureLoad('neonVoidStage', 0)||0)>=16},
+            {id:'beat_sector20',name:'Void Master',desc:'Beat all 20 Sectors',condition:()=>parseInt(secureLoad('neonVoidStage', 0)||0)>=21},
             {id:'combo_10',name:'Combo Artist',desc:'Reach x10 combo',condition:()=>secureLoad('neonVoidAchieve_combo_10', '')===1||secureLoad('neonVoidAchieve_combo_10', '')==='1'},
             {id:'coins_1m',name:'Void Millionaire',desc:'Have 1M+ coins',condition:()=>parseInt(secureLoad('neonVoidCoins', 0)||0)>=1000000},
             {id:'bosses_5',name:'Boss Hunter',desc:'Defeat 5 bosses total',condition:()=>parseInt(secureLoad('neonVoidTotalBosses', 0)||0)>=5},
-            {id:'bosses_15',name:'Boss Destroyer',desc:'Complete Boss Rush',condition:()=>parseInt(secureLoad('neonVoidTotalBosses', 0)||0)>=15},
+            {id:'bosses_20',name:'Boss Destroyer',desc:'Complete Boss Rush',condition:()=>parseInt(secureLoad('neonVoidTotalBosses', 0)||0)>=20},
             {id:'prestige1',name:'Beyond Human',desc:'Reach Prestige 1',condition:()=>parseInt(secureLoad('neonVoidPrestige', 0)||0)>=1},
             {id:'prestige10',name:'Void God',desc:'Reach Max Prestige',condition:()=>parseInt(secureLoad('neonVoidPrestige', 0)||0)>=10},
             {id:'upgrade10',name:'Arsenal',desc:'Purchase 10 upgrades',condition:()=>purchasedUpgrades.length>=10},
@@ -6495,8 +6496,8 @@
                 speedrunState.sectorSplits.push(splitTime);
                 spawnText(canvas.width/2, 80, `SECTOR ${state.bossesDefeated} SPLIT: ${splitTime}`, '#ffd700', 16);
             }
-            // Check finish (all 15 sectors)
-            if (state.bossesDefeated >= 15 && !speedrunState.finished) {
+            // Check finish (all 20 sectors)
+            if (state.bossesDefeated >= 20 && !speedrunState.finished) {
                 speedrunState.finished = true; speedrunState.running = false;
                 let finalTime = elapsed.toFixed(3);
                 let best = parseFloat(secureLoad('neonVoidSpeedrunBest', '999999') || '999999');
@@ -6893,12 +6894,12 @@
                 if (state.currentStage === 16) {
                     ui.mainTitle.innerText = "THE PARADOX ENDING"; ui.mainTitle.style.webkitTextStroke = "3px #ff00ff"; ui.mainTitle.style.textShadow = "0 0 50px #ff00ff";
                     ui.mainDesc.innerHTML = `YOU BROKE THE LOOP. TIME ITSELF BOWS TO YOU.<br>YOU EXIST OUTSIDE THE CYCLE NOW. THERE IS ONLY FORWARD.<br><br>FINAL SCORE: <span style="color:#ff00ff; font-size:24px;">${Math.floor(state.score).toLocaleString()}</span><br>COINS EARNED: <span style="color:#ffcc00; font-size:24px;">+${state.runCoins.toLocaleString()}</span><br><br><span style="color:#ff00ff; font-size:14px;">ACHIEVEMENT: TRUE MASTER OF THE VOID</span>`;
-                } else if (state.currentStage === 15 && isPerfect) {
+                } else if (state.currentStage === 20 && isPerfect) {
                     ui.mainTitle.innerText = "PERFECT ENDING"; ui.mainTitle.style.webkitTextStroke = "3px #ffcc00"; ui.mainTitle.style.textShadow = "0 0 50px #ffcc00";
-                    ui.mainDesc.innerHTML = `THE GLITCH IS PURGED. NOT A SCRATCH ON YOU.<br>YOUR FAMILY IS SAFE. YOU KEPT YOUR PROMISE.<br><br>FINAL SCORE: <span style="color:#ffcc00; font-size:24px;">${Math.floor(state.score).toLocaleString()}</span><br>COINS EARNED: <span style="color:#ffcc00; font-size:24px;">+${state.runCoins.toLocaleString()}</span><br><br><span style="color:#ffcc00; font-size:14px;">FLAWLESS VICTORY</span>`;
-                } else if (state.currentStage >= 15) {
-                    ui.mainTitle.innerText = "SYSTEM RESTORED"; ui.mainTitle.style.webkitTextStroke = "3px #00ff00"; ui.mainTitle.style.textShadow = "0 0 50px #00ff00";
-                    ui.mainDesc.innerHTML = `THE GLITCH HAS BEEN PURGED. YOU HAVE SAVED YOUR FAMILY.<br><br>FINAL SCORE: <span style="color:#00ffcc; font-size:24px;">${Math.floor(state.score).toLocaleString()}</span><br>COINS EARNED: <span style="color:#ffcc00; font-size:24px;">+${state.runCoins.toLocaleString()}</span>`;
+                    ui.mainDesc.innerHTML = `THE FINAL PROTOCOL IS DESTROYED. NOT A SCRATCH ON YOU.<br>THE VOID IS SILENT. YOU ARE FREE.<br><br>FINAL SCORE: <span style="color:#ffcc00; font-size:24px;">${Math.floor(state.score).toLocaleString()}</span><br>COINS EARNED: <span style="color:#ffcc00; font-size:24px;">+${state.runCoins.toLocaleString()}</span><br><br><span style="color:#ffcc00; font-size:14px;">FLAWLESS VICTORY</span>`;
+                } else if (state.currentStage >= 20) {
+                    ui.mainTitle.innerText = "TOTAL ANNIHILATION"; ui.mainTitle.style.webkitTextStroke = "3px #ffd700"; ui.mainTitle.style.textShadow = "0 0 50px #ffd700";
+                    ui.mainDesc.innerHTML = `THE FINAL PROTOCOL HAS BEEN ERASED. THE VOID IS YOURS.<br><br>FINAL SCORE: <span style="color:#00ffcc; font-size:24px;">${Math.floor(state.score).toLocaleString()}</span><br>COINS EARNED: <span style="color:#ffcc00; font-size:24px;">+${state.runCoins.toLocaleString()}</span>`;
                 } else if (state.currentStage === 14) {
                     ui.mainTitle.innerText = "OMNIVERSE CONQUERED"; ui.mainTitle.style.webkitTextStroke = "3px #ffffff"; ui.mainTitle.style.textShadow = "0 0 50px #ffffff";
                     ui.mainDesc.innerHTML = `YOU ARE THE APEX. THERE IS NOTHING LEFT TO FIGHT.<br><br>FINAL SCORE: <span style="color:#00ffcc; font-size:24px;">${Math.floor(state.score).toLocaleString()}</span><br>COINS EARNED: <span style="color:#ffcc00; font-size:24px;">+${state.runCoins.toLocaleString()}</span>`;
@@ -6906,13 +6907,13 @@
                     ui.mainTitle.innerText = "IMPOSSIBLE"; ui.mainTitle.style.webkitTextStroke = "3px #800080"; ui.mainTitle.style.textShadow = "0 0 50px #800080";
                     ui.mainDesc.innerHTML = `YOU DEFEATED THE B.A.D. LEVIATHAN.<br><br>FINAL SCORE: <span style="color:#00ffcc; font-size:24px;">${Math.floor(state.score).toLocaleString()}</span><br>COINS EARNED: <span style="color:#ffcc00; font-size:24px;">+${state.runCoins.toLocaleString()}</span>`;
                 }
-                let crashBtn = (state.currentStage >= 15) ? `<button style="border-color:#00ffcc; color:#00ffcc; box-shadow: 0 0 20px #00ffcc; animation: pulse 1s infinite;" onclick="startCrashedAdventure()">CRASH LANDING<br><span style="font-size:12px">Crashed Adventure</span></button><button style="border-color:#ff0055; color:#ff0055; box-shadow: 0 0 20px #ff0055;" onclick="startCrashedCoop()">CRASH CO-OP<br><span style="font-size:12px">2 Player Local</span></button>` : '';
-                // Feature 47: NG+ button after sector 15
-                let ngBtn = (state.currentStage >= 15) ? `<button style="border-color:#ffd700;color:#ffd700;box-shadow:0 0 20px #ffd700;" onclick="startNewGamePlus()">NEW GAME+<br><span style="font-size:12px">3x Enemy HP, Upgrades Kept</span></button>` : '';
+                let crashBtn = (state.currentStage >= 20) ? `<button style="border-color:#00ffcc; color:#00ffcc; box-shadow: 0 0 20px #00ffcc; animation: pulse 1s infinite;" onclick="startCrashedAdventure()">CRASH LANDING<br><span style="font-size:12px">Crashed Adventure</span></button><button style="border-color:#ff0055; color:#ff0055; box-shadow: 0 0 20px #ff0055;" onclick="startCrashedCoop()">CRASH CO-OP<br><span style="font-size:12px">2 Player Local</span></button>` : '';
+                // Feature 47: NG+ button after sector 20
+                let ngBtn = (state.currentStage >= 20) ? `<button style="border-color:#ffd700;color:#ffd700;box-shadow:0 0 20px #ffd700;" onclick="startNewGamePlus()">NEW GAME+<br><span style="font-size:12px">3x Enemy HP, Upgrades Kept</span></button>` : '';
                 ui.menuBtns.innerHTML = crashBtn + ngBtn + `<button class="btn-infinite" onclick="startInfinite()">Enter Infinite Loop</button><button onclick="returnToMenu()">Main Menu</button>`;
             };
             if (state.currentStage === 16) playCutscene('defeat16', showWinScreen);
-            else if (state.currentStage === 15) playCutscene('ending', showWinScreen);
+            else if (state.currentStage === 20) playCutscene('ending', showWinScreen);
             else showWinScreen();
         }
         
@@ -9863,10 +9864,10 @@ function generateSyncCode() {
             let unlockedRaw = secureLoad('neonVoidStage', '1');
             let unlocked = parseInt(unlockedRaw);
             if(isNaN(unlocked) || unlocked < 1) unlocked = 1;
-            let secretBtn = unlocked > 14 ? `<button onclick="startMission(15)" style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;">T H E  G L I T C H<br><span style="font-size:12px">THE END</span></button>` : `<button style="border-color:#555; color:#555; cursor:not-allowed;">LOCKED<br><span style="font-size:12px">Beat Sector 14</span></button>`;
+            let secretBtn = unlocked > 19 ? `<button onclick="startMission(20)" style="border-color:#ffd700; color:#ffd700; box-shadow: 0 0 20px #ffd700;">FINAL PROTOCOL<br><span style="font-size:12px">THE TRUE END</span></button>` : `<button style="border-color:#555; color:#555; cursor:not-allowed;">LOCKED<br><span style="font-size:12px">Beat Sector 19</span></button>`;
             let paradoxBtn = unlocked > 15 ? `<button onclick="startSecretBoss()" style="border-color:#ff00ff; color:#ff00ff; box-shadow: 0 0 30px #ff00ff; animation: pulse 1s infinite;">S E C T O R  ???<br><span style="font-size:12px">CHRONOS PARADOX</span></button>` : '';
             let rushBest = parseInt(secureLoad('neonVoidBossRushBest', 0)) || 0;
-            let rushLabel = rushBest > 0 ? `Best: ${Math.floor(rushBest/60)}m ${(rushBest%60).toString().padStart(2,'0')}s` : 'All 15 Bosses';
+            let rushLabel = rushBest > 0 ? `Best: ${Math.floor(rushBest/60)}m ${(rushBest%60).toString().padStart(2,'0')}s` : 'All 20 Bosses';
 
             let arcadeLabel = arcadeHighScore > 0 ? `High: ${arcadeHighScore.toLocaleString()}` : 'Classic Lives';
             let prestigeLevel = parseInt(secureLoad('neonVoidPrestige', 0) || 0);
@@ -9884,7 +9885,7 @@ function generateSyncCode() {
             let speedrunBest = secureLoad('neonVoidSpeedrunBest', null);
             let infectionBtn = `<button style="border-color:#ff0055; color:#ff0055;" onclick="startInfection()">INFECTION MODE<br><span style="font-size:12px">MP: Last Healthy Wins</span></button>`;
             let hordeBtn = `<button style="border-color:#ff6600; color:#ff6600;" onclick="startHordeDefense()">HORDE DEFENSE<br><span style="font-size:12px">Place Turrets, 20 Waves</span></button>`;
-            let speedrunBtn = `<button style="border-color:#ffd700; color:#ffd700;" onclick="startSpeedrun()">SPEEDRUN MODE<br><span style="font-size:12px">${speedrunBest ? 'Best: '+parseFloat(speedrunBest).toFixed(1)+'s' : 'Sectors 1-15 Timer'}</span></button>`;
+            let speedrunBtn = `<button style="border-color:#ffd700; color:#ffd700;" onclick="startSpeedrun()">SPEEDRUN MODE<br><span style="font-size:12px">${speedrunBest ? 'Best: '+parseFloat(speedrunBest).toFixed(1)+'s' : 'Sectors 1-20 Timer'}</span></button>`;
             let mirrorBtn = `<button style="border-color:#cc44ff; color:#cc44ff;" onclick="startMirror()" title="Everything is horizontally flipped - controls are reversed!">MIRROR MODE<br><span style="font-size:12px">Everything Reversed</span><br><span style="font-size:10px;color:#cc44ff88;">Controls flipped!</span></button>`;
             let chaosBtn = `<button style="border-color:#ff8800; color:#ff8800;" onclick="startChaos()">CHAOS MODE<br><span style="font-size:12px">Random Modifiers 30s</span></button>`;
             let oneHitBtn = `<button style="border-color:#ff0055; color:#ff0055;" onclick="startOneHit()">ONE HIT MODE<br><span style="font-size:12px">1 HP - Pure Skill</span></button>`;
@@ -9893,7 +9894,7 @@ function generateSyncCode() {
             let tagTeamBtn = `<button style="border-color:#8844ff; color:#8844ff;" onclick="startTagTeam()">TAG TEAM<br><span style="font-size:12px">MP: Swap Every 30s</span></button>`;
             let tournamentBtn = `<button style="border-color:#ffd700; color:#ffd700;" onclick="startTournament()">TOURNAMENT<br><span style="font-size:12px">3-Round AI Bracket</span></button>`;
             let battlePassBtn = `<button style="border-color:#ffe04b; color:#ffe04b; box-shadow: 0 0 20px #ffe04b88; animation: pulse 2s infinite;" onclick="openBattlePass()">BATTLE PASS<br><span style="font-size:12px">Earn Tier Rewards</span></button>`;
-            ui.menuBtns.innerHTML = `<button onclick="openMissionSelect()">Mission Mode<br><span style="font-size:12px">15 Sectors</span></button><button class="btn-infinite" onclick="startInfinite()">Infinite Mode<br><span style="font-size:12px">Endless Scaling</span></button><button style="border-color:#ff0055; color:#ff0055; box-shadow: 0 0 20px #ff0055;" onclick="startBossRush()">Boss Rush<br><span style="font-size:12px">${rushLabel}</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00; animation: pulse 2s infinite;" onclick="startArcade()">Arcade Mode<br><span style="font-size:12px">${arcadeLabel}</span></button><button style="border-color:#44ccff; color:#44ccff; box-shadow: 0 0 20px #44ccff;" onclick="startSandbox()">Sandbox<br><span style="font-size:12px">God Mode</span></button>${secretBtn}${paradoxBtn}${prestigeBtn}<button style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;" onclick="startTraining()">Training Camp<br><span style="font-size:12px">Test Weapons</span></button><button style="border-color:#00ffcc; color:#00ffcc; box-shadow: 0 0 20px #00ffcc;" onclick="openMultiplayer()">Multiplayer<br><span style="font-size:12px">Co-Op & Race</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00;" onclick="openShop()">The Hangar<br><span style="font-size:12px">Black Market</span></button><button style="border-color:#aa00ff; color:#aa00ff; box-shadow: 0 0 20px #aa00ff;" onclick="openLeaderboard()">Leaderboards<br><span style="font-size:12px">Top Pilots</span></button>${bountyBtn}${achieveBtn}${survivalBtn}${rogueBtn}${escortBtn}${raceBtn}${pvpBtn}${ctfBtn}${editorBtn}${infectionBtn}${hordeBtn}${speedrunBtn}${mirrorBtn}${chaosBtn}${oneHitBtn}${bulletHellBtn}${pacifistBtn}${tagTeamBtn}${tournamentBtn}${battlePassBtn}<button style="border-color:#fff; color:#fff;" onclick="openSettings()">Settings<br><span style="font-size:12px">Sys Config</span></button>`;
+            ui.menuBtns.innerHTML = `<button onclick="openMissionSelect()">Mission Mode<br><span style="font-size:12px">20 Sectors</span></button><button class="btn-infinite" onclick="startInfinite()">Infinite Mode<br><span style="font-size:12px">Endless Scaling</span></button><button style="border-color:#ff0055; color:#ff0055; box-shadow: 0 0 20px #ff0055;" onclick="startBossRush()">Boss Rush<br><span style="font-size:12px">${rushLabel}</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00; animation: pulse 2s infinite;" onclick="startArcade()">Arcade Mode<br><span style="font-size:12px">${arcadeLabel}</span></button><button style="border-color:#44ccff; color:#44ccff; box-shadow: 0 0 20px #44ccff;" onclick="startSandbox()">Sandbox<br><span style="font-size:12px">God Mode</span></button>${secretBtn}${paradoxBtn}${prestigeBtn}<button style="border-color:#00ff00; color:#00ff00; box-shadow: 0 0 20px #00ff00;" onclick="startTraining()">Training Camp<br><span style="font-size:12px">Test Weapons</span></button><button style="border-color:#00ffcc; color:#00ffcc; box-shadow: 0 0 20px #00ffcc;" onclick="openMultiplayer()">Multiplayer<br><span style="font-size:12px">Co-Op & Race</span></button><button style="border-color:#ffcc00; color:#ffcc00; box-shadow: 0 0 20px #ffcc00;" onclick="openShop()">The Hangar<br><span style="font-size:12px">Black Market</span></button><button style="border-color:#aa00ff; color:#aa00ff; box-shadow: 0 0 20px #aa00ff;" onclick="openLeaderboard()">Leaderboards<br><span style="font-size:12px">Top Pilots</span></button>${bountyBtn}${achieveBtn}${survivalBtn}${rogueBtn}${escortBtn}${raceBtn}${pvpBtn}${ctfBtn}${editorBtn}${infectionBtn}${hordeBtn}${speedrunBtn}${mirrorBtn}${chaosBtn}${oneHitBtn}${bulletHellBtn}${pacifistBtn}${tagTeamBtn}${tournamentBtn}${battlePassBtn}<button style="border-color:#fff; color:#fff;" onclick="openSettings()">Settings<br><span style="font-size:12px">Sys Config</span></button>`;
             document.getElementById('menu-coin-display').style.display = 'block';
             document.getElementById('mobile-controls').style.display = 'none';
         };
@@ -10142,8 +10143,8 @@ function generateSyncCode() {
             // Gather data
             let unlockedRaw = secureLoad('neonVoidStage', '1'); let unlocked = parseInt(unlockedRaw); if(isNaN(unlocked) || unlocked < 1) unlocked = 1;
             let rushBest = parseInt(secureLoad('neonVoidBossRushBest', 0)) || 0;
-            let rushLabel = rushBest > 0 ? `${Math.floor(rushBest/60)}m ${(rushBest%60).toString().padStart(2,'0')}s` : 'All 15';
-            let sectorPct = Math.round((unlocked / 15) * 100);
+            let rushLabel = rushBest > 0 ? `${Math.floor(rushBest/60)}m ${(rushBest%60).toString().padStart(2,'0')}s` : 'All 20';
+            let sectorPct = Math.round((unlocked / 20) * 100);
 
             // Hide original title / desc / coin display — we rebuild everything
             ui.mainTitle.style.display = 'none';
@@ -10190,7 +10191,7 @@ function generateSyncCode() {
                         <canvas id="nv-menu-ship" width="60" height="60" style="display:block;"></canvas>
                     </div>
                     <div class="nv-sector-progress">
-                        <span class="nv-sector-text">SECTOR ${unlocked}/15</span>
+                        <span class="nv-sector-text">SECTOR ${unlocked}/20</span>
                         <div class="nv-sector-bar"><div class="nv-sector-fill" style="width:${sectorPct}%"></div></div>
                         <span class="nv-sector-text">${sectorPct}%</span>
                     </div>
