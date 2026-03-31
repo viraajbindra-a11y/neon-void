@@ -9084,7 +9084,12 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
                 if (!data.found) { console.log('No cloud save found for key'); return; }
                 let profile = data.profile;
                 if (profile.coins !== undefined) { totalCoins = Math.max(totalCoins, profile.coins); _nvSec.save('neonVoidCoins', totalCoins); }
-                if (profile.upgrades) { purchasedUpgrades = [...new Set([...purchasedUpgrades, ...profile.upgrades])]; _nvSec.save('neonVoidUpgrades', purchasedUpgrades); }
+                if (profile.upgrades) {
+                    let merged = [...new Set([...purchasedUpgrades, ...profile.upgrades])];
+                    purchasedUpgrades.length = 0;
+                    merged.forEach(u => purchasedUpgrades.push(u));
+                    _nvSec.save('neonVoidUpgrades', purchasedUpgrades);
+                }
                 if (profile.skins) { unlockedSkins = [...new Set([...unlockedSkins, ...profile.skins])]; _nvSec.save('neonVoidSkins', unlockedSkins); }
                 if (profile.equippedSkin) { equippedSkin = profile.equippedSkin; _nvSec.save('neonVoidEquippedSkin', equippedSkin); }
                 if (profile.stage) { let cur = parseInt(_nvSec.load('neonVoidStage', '1')) || 1; _nvSec.save('neonVoidStage', Math.max(cur, profile.stage)); }
