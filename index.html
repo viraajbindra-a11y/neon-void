@@ -1988,8 +1988,8 @@
                 if (keys['KeyW'] || keys['ArrowUp']) dy -= 1; if (keys['KeyS'] || keys['ArrowDown']) dy += 1;
                 if (keys['KeyA'] || keys['ArrowLeft']) dx -= 1; if (keys['KeyD'] || keys['ArrowRight']) dx += 1;
                 if (joyData.active) { dx += joyData.x; dy += joyData.y; }
-                // Mirror mode: invert horizontal; Chaos INVERTED_CONTROLS
-                if (state.mirrored || state._chaosInverted) { dx = -dx; }
+                // Mirror mode: invert ALL controls; Chaos INVERTED_CONTROLS
+                if (state.mirrored || state._chaosInverted) { dx = -dx; dy = -dy; }
 
 
                 if (dx !== 0 && dy !== 0) { const l = Math.hypot(dx, dy); if (l > 1) { dx /= l; dy /= l; } }
@@ -2675,17 +2675,41 @@
                 this.x = x; this.y = y; this.r = 15; this.life = 600;
                 let roll = Math.random();
                 if (roll > 0.96) this.type = 'invincibility'; else if (roll > 0.92) this.type = 'blackhole'; else if (roll > 0.88) this.type = 'orbital_strike'; else if (roll > 0.80) this.type = 'nuke_shield'; else if (roll > 0.70) this.type = 'nuke'; else if (roll > 0.60) this.type = 'emp'; else if (roll > 0.40) this.type = 'heal'; else if (roll > 0.20) this.type = 'overdrive'; else this.type = 'shield';
-                this.color = this.type === 'heal' ? '#00ff00' : this.type === 'shield' ? '#aa00ff' : this.type === 'emp' ? '#00ffff' : this.type === 'nuke' ? '#0088ff' : this.type === 'blackhole' ? '#440088' : this.type === 'invincibility' ? '#ffffff' : this.type === 'orbital_strike' ? '#ffcc00' : this.type === 'nuke_shield' ? '#ff0055' : '#ffcc00';
+                this.color = this.type === 'heal' ? '#00ff00' : this.type === 'shield' ? '#aa00ff' : this.type === 'emp' ? '#00ffff' : this.type === 'nuke' ? '#0088ff' : this.type === 'blackhole' ? '#cc44ff' : this.type === 'invincibility' ? '#ffffff' : this.type === 'orbital_strike' ? '#ffcc00' : this.type === 'nuke_shield' ? '#ff0055' : '#ffcc00';
             }
             update() { this.life--; }
             draw(ctx) {
                 if(this.x<-30||this.x>canvas.width+30||this.y<-30||this.y>canvas.height+30)return;
                 if (this.type === 'invincibility') this.color = `hsl(${state.frame * 5 % 360}, 100%, 50%)`;
-                ctx.strokeStyle = this.color; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI*2); ctx.stroke();
-                ctx.fillStyle = this.color; ctx.globalAlpha = 0.5 + Math.sin(state.frame*0.1)*0.5; ctx.beginPath(); ctx.arc(this.x, this.y, this.r - 5, 0, Math.PI*2); ctx.fill();
-                ctx.globalAlpha = 1.0; ctx.fillStyle = '#fff'; ctx.font = 'bold 11px Courier'; ctx.textAlign='center';
+                ctx.save();
+                if (this.type === 'blackhole') {
+                    // Void powerup: animated swirling portal effect
+                    let pulse = Math.sin(state.frame * 0.08) * 0.4 + 0.6;
+                    let rot = state.frame * 0.05;
+                    ctx.shadowBlur = 25 + Math.sin(state.frame * 0.1) * 10;
+                    ctx.shadowColor = '#cc44ff';
+                    // Outer swirl rings
+                    for (let ring = 0; ring < 3; ring++) {
+                        ctx.strokeStyle = `hsla(${280 + ring * 20}, 100%, ${60 + ring * 10}%, ${0.4 - ring * 0.1})`;
+                        ctx.lineWidth = 2 - ring * 0.5;
+                        ctx.beginPath(); ctx.arc(this.x, this.y, this.r + 4 + ring * 5 + Math.sin(rot + ring) * 3, rot + ring * 2.1, rot + ring * 2.1 + Math.PI * 1.5); ctx.stroke();
+                    }
+                    // Inner dark void core
+                    let grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.r);
+                    grad.addColorStop(0, '#000000');
+                    grad.addColorStop(0.5, '#220044');
+                    grad.addColorStop(1, `rgba(204, 68, 255, ${pulse})`);
+                    ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI*2); ctx.fill();
+                    ctx.strokeStyle = '#cc44ff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI*2); ctx.stroke();
+                } else {
+                    ctx.shadowBlur = 12; ctx.shadowColor = this.color;
+                    ctx.strokeStyle = this.color; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI*2); ctx.stroke();
+                    ctx.fillStyle = this.color; ctx.globalAlpha = 0.5 + Math.sin(state.frame*0.1)*0.5; ctx.beginPath(); ctx.arc(this.x, this.y, this.r - 5, 0, Math.PI*2); ctx.fill();
+                }
+                ctx.globalAlpha = 1.0; ctx.shadowBlur = 0; ctx.fillStyle = '#fff'; ctx.font = 'bold 11px Courier'; ctx.textAlign='center';
                 let t = this.type === 'blackhole' ? 'VOID' : (this.type === 'invincibility' ? 'GOD' : this.type.toUpperCase());
                 ctx.fillText(t, this.x, this.y+4);
+                ctx.restore();
             }
         }
 
@@ -3163,6 +3187,14 @@
             triggerChroma(3);
             // Expanding ring
             entities.texts.push({ x: player.x, y: player.y, life: 30, draw(ctx) { let progress = 1 - this.life/30; ctx.save(); ctx.strokeStyle = '#00ffcc'; ctx.lineWidth = 3 - progress*3; ctx.globalAlpha = 1 - progress; ctx.beginPath(); ctx.arc(this.x, this.y, progress*120, 0, Math.PI*2); ctx.stroke(); ctx.restore(); }, update() { this.life--; } });
+            // OG mode: simple HP boost, no perk selection
+            if (state._ogMode) {
+                player.hp = Math.min(state.stats.maxHp, player.hp + 20);
+                spawnText(player.x, player.y - 40, 'LEVEL UP! +20 HP', '#00ffcc', 18);
+                playSound('powerup');
+                if (state.pendingLevels && state.pendingLevels > 0) { state.pendingLevels--; setTimeout(() => triggerLevelUp(), 50); }
+                return;
+            }
             state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.innerHTML = '';
             let pool = [...PERKS].sort(() => 0.5 - Math.random()); let choices = []; 
             while (choices.length < 3) choices.push(pool.pop()); 
@@ -3316,10 +3348,38 @@
         }
 
 
-        function triggerBlackHole() { 
-            playSound('emp'); shakeScreen(80); ctx.fillStyle = 'rgba(68, 0, 136, 0.8)'; ctx.fillRect(0, 0, canvas.width, canvas.height); 
-            for (let i = entities.enemies.length - 1; i >= 0; i--) { let e = entities.enemies[i]; if (!e) continue; if (e.type === 'bad') { e.hp -= 3000 * state.stats.dmgMulti; continue; } spawnParticles(canvas.width/2, canvas.height/2, e.color, 5, 2); state.score += (e.xp * 15) * state.combo * (state.dailyScoreMulti || 1); addXp(e.xp * 2); let coinMult = (state.hardcore ? 5 : 1) * (state.stats.coinMulti || 1); state.runCoins += Math.floor(Math.max(10, e.xp * 2) * coinMult); entities.enemies.splice(i, 1); state.kills++; }
-            ui.kills.innerText = `KILLS: ${state.kills}`; if (activeBoss && activeBoss.alpha > 0.5) activeBoss.hp -= 3000 * state.stats.dmgMulti; spawnText(canvas.width/2, canvas.height/2, "EVENT HORIZON", '#aa00ff', 36); 
+        function triggerBlackHole() {
+            playSound('emp'); shakeScreen(80);
+            // Dramatic void vortex overlay
+            let cx = canvas.width/2, cy = canvas.height/2;
+            ctx.save();
+            // Dark void flash
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.9)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // Radial void gradient
+            let voidGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(canvas.width, canvas.height) * 0.7);
+            voidGrad.addColorStop(0, 'rgba(204, 68, 255, 0.8)');
+            voidGrad.addColorStop(0.3, 'rgba(100, 0, 180, 0.5)');
+            voidGrad.addColorStop(0.7, 'rgba(40, 0, 80, 0.3)');
+            voidGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = voidGrad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // Swirl lines
+            ctx.strokeStyle = '#cc44ff'; ctx.lineWidth = 3; ctx.shadowBlur = 30; ctx.shadowColor = '#cc44ff';
+            for (let s = 0; s < 8; s++) {
+                let ang = (Math.PI * 2 / 8) * s + state.frame * 0.1;
+                ctx.beginPath(); ctx.moveTo(cx, cy);
+                ctx.lineTo(cx + Math.cos(ang) * canvas.width, cy + Math.sin(ang) * canvas.height);
+                ctx.stroke();
+            }
+            ctx.restore();
+            // Pull enemies in and destroy
+            for (let i = entities.enemies.length - 1; i >= 0; i--) { let e = entities.enemies[i]; if (!e) continue; if (e.type === 'bad') { e.hp -= 3000 * state.stats.dmgMulti; continue; }
+                // Neon void particles spiral toward center
+                for (let p = 0; p < 3; p++) spawnParticles(e.x, e.y, '#cc44ff', 3, 2);
+                spawnParticles(e.x, e.y, e.color, 4, 1.5);
+                state.score += (e.xp * 15) * state.combo * (state.dailyScoreMulti || 1); addXp(e.xp * 2); let coinMult = (state.hardcore ? 5 : 1) * (state.stats.coinMulti || 1); state.runCoins += Math.floor(Math.max(10, e.xp * 2) * coinMult); entities.enemies.splice(i, 1); state.kills++; }
+            ui.kills.innerText = `KILLS: ${state.kills}`; if (activeBoss && activeBoss.alpha > 0.5) activeBoss.hp -= 3000 * state.stats.dmgMulti; spawnText(canvas.width/2, canvas.height/2, "EVENT HORIZON", '#cc44ff', 36);
+            // Extra center explosion particles
+            spawnParticles(cx, cy, '#cc44ff', 20, 3); spawnParticles(cx, cy, '#8800ff', 15, 2); spawnParticles(cx, cy, '#ffffff', 10, 1);
         }
 
 
@@ -3474,7 +3534,7 @@
                 // Feature 14: Kamikaze swarm wave at level 12+
                 if (state.level >= 12 && state.frame % 1800 === 0) { let sx = Math.random() < 0.5 ? -50 : canvas.width+50; spawnText(canvas.width/2, 80, 'SWARM INCOMING!', '#ff88ff', 22); for(let ki=0;ki<15;ki++) entities.enemies.push(new Enemy(sx, Math.random()*canvas.height, 'swarm')); }
             }
-            if (state.level >= state.nextBossLevel && !(mpState.active && mpState.mode === 'coop' && !mpState.isHost)) { state.spawningBoss = true; ui.bossAlert.style.display = 'block'; playSound('hit'); let bossLine = BOSS_LINES[Math.floor(gameRng() * BOSS_LINES.length)]; spawnText(canvas.width/2, canvas.height/2 + 60, bossLine, '#ff0055', 16); setTimeout(() => { if (!state.active) { state.spawningBoss = false; return; } ui.bossAlert.style.display = 'none'; entities.enemies = []; activeBoss = new Boss(state.bossesDefeated); activeBoss.bossIdx = state.bossesDefeated; applyBossVariant(activeBoss); state.spawningBoss = false; }, 3000); }
+            if (state.level >= state.nextBossLevel && !(mpState.active && mpState.mode === 'coop' && !mpState.isHost)) { state.spawningBoss = true; ui.bossAlert.style.display = 'block'; playSound('hit'); setBossMusic(true); let bossLine = BOSS_LINES[Math.floor(gameRng() * BOSS_LINES.length)]; spawnText(canvas.width/2, canvas.height/2 + 60, bossLine, '#ff0055', 16); setTimeout(() => { if (!state.active) { state.spawningBoss = false; return; } ui.bossAlert.style.display = 'none'; entities.enemies = []; activeBoss = new Boss(state.bossesDefeated); activeBoss.bossIdx = state.bossesDefeated; applyBossVariant(activeBoss); state.spawningBoss = false; }, 3000); }
         }
 
 
@@ -3483,7 +3543,7 @@
             if (mpState.active && mpState.mode === 'coop' && mpState.isHost) {
                 broadcast({ type: 'boss-death', bx: activeBoss.x, by: activeBoss.y, color: activeBoss.color });
             }
-            spawnParticles(activeBoss.x, activeBoss.y, activeBoss.color, 12, 5); if (is3DActive && scene3d) { spawnExplosion3d(activeBoss.x, activeBoss.y, activeBoss.color); spawnExplosion3d(activeBoss.x + 30, activeBoss.y - 20, '#ffffff'); spawnExplosion3d(activeBoss.x - 30, activeBoss.y + 20, activeBoss.color); } shakeScreen(60); playSound('hit'); state.kills++; ui.kills.innerText = `KILLS: ${state.kills}`; state.score += 50000 * state.combo * (state.dailyScoreMulti || 1); if (state.mode !== 'boss_rush') addXp(2000); state.bossesDefeated++; triggerSlowMo(45); triggerChroma(8);
+            setBossMusic(false); spawnParticles(activeBoss.x, activeBoss.y, activeBoss.color, 12, 5); if (is3DActive && scene3d) { spawnExplosion3d(activeBoss.x, activeBoss.y, activeBoss.color); spawnExplosion3d(activeBoss.x + 30, activeBoss.y - 20, '#ffffff'); spawnExplosion3d(activeBoss.x - 30, activeBoss.y + 20, activeBoss.color); } shakeScreen(60); playSound('hit'); state.kills++; ui.kills.innerText = `KILLS: ${state.kills}`; state.score += 50000 * state.combo * (state.dailyScoreMulti || 1); if (state.mode !== 'boss_rush') addXp(2000); state.bossesDefeated++; triggerSlowMo(45); triggerChroma(8);
             let coinMult = (state.hardcore ? 5 : 1) * (state.stats.coinMulti || 1); state.runCoins += Math.floor((25000 + (state.currentStage * 5000)) * coinMult);
             // Feature 17: Clone modifier - spawn mini-copy before clearing enemies
             if (activeBoss && activeBoss.rushClone && state.mode === 'boss_rush') {
@@ -5354,7 +5414,7 @@
             }
         }
 
-        function initGameBase() { player = new Player(); activeBoss = null; asteroids = []; exhaustParticles = []; entities = { bullets: [], enemies: [], eBullets: [], particles: [], powerups: [], texts: [], stars: [], trails: [] }; fireTrails = []; weatherTimer = 0; currentWeather = null; victoryPoseTimer = 0; state._rogueWaiting = false; zombieQueue = []; hivemindGroupCounter = 0;
+        function initGameBase() { stopMenuMusic(); if (appSettings.music) startMusic(); player = new Player(); activeBoss = null; asteroids = []; exhaustParticles = []; entities = { bullets: [], enemies: [], eBullets: [], particles: [], powerups: [], texts: [], stars: [], trails: [] }; fireTrails = []; weatherTimer = 0; currentWeather = null; victoryPoseTimer = 0; state._rogueWaiting = false; zombieQueue = []; hivemindGroupCounter = 0;
             // Feature 48: Load previous ghost run for playback into separate array
             try { let savedGhost = secureLoad('neonVoidGhost', null); if (savedGhost) { ghostPlaybackInputs = Array.isArray(savedGhost) ? savedGhost : JSON.parse(savedGhost); ghostPlayback = true; ghostFrame = 0; } else { ghostPlaybackInputs = []; ghostPlayback = false; } } catch(e) { ghostPlaybackInputs = []; ghostPlayback = false; }
             ghostInputs = [];
@@ -6520,6 +6580,24 @@
                     spawnText(canvas.width/2, canvas.height/2, 'MIRROR MODE - CONTROLS INVERTED!', '#cc44ff', 20);
                 });
             });
+        }
+
+        // ==================== OG MODE — Classic stripped-down gameplay ====================
+        function startOG() {
+            ui.mainOverlay.classList.add('hidden');
+            // No class select, no weapon select — just pure gameplay
+            state = { active: true, paused: false, mode: 'og', frame: 0, score: 0, combo: 1, xp: 0, level: 1, xpNeeded: 100, runCoins: 0, kills: 0, shake: 0, currentStage: 1, bossesDefeated: 0, difficulty: 1, nextBossLevel: 5, spawningBoss: false, warping: true, warpFrames: 0, hardcore: false, hyper: false, stats: getBaseStats() };
+            // Reset stats to basic — no upgrades, no perks
+            state.stats.dmgMulti = 1; state.stats.speedMulti = 1; state.stats.fireRateMulti = 1;
+            state.stats.maxHp = 100; state.stats.projCount = 1; state.stats.regen = 0;
+            state.stats.critChance = 0; state.stats.piercing = 0; state.stats.spread = 0;
+            state.stats.coinMulti = 1; state.stats.xpMulti = 1; state.stats.magnet = false;
+            state.playerClass = 'fighter'; selectedClass = 'fighter';
+            state._ogMode = true;
+            ui.status.innerText = 'OG MODE - BACK TO BASICS';
+            initGameBase();
+            spawnText(canvas.width/2, canvas.height/2, 'OG MODE', '#88ff88', 28);
+            spawnText(canvas.width/2, canvas.height/2 + 40, 'No upgrades. No perks. Just you and the void.', '#88ff8888', 14);
         }
 
         // ==================== MODE 55: CHAOS MODE ====================
@@ -8015,51 +8093,158 @@
         let musicPlaying = false;
         let musicNodes = null;
 
+        // Mode-specific music themes
+        const MUSIC_THEMES = {
+            normal: {
+                bpm: 140, bassType: 'sawtooth', arpType: 'square',
+                bassNotes: [55, 55, 73.4, 65.4, 55, 55, 82.4, 73.4],
+                arpNotes: [220, 330, 440, 330, 261, 392, 523, 392],
+                bassVol: 0.06, arpVol: 0.03
+            },
+            infinite: {
+                bpm: 155, bassType: 'sawtooth', arpType: 'triangle',
+                bassNotes: [41.2, 55, 55, 41.2, 49, 55, 65.4, 55],
+                arpNotes: [330, 440, 523, 660, 523, 440, 330, 261],
+                bassVol: 0.07, arpVol: 0.04
+            },
+            boss_rush: {
+                bpm: 170, bassType: 'square', arpType: 'sawtooth',
+                bassNotes: [55, 65.4, 55, 73.4, 55, 82.4, 73.4, 65.4],
+                arpNotes: [440, 523, 660, 523, 440, 392, 330, 392],
+                bassVol: 0.09, arpVol: 0.05
+            },
+            horde: {
+                bpm: 130, bassType: 'triangle', arpType: 'square',
+                bassNotes: [36.7, 41.2, 49, 55, 49, 41.2, 36.7, 41.2],
+                arpNotes: [196, 261, 330, 392, 440, 392, 330, 261],
+                bassVol: 0.08, arpVol: 0.035
+            },
+            speedrun: {
+                bpm: 180, bassType: 'sawtooth', arpType: 'sawtooth',
+                bassNotes: [73.4, 82.4, 73.4, 98, 73.4, 82.4, 110, 98],
+                arpNotes: [523, 660, 784, 660, 523, 440, 523, 660],
+                bassVol: 0.07, arpVol: 0.05
+            },
+            mission: {
+                bpm: 145, bassType: 'sawtooth', arpType: 'triangle',
+                bassNotes: [49, 55, 65.4, 55, 49, 41.2, 49, 55],
+                arpNotes: [261, 330, 392, 440, 392, 330, 261, 196],
+                bassVol: 0.06, arpVol: 0.03
+            },
+            sandbox: {
+                bpm: 120, bassType: 'sine', arpType: 'triangle',
+                bassNotes: [55, 82.4, 65.4, 73.4, 55, 65.4, 82.4, 73.4],
+                arpNotes: [220, 261, 330, 440, 523, 440, 330, 261],
+                bassVol: 0.04, arpVol: 0.025
+            },
+            training: {
+                bpm: 135, bassType: 'triangle', arpType: 'square',
+                bassNotes: [65.4, 65.4, 82.4, 73.4, 65.4, 55, 65.4, 73.4],
+                arpNotes: [330, 392, 440, 523, 440, 392, 330, 261],
+                bassVol: 0.05, arpVol: 0.03
+            },
+            og: {
+                bpm: 128, bassType: 'square', arpType: 'triangle',
+                bassNotes: [55, 55, 55, 55, 73.4, 73.4, 65.4, 65.4],
+                arpNotes: [220, 220, 330, 330, 440, 440, 330, 330],
+                bassVol: 0.05, arpVol: 0.025
+            },
+            mirror: {
+                bpm: 150, bassType: 'sawtooth', arpType: 'square',
+                bassNotes: [73.4, 55, 82.4, 55, 65.4, 55, 98, 82.4],
+                arpNotes: [440, 330, 523, 392, 660, 523, 440, 330],
+                bassVol: 0.07, arpVol: 0.04
+            },
+            chaos: {
+                bpm: 160, bassType: 'sawtooth', arpType: 'sawtooth',
+                bassNotes: [41.2, 55, 73.4, 98, 55, 82.4, 65.4, 49],
+                arpNotes: [523, 392, 660, 440, 784, 523, 330, 440],
+                bassVol: 0.08, arpVol: 0.05
+            },
+            one_hit: {
+                bpm: 165, bassType: 'square', arpType: 'triangle',
+                bassNotes: [55, 73.4, 55, 82.4, 55, 65.4, 55, 98],
+                arpNotes: [660, 523, 784, 660, 523, 440, 523, 660],
+                bassVol: 0.06, arpVol: 0.04
+            },
+            bullet_hell: {
+                bpm: 175, bassType: 'sawtooth', arpType: 'square',
+                bassNotes: [82.4, 82.4, 98, 82.4, 110, 98, 82.4, 73.4],
+                arpNotes: [660, 784, 880, 784, 660, 523, 660, 784],
+                bassVol: 0.08, arpVol: 0.05
+            },
+            arcade: {
+                bpm: 150, bassType: 'square', arpType: 'square',
+                bassNotes: [55, 65.4, 55, 73.4, 82.4, 73.4, 65.4, 55],
+                arpNotes: [330, 440, 330, 523, 440, 523, 660, 523],
+                bassVol: 0.06, arpVol: 0.04
+            },
+            pacifist: {
+                bpm: 110, bassType: 'sine', arpType: 'triangle',
+                bassNotes: [55, 65.4, 73.4, 82.4, 73.4, 65.4, 55, 49],
+                arpNotes: [261, 330, 392, 440, 523, 440, 330, 261],
+                bassVol: 0.04, arpVol: 0.025
+            }
+        };
+
         function startMusic() {
             if (musicNodes || !appSettings.music) return;
             if (audioCtx.state === 'suspended') audioCtx.resume();
 
-            let bpm = 140;
+            let mode = (state && state.mode) || 'normal';
+            let theme = MUSIC_THEMES[mode] || MUSIC_THEMES.normal;
+            let bpm = theme.bpm;
             let beatLen = 60 / bpm;
 
-            // Bass oscillator
             let bassGain = audioCtx.createGain();
-            bassGain.gain.value = 0.06;
+            bassGain.gain.value = theme.bassVol;
             bassGain.connect(audioCtx.destination);
 
-            // Arp oscillator
             let arpGain = audioCtx.createGain();
-            arpGain.gain.value = 0.03;
+            arpGain.gain.value = theme.arpVol;
             arpGain.connect(audioCtx.destination);
 
-            let bassNotes = [55, 55, 73.4, 65.4, 55, 55, 82.4, 73.4]; // A1 pattern
-            let arpNotes = [220, 330, 440, 330, 261, 392, 523, 392]; // A3-E4-A4 arpeggios
+            // Add a subtle pad layer for atmosphere
+            let padGain = audioCtx.createGain();
+            padGain.gain.value = 0.02;
+            padGain.connect(audioCtx.destination);
+            let pad = audioCtx.createOscillator();
+            pad.type = 'sine';
+            pad.frequency.value = theme.bassNotes[0] * 2;
+            pad.connect(padGain);
+            pad.start();
 
             let noteIdx = 0;
             let musicInterval = setInterval(() => {
                 if (!appSettings.music) { stopMusic(); return; }
                 let now = audioCtx.currentTime;
 
-                // Bass
                 let bass = audioCtx.createOscillator();
-                bass.type = 'sawtooth';
-                bass.frequency.value = bassNotes[noteIdx % bassNotes.length];
+                bass.type = theme.bassType;
+                bass.frequency.value = theme.bassNotes[noteIdx % theme.bassNotes.length];
                 bass.connect(bassGain);
                 bass.start(now);
                 bass.stop(now + beatLen * 0.8);
 
-                // Arp
                 let arp = audioCtx.createOscillator();
-                arp.type = 'square';
-                arp.frequency.value = arpNotes[noteIdx % arpNotes.length];
+                arp.type = theme.arpType;
+                arp.frequency.value = theme.arpNotes[noteIdx % theme.arpNotes.length];
                 arp.connect(arpGain);
                 arp.start(now);
                 arp.stop(now + beatLen * 0.3);
 
+                // Evolve pad note slowly
+                if (noteIdx % 16 === 0) {
+                    pad.frequency.linearRampToValueAtTime(
+                        theme.bassNotes[Math.floor(noteIdx / 16) % theme.bassNotes.length] * 2,
+                        now + 1
+                    );
+                }
+
                 noteIdx++;
             }, beatLen * 1000 / 2);
 
-            musicNodes = { interval: musicInterval, bassGain, arpGain };
+            musicNodes = { interval: musicInterval, bassGain, arpGain, pad, padGain };
             musicPlaying = true;
         }
 
@@ -8068,9 +8253,22 @@
                 clearInterval(musicNodes.interval);
                 musicNodes.bassGain.disconnect();
                 musicNodes.arpGain.disconnect();
+                if (musicNodes.pad) { try { musicNodes.pad.stop(); } catch(e){} musicNodes.padGain.disconnect(); }
                 musicNodes = null;
             }
             musicPlaying = false;
+        }
+
+        function setBossMusic(active) {
+            if (!musicNodes) return;
+            // Boss fight = louder bass, faster tempo feel via gain
+            if (active) {
+                musicNodes.bassGain.gain.linearRampToValueAtTime(0.12, audioCtx.currentTime + 0.5);
+                musicNodes.arpGain.gain.linearRampToValueAtTime(0.06, audioCtx.currentTime + 0.5);
+            } else {
+                musicNodes.bassGain.gain.linearRampToValueAtTime(0.06, audioCtx.currentTime + 1);
+                musicNodes.arpGain.gain.linearRampToValueAtTime(0.03, audioCtx.currentTime + 1);
+            }
         }
 
         // Add music to appSettings
@@ -8222,7 +8420,9 @@
                 this.vertices = [];
                 let pts = 7 + Math.floor(Math.random() * 4);
                 for (let i = 0; i < pts; i++) this.vertices.push(this.radius * (0.6 + Math.random() * 0.4));
-                this.color = `hsl(${20 + Math.random() * 20}, ${20 + Math.random() * 20}%, ${30 + Math.random() * 20}%)`;
+                let neonHues = [180, 300, 120, 60, 0, 270]; // cyan, magenta, green, yellow, red, purple
+                this._hue = neonHues[Math.floor(Math.random() * neonHues.length)];
+                this.color = `hsl(${this._hue}, 100%, 55%)`;
             }
             update() {
                 this.x += this.vx; this.y += this.vy;
@@ -8230,8 +8430,8 @@
             }
             draw(ctx) {
                 ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.rotation);
-                ctx.strokeStyle = '#888'; ctx.lineWidth = 2; ctx.fillStyle = this.color;
-                if (appSettings.graphics === 'high') { ctx.shadowBlur = 5; ctx.shadowColor = '#555'; }
+                ctx.strokeStyle = this.color; ctx.lineWidth = 2; ctx.fillStyle = `hsla(${this._hue}, 100%, 55%, 0.15)`;
+                ctx.shadowBlur = 20; ctx.shadowColor = this.color;
                 ctx.beginPath();
                 let pts = this.vertices.length;
                 for (let i = 0; i <= pts; i++) {
@@ -8269,15 +8469,15 @@
                 // Player collision
                 if (Math.hypot(a.x - player.x, a.y - player.y) < a.radius + player.radius) {
                     player.takeDamage(40);
-                    spawnParticles(player.x, player.y, '#888', 10);
+                    spawnParticles(player.x, player.y, a.color, 10);
                 }
                 // Bullet collision
                 for (let j = entities.bullets.length - 1; j >= 0; j--) {
                     let b = entities.bullets[j];
                     if (Math.hypot(b.x - a.x, b.y - a.y) < a.radius) {
                         a.hp -= b.dmg;
-                        spawnParticles(b.x, b.y, '#888', 3);
-                        spawnText(b.x, b.y, Math.floor(b.dmg), '#888', 14);
+                        spawnParticles(b.x, b.y, a.color, 3);
+                        spawnText(b.x, b.y, Math.floor(b.dmg), a.color, 14);
                         if (b.pierce <= 0) { entities.bullets.splice(j, 1); } else { b.pierce--; }
                     }
                 }
@@ -8285,11 +8485,11 @@
                 for (let e of entities.enemies) {
                     if (!e || e.type === 'dummy') continue;
                     if (Math.hypot(e.x - a.x, e.y - a.y) < a.radius + e.radius) {
-                        e.hp -= 50; spawnParticles(e.x, e.y, '#888', 5);
+                        e.hp -= 50; spawnParticles(e.x, e.y, a.color, 5);
                     }
                 }
                 if (a.hp <= 0) {
-                    spawnParticles(a.x, a.y, '#888', 30, 2);
+                    spawnParticles(a.x, a.y, a.color, 30, 2);
                     shakeScreen(8);
                     playSound('hit');
                     state.score += 500 * state.combo;
@@ -10246,7 +10446,11 @@ function generateSyncCode() {
                         </div>
                         <div class="nv-mode-chip" style="--gc:${mc('#cc44ff')};border-color:#cc44ff66;background:rgba(204,68,255,0.06);" onclick="startMirror()" title="Everything is horizontally flipped - controls are reversed!">
                             <span class="nv-chip-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#cc44ff" stroke-width="2" stroke-linecap="round"><path d="M12 3v18M3 9l4 3-4 3M21 9l-4 3 4 3"/></svg></span>
-                            <div><div class="nv-chip-label" style="color:#cc44ff;">MIRROR</div><div class="nv-chip-sub" style="color:#cc44ff88;">Controls Reversed!</div></div>
+                            <div><div class="nv-chip-label" style="color:#cc44ff;">MIRROR</div><div class="nv-chip-sub" style="color:#cc44ff88;">All Inverted!</div></div>
+                        </div>
+                        <div class="nv-mode-chip" style="--gc:${mc('#88ff88')};border-color:#88ff8866;background:rgba(136,255,136,0.06);" onclick="startOG()">
+                            <span class="nv-chip-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#88ff88" stroke-width="2" stroke-linecap="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 22v-4h6v4M12 18h.01"/></svg></span>
+                            <div><div class="nv-chip-label" style="color:#88ff88;">OG</div><div class="nv-chip-sub" style="color:#88ff8888;">Classic</div></div>
                         </div>
                         <div class="nv-mode-chip" style="--gc:${mc('#ff8800')};border-color:#ff880066;background:rgba(255,136,0,0.06);" onclick="startChaos()">
                             <span class="nv-chip-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff8800" stroke-width="2" stroke-linecap="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></span>
