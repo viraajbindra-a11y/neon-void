@@ -9303,7 +9303,30 @@ function generateSyncCode() {
             // FIX 3: Check for god account using hash comparison (no plaintext stored)
             if (_nvCheckGod(currentUsername, pass)) {
                 _godCheck.activate();
-                console.log('NEONVOID: Developer mode active');
+                // God account: unlock EVERYTHING
+                totalCoins = 99999999; _nvSec.save('neonVoidCoins', totalCoins);
+                // All upgrades
+                let allUpgrades = Object.keys(PERMANENT_UPGRADES);
+                purchasedUpgrades.length = 0;
+                allUpgrades.forEach(u => purchasedUpgrades.push(u));
+                _nvSec.save('neonVoidUpgrades', [...purchasedUpgrades]);
+                // All ship skins
+                unlockedSkins = Object.keys(SKINS);
+                _nvSec.save('neonVoidSkins', unlockedSkins);
+                // All wisp skins
+                unlockedWispSkins = Object.keys(WISP_SKINS);
+                _nvSec.save('neonVoidWispSkins', unlockedWispSkins);
+                // Max sector
+                _nvSec.save('neonVoidStage', 20);
+                // All achievements
+                try { let achKeys = Object.keys(typeof ACHIEVEMENTS !== 'undefined' ? ACHIEVEMENTS : {}); if (achKeys.length) _nvSec.save('neonVoidAchievements', achKeys); } catch(e){}
+                // Max kills/score
+                _nvSec.save('neonVoidTotalKills', 999999);
+                _nvSec.save('neonVoidHighScore', 999999999);
+                _nvSec.save('neonVoidTutorialDone', '1');
+                // Battle pass max tier
+                try { let bp = secureLoad('neonVoidBP', null); if (bp) { bp.tier = 50; bp.premium = true; _nvSec.save('neonVoidBP', bp); } } catch(e){}
+                console.log('NEONVOID: Developer mode active — all content unlocked');
             }
             // Generate password hash for cloud sync key
             if (pass.length >= 1) {
@@ -9367,7 +9390,20 @@ function generateSyncCode() {
                 document.getElementById('player-tag').style.display = 'block';
                 // Restore god account flag on auto-login
                 _godCheck.restore();
-                if (_godCheck.active) console.log('NEONVOID: Developer mode restored');
+                if (_godCheck.active) {
+                    // God account: ensure everything stays unlocked
+                    totalCoins = Math.max(totalCoins, 99999999); _nvSec.save('neonVoidCoins', totalCoins);
+                    let allUpgrades = Object.keys(PERMANENT_UPGRADES);
+                    purchasedUpgrades.length = 0;
+                    allUpgrades.forEach(u => purchasedUpgrades.push(u));
+                    _nvSec.save('neonVoidUpgrades', [...purchasedUpgrades]);
+                    unlockedSkins = Object.keys(SKINS); _nvSec.save('neonVoidSkins', unlockedSkins);
+                    unlockedWispSkins = Object.keys(WISP_SKINS); _nvSec.save('neonVoidWispSkins', unlockedWispSkins);
+                    _nvSec.save('neonVoidStage', 20);
+                    _nvSec.save('neonVoidTotalKills', 999999);
+                    _nvSec.save('neonVoidTutorialDone', '1');
+                    console.log('NEONVOID: Developer mode restored — all content unlocked');
+                }
                 // Restore cloud profile on page load - use password hash if available
                 userPasswordHash = secureLoad('neonVoidPassHash', '') || '';
                 const googleId = localStorage.getItem('neonVoidGoogleId') || '';
