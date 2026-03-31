@@ -9098,7 +9098,35 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
                 if (profile.equippedSkin) { equippedSkin = profile.equippedSkin; _nvSec.save('neonVoidEquippedSkin', equippedSkin); }
                 if (profile.stage) { let cur = parseInt(_nvSec.load('neonVoidStage', '1')) || 1; _nvSec.save('neonVoidStage', Math.max(cur, profile.stage)); }
                 if (profile.totalKills) { _nvSec.save('neonVoidTotalKills', Math.max(parseInt(_nvSec.load('neonVoidTotalKills', 0))||0, profile.totalKills)); }
-                console.log('Cloud profile loaded for ' + currentUsername);
+                // Restore all additional save data
+                if (profile.wispSkins) { unlockedWispSkins = [...new Set([...unlockedWispSkins, ...profile.wispSkins])]; _nvSec.save('neonVoidWispSkins', unlockedWispSkins); }
+                if (profile.equippedWispSkin) { equippedWispSkin = profile.equippedWispSkin; _nvSec.save('neonVoidWispSkin', equippedWispSkin); }
+                if (profile.highScore) { let cur = parseInt(_nvSec.load('neonVoidHighScore', 0)) || 0; _nvSec.save('neonVoidHighScore', Math.max(cur, profile.highScore)); }
+                if (profile.arcadeHigh) { let cur = parseInt(_nvSec.load('neonVoidArcadeHigh', 0)) || 0; if (profile.arcadeHigh > cur) { arcadeHighScore = profile.arcadeHigh; _nvSec.save('neonVoidArcadeHigh', profile.arcadeHigh); } }
+                if (profile.bossRushBest) { let cur = parseInt(_nvSec.load('neonVoidBossRushBest', 0)) || 0; _nvSec.save('neonVoidBossRushBest', Math.max(cur, profile.bossRushBest)); }
+                if (profile.settings) { try { _nvSec.save('neonVoidSettings', profile.settings); } catch(e){} }
+                if (profile.achievements && Array.isArray(profile.achievements)) { let cur = _nvSec.load('neonVoidAchievements', []); let merged = [...new Set([...(Array.isArray(cur)?cur:[]), ...profile.achievements])]; _nvSec.save('neonVoidAchievements', merged); }
+                if (profile.skillTree && Array.isArray(profile.skillTree)) { let cur = _nvSec.load('neonVoidSkillTree', []); let merged = [...new Set([...(Array.isArray(cur)?cur:[]), ...profile.skillTree])]; _nvSec.save('neonVoidSkillTree', merged); }
+                if (profile.prestige) { let cur = parseInt(_nvSec.load('neonVoidPrestige', 0)) || 0; _nvSec.save('neonVoidPrestige', Math.max(cur, profile.prestige)); }
+                if (profile.rebirths) { let cur = parseInt(_nvSec.load('neonVoidRebirths', 0)) || 0; _nvSec.save('neonVoidRebirths', Math.max(cur, profile.rebirths)); }
+                if (profile.ngPlus === '1') _nvSec.save('neonVoidNGPlus', '1');
+                if (profile.secretItems) _nvSec.save('neonVoidSecretItems', profile.secretItems);
+                if (profile.nemesis) _nvSec.save('neonVoidNemesis', profile.nemesis);
+                if (profile.hudTheme) { hudTheme = profile.hudTheme; _nvSec.save('neonVoidHUDTheme', profile.hudTheme); }
+                if (profile.loan) _nvSec.save('neonVoidLoan', profile.loan);
+                if (profile.bountyProgress) _nvSec.save('neonVoidBountyProgress', profile.bountyProgress);
+                if (profile.materials) { let cur = _nvSec.load('neonVoidMaterials', {}); let merged = typeof cur === 'object' && cur ? cur : {}; Object.keys(profile.materials).forEach(k => { merged[k] = Math.max(merged[k]||0, profile.materials[k]); }); _nvSec.save('neonVoidMaterials', merged); }
+                if (profile.customColor) _nvSec.save('neonVoidCustomColor', profile.customColor);
+                if (profile.customSkin) _nvSec.save('neonVoidCustomSkin', profile.customSkin);
+                if (profile.tutorialDone === '1') _nvSec.save('neonVoidTutorialDone', '1');
+                if (profile.battlePass) { let cur = _nvSec.load('neonVoidBP', null); if (!cur || (profile.battlePass.tier > (cur.tier||0))) _nvSec.save('neonVoidBP', profile.battlePass); }
+                // Achievement forge unlocks
+                if (profile.forgeDmg === '1') _nvSec.save('neonVoidAch_forge_dmg', '1');
+                if (profile.forgeHp === '1') _nvSec.save('neonVoidAch_forge_hp', '1');
+                if (profile.forgeRegen === '1') _nvSec.save('neonVoidAch_forge_regen', '1');
+                if (profile.forgeFr === '1') _nvSec.save('neonVoidAch_forge_fr', '1');
+                if (profile.forgeSpd === '1') _nvSec.save('neonVoidAch_forge_spd', '1');
+                console.log('Cloud profile fully loaded for ' + currentUsername);
             } catch(e) { console.warn('Cloud fetch failed:', e.message); }
         }
 
@@ -9109,12 +9137,40 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
             let saveData = {
                 name: currentUsername,
                 coins: totalCoins,
-                upgrades: purchasedUpgrades,
+                upgrades: [...purchasedUpgrades],
                 skins: unlockedSkins,
                 equippedSkin: equippedSkin,
                 stage: parseInt(_nvSec.load('neonVoidStage', 1)) || 1,
                 totalKills: parseInt(_nvSec.load('neonVoidTotalKills', 0)) || 0,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                // Full save data
+                wispSkins: unlockedWispSkins,
+                equippedWispSkin: equippedWispSkin,
+                highScore: parseInt(_nvSec.load('neonVoidHighScore', 0)) || 0,
+                arcadeHigh: parseInt(_nvSec.load('neonVoidArcadeHigh', 0)) || 0,
+                bossRushBest: parseInt(_nvSec.load('neonVoidBossRushBest', 0)) || 0,
+                settings: _nvSec.load('neonVoidSettings', null),
+                achievements: _nvSec.load('neonVoidAchievements', []),
+                skillTree: _nvSec.load('neonVoidSkillTree', []),
+                prestige: parseInt(_nvSec.load('neonVoidPrestige', 0)) || 0,
+                rebirths: parseInt(_nvSec.load('neonVoidRebirths', 0)) || 0,
+                ngPlus: _nvSec.load('neonVoidNGPlus', ''),
+                secretItems: _nvSec.load('neonVoidSecretItems', [false,false,false]),
+                nemesis: _nvSec.load('neonVoidNemesis', null),
+                hudTheme: _nvSec.load('neonVoidHUDTheme', 'default'),
+                loan: _nvSec.load('neonVoidLoan', null),
+                bountyProgress: _nvSec.load('neonVoidBountyProgress', {}),
+                materials: _nvSec.load('neonVoidMaterials', {}),
+                customColor: _nvSec.load('neonVoidCustomColor', '#ffffff'),
+                customSkin: _nvSec.load('neonVoidCustomSkin', null),
+                tutorialDone: _nvSec.load('neonVoidTutorialDone', ''),
+                battlePass: _nvSec.load('neonVoidBP', null),
+                // Achievement forge unlocks
+                forgeDmg: _nvSec.load('neonVoidAch_forge_dmg', ''),
+                forgeHp: _nvSec.load('neonVoidAch_forge_hp', ''),
+                forgeRegen: _nvSec.load('neonVoidAch_forge_regen', ''),
+                forgeFr: _nvSec.load('neonVoidAch_forge_fr', ''),
+                forgeSpd: _nvSec.load('neonVoidAch_forge_spd', '')
             };
             try {
                 let res = await fetch(`${CLOUD_API}/save/${saveKey}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(saveData) });
