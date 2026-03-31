@@ -1,4 +1,4 @@
-const CACHE_NAME = 'neon-void-v13';
+const CACHE_NAME = 'neon-void-v14';
 const ASSETS = [
   '/',
   '/index.html',
@@ -25,7 +25,8 @@ const ASSETS = [
   '/games/tetris.html',
   '/games/tower-defense.html',
   '/games/tower-defense-2.html',
-  '/games/wordle.html'
+  '/games/wordle.html',
+  '/og.html'
 ];
 
 // Install: cache all game files

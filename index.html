@@ -3187,15 +3187,7 @@
             triggerChroma(3);
             // Expanding ring
             entities.texts.push({ x: player.x, y: player.y, life: 30, draw(ctx) { let progress = 1 - this.life/30; ctx.save(); ctx.strokeStyle = '#00ffcc'; ctx.lineWidth = 3 - progress*3; ctx.globalAlpha = 1 - progress; ctx.beginPath(); ctx.arc(this.x, this.y, progress*120, 0, Math.PI*2); ctx.stroke(); ctx.restore(); }, update() { this.life--; } });
-            // OG mode: simple HP boost, no perk selection
-            if (state._ogMode) {
-                player.hp = Math.min(state.stats.maxHp, player.hp + 20);
-                spawnText(player.x, player.y - 40, 'LEVEL UP! +20 HP', '#00ffcc', 18);
-                playSound('powerup');
-                if (state.pendingLevels && state.pendingLevels > 0) { state.pendingLevels--; setTimeout(() => triggerLevelUp(), 50); }
-                return;
-            }
-            state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.innerHTML = '';
+state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.innerHTML = '';
             let pool = [...PERKS].sort(() => 0.5 - Math.random()); let choices = []; 
             while (choices.length < 3) choices.push(pool.pop()); 
             choices.forEach(p => { 
@@ -3434,23 +3426,82 @@
             // Feature 41: Survival Arena - circular boundary, progressive waves
             if (state.mode === 'survival_arena') {
                 survivalArenaTime++;
-                let arenaR = Math.min(canvas.width, canvas.height) * 0.45;
+                let wave = Math.floor(survivalArenaTime / 900) + 1; // New wave every 15s
+                let arenaR = Math.max(120, Math.min(canvas.width, canvas.height) * 0.45 - wave * 3); // Arena SHRINKS over time
                 let cx = canvas.width/2, cy = canvas.height/2;
-                // Draw arena boundary
-                ctx.save(); ctx.strokeStyle = 'rgba(0,255,204,0.4)'; ctx.lineWidth = 3; ctx.setLineDash([10,10]);
-                ctx.beginPath(); ctx.arc(cx, cy, arenaR, 0, Math.PI*2); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
-                // Keep player inside arena
-                let pd = Math.hypot(player.x-cx, player.y-cy);
-                if (pd > arenaR-10) { let pa = Math.atan2(player.y-cy, player.x-cx); player.x = cx+Math.cos(pa)*(arenaR-10); player.y = cy+Math.sin(pa)*(arenaR-10); }
-                // Progressive spawning every 30s
-                let difficulty = 1 + Math.floor(survivalArenaTime/1800);
-                if (state.frame % Math.max(20, 60-difficulty*5) === 0 && entities.enemies.length < 15+difficulty*3) {
-                    let a = Math.random()*Math.PI*2; let ex = cx+Math.cos(a)*arenaR; let ey = cy+Math.sin(a)*arenaR;
-                    let types=['chaser','shooter','rammer','sniper','tank'];
-                    entities.enemies.push(new Enemy(ex,ey,types[Math.min(difficulty-1,types.length-1)]));
+                // Draw arena boundary with pulsing neon glow
+                ctx.save();
+                let pulse = 0.4 + Math.sin(state.frame * 0.05) * 0.2;
+                let arenaHue = (state.frame * 0.5) % 360;
+                ctx.strokeStyle = `hsla(${arenaHue}, 100%, 60%, ${pulse})`;
+                ctx.lineWidth = 3 + Math.sin(state.frame*0.03)*1;
+                ctx.shadowBlur = 15; ctx.shadowColor = `hsl(${arenaHue}, 100%, 60%)`;
+                ctx.beginPath(); ctx.arc(cx, cy, arenaR, 0, Math.PI*2); ctx.stroke();
+                // Inner danger zone warning when arena is small
+                if (arenaR < 200) {
+                    ctx.strokeStyle = 'rgba(255,0,0,0.3)'; ctx.lineWidth = 1; ctx.shadowBlur = 0;
+                    ctx.beginPath(); ctx.arc(cx, cy, arenaR * 0.5, 0, Math.PI*2); ctx.stroke();
                 }
-                // Show timer
-                if (state.frame % 60 === 0) { let secs = Math.floor(survivalArenaTime/60); spawnText(canvas.width/2, 50, `SURVIVED: ${Math.floor(secs/60)}:${(secs%60).toString().padStart(2,'0')}`, '#00ffcc', 18); }
+                ctx.restore();
+                // Keep player inside arena — damage if touching edge
+                let pd = Math.hypot(player.x-cx, player.y-cy);
+                if (pd > arenaR-10) {
+                    let pa = Math.atan2(player.y-cy, player.x-cx);
+                    player.x = cx+Math.cos(pa)*(arenaR-10); player.y = cy+Math.sin(pa)*(arenaR-10);
+                    if (state.frame % 10 === 0) { player.takeDamage(5); spawnParticles(player.x, player.y, `hsl(${arenaHue},100%,60%)`, 3); }
+                }
+                // Keep enemies inside arena
+                for (let e of entities.enemies) {
+                    if (!e) continue;
+                    let ed = Math.hypot(e.x-cx, e.y-cy);
+                    if (ed > arenaR) { let ea = Math.atan2(e.y-cy, e.x-cx); e.x = cx+Math.cos(ea)*(arenaR-5); e.y = cy+Math.sin(ea)*(arenaR-5); }
+                }
+                // Progressive spawning — gets faster and meaner
+                let allTypes = ['chaser','shooter','rammer','sniper','tank','swarm','pulsar','orbiter','splitter','bomber','berserker','leech','cloaked','teleporter','heavy_shooter'];
+                let availTypes = allTypes.slice(0, Math.min(allTypes.length, 3 + wave));
+                let maxEnemies = Math.min(50, 10 + wave * 4);
+                let spawnRate = Math.max(5, 30 - wave * 2);
+                if (state.frame % spawnRate === 0 && entities.enemies.length < maxEnemies) {
+                    let spawnCount = Math.min(3, 1 + Math.floor(wave / 3));
+                    for (let s = 0; s < spawnCount; s++) {
+                        let a = Math.random()*Math.PI*2;
+                        let ex = cx+Math.cos(a)*(arenaR-5); let ey = cy+Math.sin(a)*(arenaR-5);
+                        let t = availTypes[Math.floor(Math.random()*availTypes.length)];
+                        let ne = new Enemy(ex, ey, t);
+                        // Scale enemy HP with wave
+                        ne.hp *= (1 + wave * 0.2); ne.maxHp = ne.hp;
+                        ne.speed *= (1 + wave * 0.05);
+                        entities.enemies.push(ne);
+                    }
+                }
+                // Wave announcement
+                if (survivalArenaTime % 900 === 1) {
+                    spawnText(cx, cy - 60, `WAVE ${wave}`, '#ff0055', 28);
+                    shakeScreen(15);
+                    playSound('hit');
+                    if (wave % 3 === 0) spawnText(cx, cy - 30, 'ARENA SHRINKING!', '#ffcc00', 16);
+                }
+                // Mini-boss every 5 waves
+                if (wave >= 5 && wave % 5 === 0 && survivalArenaTime % 900 === 60 && !activeBoss) {
+                    let bossIdx = Math.min(19, Math.floor(wave / 5) - 1);
+                    activeBoss = new Boss(bossIdx);
+                    activeBoss.hp *= 0.5; activeBoss.maxHp = activeBoss.hp; // Half HP arena bosses
+                    activeBoss.x = cx; activeBoss.y = cy - 50;
+                    spawnText(cx, cy, 'ARENA BOSS!', '#ff0055', 24);
+                }
+                // Powerup drops every 20s
+                if (survivalArenaTime % 1200 === 0) {
+                    let pa = Math.random()*Math.PI*2; let pr = Math.random()*arenaR*0.6;
+                    let p = new Powerup(cx + Math.cos(pa)*pr, cy + Math.sin(pa)*pr);
+                    entities.powerups.push(p);
+                }
+                // HUD — show wave, timer, arena size
+                let secs = Math.floor(survivalArenaTime/60);
+                let timeStr = `${Math.floor(secs/60)}:${(secs%60).toString().padStart(2,'0')}`;
+                ctx.save(); ctx.font = 'bold 16px monospace'; ctx.textAlign = 'center';
+                ctx.fillStyle = '#00ffcc'; ctx.shadowBlur = 10; ctx.shadowColor = '#00ffcc';
+                ctx.fillText(`WAVE ${wave} | ${timeStr} | ${entities.enemies.length} ENEMIES`, cx, 25);
+                ctx.restore();
                 return;
             }
             // Feature 45: Escort Mission
@@ -3594,9 +3645,21 @@
 
         let _lastFrameTime = 0;
         let _lagCompensation = 1;
+        // Performance: cap entity arrays each frame to prevent runaway lag
+        function _perfCap() {
+            if (entities.particles.length > MAX_PARTICLES) entities.particles.length = MAX_PARTICLES;
+            if (entities.texts.length > 60) entities.texts.splice(0, entities.texts.length - 40);
+            if (entities.trails.length > 80) entities.trails.splice(0, entities.trails.length - 50);
+            // Kill offscreen enemy bullets aggressively
+            for (let i = entities.eBullets.length - 1; i >= 0; i--) {
+                let b = entities.eBullets[i];
+                if (b && (b.x < -100 || b.x > canvas.width+100 || b.y < -100 || b.y > canvas.height+100)) entities.eBullets.splice(i, 1);
+            }
+        }
         function update(timestamp) {
             if (!state.active || state.paused) { if (!state.active && is3DActive && renderer3d) renderer3d.domElement.style.display = 'none'; return; }
             if (bossCinematic) return;
+            _perfCap();
             checkBossCinematic();
             updateTutorial();
             // --- LAG COMPENSATION: prevent low-FPS abuse ---
@@ -3818,7 +3881,8 @@
 
                         if (activeBoss && activeBoss.hp <= 0 && !activeBoss.isDead) { activeBoss.isDead = true; handleBossDeath(); }
 
-                        if (entities.eBullets.length > 80) entities.eBullets.splice(0, entities.eBullets.length - 60);
+                        let eBulletCap = state._bulletHellMode ? 400 : 80;
+                        if (entities.eBullets.length > eBulletCap) entities.eBullets.splice(0, entities.eBullets.length - Math.floor(eBulletCap * 0.75));
                         updateArr(entities.eBullets, (b, i) => {
                             // Client in co-op: skip damage (host sends player-hit), but still render/update
                             if (isCoopClient) return false;
@@ -3979,8 +4043,40 @@
             if (state.active && !state.paused && (state.mode === 'tournament' || state.mode === 'tournament_win')) { try { updateTournament(ctx); } catch(e){} }
             // One-hit mode: override enemy HP on spawn
             if (state.active && state._oneHitMode) { for (let e of entities.enemies) { if (e && e.hp > 1 && !e._oneHitSet) { e.hp = 1; e.maxHp = 1; e._oneHitSet = true; } } }
-            // Bullet hell mode: 10x enemy fire rate boost
-            if (state.active && state._bulletHellMode) { for (let e of entities.enemies) { if (e && e.shootCd !== undefined) e.shootCd = Math.max(0, e.shootCd - 9); } if (activeBoss && activeBoss.shootCd !== undefined) activeBoss.shootCd = Math.max(0, activeBoss.shootCd - 9); }
+            // Bullet hell mode: extreme projectile mayhem
+            if (state.active && state._bulletHellMode) {
+                // All enemies fire constantly
+                for (let e of entities.enemies) { if (e && e.shootCd !== undefined) e.shootCd = 0; }
+                if (activeBoss && activeBoss.shootCd !== undefined) activeBoss.shootCd = 0;
+                // Ambient bullet patterns from edges
+                if (state.frame % 4 === 0 && entities.eBullets.length < 300) {
+                    let pattern = state.frame % 300;
+                    if (pattern < 100) {
+                        // Spiral from center
+                        let ang = state.frame * 0.15;
+                        let spd = 3;
+                        entities.eBullets.push({ x: canvas.width/2, y: canvas.height/2, vx: Math.cos(ang)*spd, vy: Math.sin(ang)*spd, dmg: 8, radius: 3, color: '#ff4400', life: 200 });
+                        entities.eBullets.push({ x: canvas.width/2, y: canvas.height/2, vx: Math.cos(ang+Math.PI)*spd, vy: Math.sin(ang+Math.PI)*spd, dmg: 8, radius: 3, color: '#ff8800', life: 200 });
+                    } else if (pattern < 200) {
+                        // Rain from top
+                        entities.eBullets.push({ x: Math.random()*canvas.width, y: -5, vx: (Math.random()-0.5)*1.5, vy: 3+Math.random()*2, dmg: 10, radius: 3, color: '#ff0055', life: 250 });
+                    } else {
+                        // Cross pattern from edges
+                        if (state.frame % 8 === 0) {
+                            let ey = Math.random()*canvas.height;
+                            entities.eBullets.push({ x: -5, y: ey, vx: 4, vy: 0, dmg: 10, radius: 4, color: '#cc44ff', life: 200 });
+                            entities.eBullets.push({ x: canvas.width+5, y: ey, vx: -4, vy: 0, dmg: 10, radius: 4, color: '#cc44ff', life: 200 });
+                        }
+                    }
+                }
+                // Boss spawns ring patterns
+                if (activeBoss && state.frame % 30 === 0) {
+                    for (let i = 0; i < 12; i++) {
+                        let a = (Math.PI*2/12)*i + state.frame*0.02;
+                        entities.eBullets.push({ x: activeBoss.x, y: activeBoss.y, vx: Math.cos(a)*3, vy: Math.sin(a)*3, dmg: 12, radius: 4, color: activeBoss.color || '#ff0055', life: 180 });
+                    }
+                }
+            }
 
             // ==================== SECURITY: Integrity Checks (FIX 5 + FIX 6) ====================
             if (state.active && !state.paused && state.frame % 300 === 0) {
@@ -6582,22 +6678,9 @@
             });
         }
 
-        // ==================== OG MODE — Classic stripped-down gameplay ====================
+        // ==================== OG MODE — The original Gemini game ====================
         function startOG() {
-            ui.mainOverlay.classList.add('hidden');
-            // No class select, no weapon select — just pure gameplay
-            state = { active: true, paused: false, mode: 'og', frame: 0, score: 0, combo: 1, xp: 0, level: 1, xpNeeded: 100, runCoins: 0, kills: 0, shake: 0, currentStage: 1, bossesDefeated: 0, difficulty: 1, nextBossLevel: 5, spawningBoss: false, warping: true, warpFrames: 0, hardcore: false, hyper: false, stats: getBaseStats() };
-            // Reset stats to basic — no upgrades, no perks
-            state.stats.dmgMulti = 1; state.stats.speedMulti = 1; state.stats.fireRateMulti = 1;
-            state.stats.maxHp = 100; state.stats.projCount = 1; state.stats.regen = 0;
-            state.stats.critChance = 0; state.stats.piercing = 0; state.stats.spread = 0;
-            state.stats.coinMulti = 1; state.stats.xpMulti = 1; state.stats.magnet = false;
-            state.playerClass = 'fighter'; selectedClass = 'fighter';
-            state._ogMode = true;
-            ui.status.innerText = 'OG MODE - BACK TO BASICS';
-            initGameBase();
-            spawnText(canvas.width/2, canvas.height/2, 'OG MODE', '#88ff88', 28);
-            spawnText(canvas.width/2, canvas.height/2 + 40, 'No upgrades. No perks. Just you and the void.', '#88ff8888', 14);
+            window.location.href = 'og.html';
         }
 
         // ==================== MODE 55: CHAOS MODE ====================
@@ -6820,10 +6903,13 @@
                     if (selectedWeapon) selectedWeapon.apply();
                     applyClassStats(); state.playerClass = selectedClass;
                     state.stats.maxHp = state.stats.maxHp * 3;
+                    state.stats.fireRateMulti *= 5;
+                    state.stats.projCount += 4;
+                    state.stats.spread = Math.max(state.stats.spread, 25);
                     state._bulletHellMode = true;
-                    ui.status.innerText = 'BULLET HELL - 10x ENEMY FIRE RATE!';
+                    ui.status.innerText = 'BULLET HELL - ABSOLUTE CARNAGE!';
                     initGameBase();
-                    spawnText(canvas.width/2, canvas.height/2, 'BULLET HELL - DODGE EVERYTHING!', '#ff8800', 22);
+                    spawnText(canvas.width/2, canvas.height/2, 'BULLET HELL - WALLS OF DEATH!', '#ff4400', 26);
                 });
             });
         }
