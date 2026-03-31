@@ -6601,8 +6601,13 @@
         }
 
         // ==================== MODE 55: CHAOS MODE ====================
-        const CHAOS_MODIFIERS = ['LOW_GRAVITY','DOUBLE_SPEED','INVERTED_CONTROLS','GIANT_ENEMIES','TINY_PLAYER','RICOCHET_BULLETS','DARKNESS'];
-        let chaosState = { currentMod: null, modTimer: 0, modDuration: 30*60 };
+        const CHAOS_MODIFIERS = [
+            'LOW_GRAVITY','DOUBLE_SPEED','INVERTED_CONTROLS','GIANT_ENEMIES','TINY_PLAYER',
+            'RICOCHET_BULLETS','DARKNESS','EARTHQUAKE','BULLET_RAIN','ENEMY_FRENZY',
+            'DRUNK_MODE','SIZE_PULSE','GRAVITY_FLIP','NUKE_RAIN','FRIENDLY_FIRE',
+            'BLACKOUT_FLASH','HYPER_SPAWN','SCRAMBLE','RUBBER_WALLS','EXPLOSIVE_ENEMIES'
+        ];
+        let chaosState = { activeMods: [], modTimers: [], maxActive: 2, swapInterval: 8*60, swapTimer: 0, chaosLevel: 1 };
 
         function startChaos() {
             ui.mainOverlay.classList.add('hidden');
@@ -6611,47 +6616,180 @@
                     state = { active: true, paused: false, mode: 'chaos', frame: 0, score: 0, combo: 1, xp: 0, level: 1, xpNeeded: 100, runCoins: 0, kills: 0, shake: 0, currentStage: 1, bossesDefeated: 0, difficulty: 1, nextBossLevel: 5, spawningBoss: false, warping: true, warpFrames: 0, hardcore: false, hyper: false, stats: getBaseStats() };
                     if (selectedWeapon) selectedWeapon.apply();
                     applyClassStats(); state.playerClass = selectedClass;
-                    chaosState = { currentMod: null, modTimer: 0, modDuration: 30*60 };
-                    ui.status.innerText = 'CHAOS MODE - RANDOM MODIFIERS EVERY 30s!';
+                    chaosState = { activeMods: [], modTimers: [], maxActive: 2, swapInterval: 8*60, swapTimer: 0, chaosLevel: 1 };
+                    ui.status.innerText = 'CHAOS MODE - PURE MAYHEM!';
                     initGameBase();
-                    setTimeout(() => pickNextChaosModifier(), 2000);
+                    setTimeout(() => { pickNextChaosModifier(); pickNextChaosModifier(); }, 1500);
                 });
             });
         }
 
         function pickNextChaosModifier() {
             if (!state.active || state.mode !== 'chaos') return;
-            let prev = chaosState.currentMod;
-            let pool = CHAOS_MODIFIERS.filter(m => m !== prev);
-            chaosState.currentMod = pool[Math.floor(Math.random()*pool.length)];
-            chaosState.modTimer = chaosState.modDuration;
-            spawnText(canvas.width/2, canvas.height/2 - 40, 'NEW MODIFIER!', '#ff8800', 22);
-            spawnText(canvas.width/2, canvas.height/2, chaosState.currentMod.replace(/_/g,' '), '#ffcc00', 20);
+            let pool = CHAOS_MODIFIERS.filter(m => !chaosState.activeMods.includes(m));
+            if (pool.length === 0) pool = [...CHAOS_MODIFIERS];
+            let pick = pool[Math.floor(Math.random()*pool.length)];
+            chaosState.activeMods.push(pick);
+            chaosState.modTimers.push(5*60 + Math.floor(Math.random()*10*60)); // 5-15 sec
+            let colors = ['#ff0055','#ffcc00','#00ffcc','#ff8800','#cc44ff','#00ff88','#ff4400','#44ccff'];
+            spawnText(canvas.width/2, canvas.height/2 - 20 - chaosState.activeMods.length*25, '+' + pick.replace(/_/g,' ') + '!', colors[Math.floor(Math.random()*colors.length)], 18);
             playSound('shield');
+            shakeScreen(15);
         }
 
         function updateChaosMode(ctx) {
             if (!state.active || state.mode !== 'chaos') return;
-            chaosState.modTimer--;
-            if (chaosState.modTimer <= 0) pickNextChaosModifier();
-            let mod = chaosState.currentMod;
-            if (!mod) return;
-            // Apply modifier effects
-            if (mod === 'GIANT_ENEMIES') { for (let e of entities.enemies) { if (e && !e._chaosGiant) { e.radius = (ENEMY_TYPES[e.type] && ENEMY_TYPES[e.type].r ? ENEMY_TYPES[e.type].r : (e.radius||10)) * 2; e._chaosGiant = true; } } } else { for (let e of entities.enemies) { if (e && e._chaosGiant) { e.radius = ENEMY_TYPES[e.type] && ENEMY_TYPES[e.type].r ? ENEMY_TYPES[e.type].r : (e.radius/2); e._chaosGiant = false; } } }
-            if (mod === 'TINY_PLAYER' && player) player.radius = 5;
-            if (mod === 'DOUBLE_SPEED' && player) { /* handled in player update via state */ state._chaosDoubleSpeed = true; } else { state._chaosDoubleSpeed = false; }
-            if (mod === 'LOW_GRAVITY' && player) { state._chaosLowGrav = true; } else { state._chaosLowGrav = false; }
-            if (mod === 'INVERTED_CONTROLS') { state._chaosInverted = true; } else { state._chaosInverted = false; }
-            if (mod === 'RICOCHET_BULLETS') { state._chaosRicochet = true; } else { state._chaosRicochet = false; }
-            if (mod === 'DARKNESS') {
-                ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.82)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-                if (player) { let grad = ctx.createRadialGradient(player.x,player.y,0,player.x,player.y,120); grad.addColorStop(0,'rgba(0,0,0,0)'); grad.addColorStop(1,'rgba(0,0,0,0.82)'); ctx.fillStyle = grad; ctx.fillRect(player.x-120,player.y-120,240,240); } ctx.restore();
+            // Escalate chaos over time — add more simultaneous modifiers
+            chaosState.chaosLevel = 1 + Math.floor(state.frame / (60*60)); // +1 every minute
+            chaosState.maxActive = Math.min(6, 2 + Math.floor(chaosState.chaosLevel / 2));
+            // Swap timer — periodically add new modifiers
+            chaosState.swapTimer++;
+            let swapRate = Math.max(3*60, chaosState.swapInterval - chaosState.chaosLevel*60); // gets faster
+            if (chaosState.swapTimer >= swapRate) {
+                chaosState.swapTimer = 0;
+                if (chaosState.activeMods.length < chaosState.maxActive) pickNextChaosModifier();
+                else { chaosState.activeMods.shift(); chaosState.modTimers.shift(); pickNextChaosModifier(); }
             }
-            // HUD
-            let secLeft = Math.ceil(chaosState.modTimer/60);
-            ctx.save(); ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center';
-            ctx.fillStyle = '#ffcc00'; ctx.shadowColor = '#ffcc00'; ctx.shadowBlur = 10;
-            ctx.fillText(`CHAOS: ${(mod||'').replace(/_/g,' ')} (${secLeft}s)`, canvas.width/2, 28);
+            // Tick down individual mod timers
+            for (let i = chaosState.modTimers.length - 1; i >= 0; i--) {
+                chaosState.modTimers[i]--;
+                if (chaosState.modTimers[i] <= 0) {
+                    chaosState.activeMods.splice(i, 1);
+                    chaosState.modTimers.splice(i, 1);
+                    pickNextChaosModifier();
+                }
+            }
+            // Reset all chaos flags
+            state._chaosDoubleSpeed = false; state._chaosLowGrav = false;
+            state._chaosInverted = false; state._chaosRicochet = false;
+            state._chaosEarthquake = false; state._chaosDrunk = false;
+            // Apply ALL active modifiers simultaneously
+            for (let mod of chaosState.activeMods) {
+                if (mod === 'GIANT_ENEMIES') { for (let e of entities.enemies) { if (e && !e._chaosGiant) { e.radius = (ENEMY_TYPES[e.type] && ENEMY_TYPES[e.type].r ? ENEMY_TYPES[e.type].r : (e.radius||10)) * 2.5; e._chaosGiant = true; } } }
+                if (mod === 'TINY_PLAYER' && player) player.radius = 4;
+                if (mod === 'DOUBLE_SPEED') state._chaosDoubleSpeed = true;
+                if (mod === 'LOW_GRAVITY') state._chaosLowGrav = true;
+                if (mod === 'INVERTED_CONTROLS') state._chaosInverted = true;
+                if (mod === 'RICOCHET_BULLETS') state._chaosRicochet = true;
+                if (mod === 'DARKNESS') {
+                    ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.88)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    if (player) { let grad = ctx.createRadialGradient(player.x,player.y,0,player.x,player.y,100); grad.addColorStop(0,'rgba(0,0,0,0)'); grad.addColorStop(1,'rgba(0,0,0,0.88)'); ctx.fillStyle = grad; ctx.fillRect(player.x-100,player.y-100,200,200); } ctx.restore();
+                }
+                if (mod === 'EARTHQUAKE') {
+                    state._chaosEarthquake = true;
+                    if (state.frame % 3 === 0) state.shake = Math.max(state.shake, 4 + Math.sin(state.frame*0.05)*3);
+                }
+                if (mod === 'BULLET_RAIN') {
+                    if (state.frame % 15 === 0) {
+                        let bx = Math.random() * canvas.width;
+                        entities.eBullets.push({ x: bx, y: -10, vx: (Math.random()-0.5)*2, vy: 4 + Math.random()*3, dmg: 15, radius: 4, color: '#ff4400', life: 300 });
+                    }
+                }
+                if (mod === 'ENEMY_FRENZY') {
+                    if (state.frame % 20 === 0 && entities.enemies.length < 60) {
+                        let types = Object.keys(ENEMY_TYPES).filter(t => t !== 'dummy' && t !== 'bad');
+                        let t = types[Math.floor(Math.random()*types.length)];
+                        let side = Math.random() < 0.5 ? -30 : canvas.width + 30;
+                        entities.enemies.push(new Enemy(side, Math.random()*canvas.height, t));
+                    }
+                }
+                if (mod === 'DRUNK_MODE') {
+                    state._chaosDrunk = true;
+                    if (player) {
+                        player.x += Math.sin(state.frame * 0.07) * 1.5;
+                        player.y += Math.cos(state.frame * 0.09) * 1.0;
+                    }
+                }
+                if (mod === 'SIZE_PULSE') {
+                    if (player) player.radius = 8 + Math.sin(state.frame * 0.05) * 6;
+                    for (let e of entities.enemies) { if (e) e.radius = (ENEMY_TYPES[e.type]?.r || 12) * (1 + Math.sin(state.frame*0.03)*0.5); }
+                }
+                if (mod === 'GRAVITY_FLIP') {
+                    for (let e of entities.enemies) { if (e) { e.y -= 0.5; if (e.y < -50) e.y = canvas.height + 50; } }
+                }
+                if (mod === 'NUKE_RAIN') {
+                    if (state.frame % 180 === 0) {
+                        let nx = Math.random() * canvas.width, ny = Math.random() * canvas.height;
+                        spawnParticles(nx, ny, '#ff0055', 20, 3);
+                        shakeScreen(20);
+                        for (let e of entities.enemies) {
+                            if (e && Math.hypot(e.x-nx, e.y-ny) < 150) { e.hp -= 500; spawnParticles(e.x, e.y, '#ff0055', 5); }
+                        }
+                        if (player && Math.hypot(player.x-nx, player.y-ny) < 150) player.takeDamage(30);
+                        spawnText(nx, ny, 'NUKE!', '#ff0055', 22);
+                    }
+                }
+                if (mod === 'FRIENDLY_FIRE') {
+                    // Enemy bullets can hurt other enemies
+                    for (let b of entities.eBullets) {
+                        if (b && !b._ffChecked) { b._ffChecked = true;
+                            for (let e of entities.enemies) {
+                                if (e && Math.hypot(e.x-b.x, e.y-b.y) < e.radius + (b.radius||4)) { e.hp -= (b.dmg||20); }
+                            }
+                        }
+                    }
+                }
+                if (mod === 'BLACKOUT_FLASH') {
+                    if (state.frame % 120 < 15) {
+                        ctx.save(); ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.8; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.restore();
+                    } else if (state.frame % 120 > 60 && state.frame % 120 < 90) {
+                        ctx.save(); ctx.fillStyle = '#000000'; ctx.globalAlpha = 0.95; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.restore();
+                    }
+                }
+                if (mod === 'HYPER_SPAWN') {
+                    if (state.frame % 8 === 0 && entities.enemies.length < 80) {
+                        let types = ['chaser','swarm','rammer','shooter'];
+                        entities.enemies.push(new Enemy(Math.random()*canvas.width, -20, types[Math.floor(Math.random()*types.length)]));
+                    }
+                }
+                if (mod === 'SCRAMBLE') {
+                    if (state.frame % 300 === 0 && player) {
+                        player.x = Math.random() * (canvas.width - 40) + 20;
+                        player.y = Math.random() * (canvas.height - 40) + 20;
+                        spawnParticles(player.x, player.y, '#00ffcc', 10, 2);
+                        spawnText(player.x, player.y - 30, 'SCRAMBLED!', '#00ffcc', 16);
+                    }
+                }
+                if (mod === 'RUBBER_WALLS') {
+                    for (let b of entities.bullets) {
+                        if (b) {
+                            if (b.x < 0) { b.x = 0; b.vx = Math.abs(b.vx); }
+                            if (b.x > canvas.width) { b.x = canvas.width; b.vx = -Math.abs(b.vx); }
+                            if (b.y < 0) { b.y = 0; b.vy = Math.abs(b.vy); }
+                            if (b.y > canvas.height) { b.y = canvas.height; b.vy = -Math.abs(b.vy); }
+                        }
+                    }
+                }
+                if (mod === 'EXPLOSIVE_ENEMIES') {
+                    // When enemies die near player, they explode
+                    for (let e of entities.enemies) {
+                        if (e && e.hp <= 0 && !e._exploded) {
+                            e._exploded = true;
+                            if (player && Math.hypot(player.x-e.x, player.y-e.y) < 80) {
+                                player.takeDamage(20);
+                                spawnParticles(e.x, e.y, '#ff4400', 15, 2);
+                                shakeScreen(8);
+                            }
+                        }
+                    }
+                }
+            }
+            // Reset giant if not active
+            if (!chaosState.activeMods.includes('GIANT_ENEMIES')) { for (let e of entities.enemies) { if (e && e._chaosGiant) { e.radius = ENEMY_TYPES[e.type]?.r || (e.radius/2.5); e._chaosGiant = false; } } }
+            // Reset player radius if no size mods
+            if (!chaosState.activeMods.includes('TINY_PLAYER') && !chaosState.activeMods.includes('SIZE_PULSE') && player) { if (player.radius < 7 || player.radius > 20) player.radius = 10; }
+            // HUD — show all active modifiers stacked
+            ctx.save(); ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center';
+            ctx.shadowBlur = 8;
+            let chaosColors = ['#ff0055','#ffcc00','#00ffcc','#ff8800','#cc44ff','#00ff88'];
+            for (let i = 0; i < chaosState.activeMods.length; i++) {
+                let c = chaosColors[i % chaosColors.length];
+                ctx.fillStyle = c; ctx.shadowColor = c;
+                let secLeft = Math.ceil((chaosState.modTimers[i]||0)/60);
+                ctx.fillText(`${chaosState.activeMods[i].replace(/_/g,' ')} (${secLeft}s)`, canvas.width/2, 22 + i*16);
+            }
+            ctx.fillStyle = '#ffffff'; ctx.shadowColor = '#ffffff'; ctx.font = 'bold 10px monospace';
+            ctx.fillText(`CHAOS LV.${chaosState.chaosLevel} | ${chaosState.activeMods.length}/${chaosState.maxActive} MODS`, canvas.width/2, 22 + chaosState.activeMods.length*16 + 4);
             ctx.restore();
         }
 
