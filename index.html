@@ -64,8 +64,16 @@
         .win-theme button:hover { background: #00ff00; color: black; }
         .grid-button { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100px; min-width: 150px; }
         
-        .skin-card { display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; border: 2px solid #fff; background: rgba(0,0,0,0.8); gap: 10px; width: 200px; transition: all 0.2s;}
-        .skin-card button { min-width: 100px; padding: 10px; font-size: 16px; }
+        .skin-card { display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 12px 8px; border: 2px solid #fff; background: rgba(0,0,0,0.8); gap: 6px; width: auto; min-width:0; transition: all 0.2s; border-radius:6px; }
+        .skin-card button { min-width: 80px; padding: 6px 10px; font-size: 13px; }
+        .shop-tab-bar { display:flex; gap:0; width:100%; max-width:1000px; margin:0 auto 15px; overflow-x:auto; -webkit-overflow-scrolling:touch; border-bottom:2px solid #ff005544; }
+        .shop-tab { flex:1; min-width:0; padding:10px 6px; text-align:center; font-family:'Courier New',monospace; font-size:11px; font-weight:bold; letter-spacing:1px; color:#888; background:transparent; border:none; border-bottom:3px solid transparent; cursor:pointer; transition:all 0.2s; white-space:nowrap; }
+        .shop-tab.active { color:#ffcc00; border-bottom-color:#ffcc00; background:rgba(255,204,0,0.08); }
+        .shop-tab:hover { color:#ffcc00aa; }
+        .shop-section { display:none; width:100%; }
+        .shop-section.active { display:flex; }
+        .shop-grid-2col { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; max-width:1000px; margin:0 auto 30px; padding:0 10px; box-sizing:border-box; }
+        @media(min-width:768px) { .shop-grid-2col { grid-template-columns:repeat(3,1fr); } }
         .skin-preview { width: 40px; height: 40px; border-radius: 50%; box-shadow: 0 0 20px currentColor; background: currentColor; margin-bottom: 10px; }
         
         #mobile-controls { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; z-index: 15; pointer-events: none; }
@@ -306,8 +314,8 @@
     </div>
 
     <div id="leaderboard-screen" class="overlay-screen hidden" style="z-index: 22;">
-        <div style="width:100%; height:100%; overflow-y:auto; display:flex; flex-direction:column; align-items:center; padding:50px 0; box-sizing:border-box;">
-            <div class="title-text" style="-webkit-text-stroke: 3px #ffcc00; text-shadow: 0 0 50px #ffcc00; font-size: 60px;">LEADERBOARDS</div>
+        <div style="width:100%; height:100%; overflow-y:auto; display:flex; flex-direction:column; align-items:center; padding:50px 15px; box-sizing:border-box;">
+            <div class="title-text" style="-webkit-text-stroke: 2px #ffcc00; text-shadow: 0 0 50px #ffcc00; font-size: clamp(28px, 8vw, 60px); word-break: break-word; text-align:center; max-width:100%; letter-spacing: 2px;">LEADERBOARDS</div>
             <div style="font-size:11px;color:#00ffcc88;letter-spacing:3px;margin-bottom:15px;display:flex;align-items:center;gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00ffcc88" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> GLOBAL RANKINGS</div>
             <div class="btn-container" style="margin-bottom:20px;flex-wrap:wrap;gap:8px;">
                 <button onclick="showLeaderboard('infinite')" style="border-color:#00ffcc; color:#00ffcc; padding:10px 20px; min-width:100px;">INFINITE</button>
@@ -412,21 +420,43 @@
     </div>
     
     <div id="shop-screen" class="overlay-screen hidden">
-        <div style="width: 100%; height: 100%; overflow-y: auto; display: flex; flex-direction: column; align-items: center; padding: 50px 0; box-sizing: border-box;">
-            <div class="title-text" style="-webkit-text-stroke: 3px #ffcc00; text-shadow: 0 0 50px #ffcc00; font-size: 70px;">THE HANGAR</div>
-            <div class="subtitle-text" id="shop-coin-display" style="color: #ffcc00; font-weight: bold; font-size: 28px;">COINS: 0</div>
-            <h2 style="color: #fff; text-decoration: underline; margin-top: 10px; letter-spacing: 5px;">COSMETICS</h2>
-            <div class="btn-container" id="shop-grid" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; max-width: 1000px; margin-bottom: 30px;"></div>
-            <h2 style="color: #ff0000; text-decoration: underline; margin-top: 20px; letter-spacing: 5px; text-shadow: 0 0 10px #ff0000;">ILLEGAL UPGRADES</h2>
-            <div class="subtitle-text">Purchase these forbidden technologies to permanently buff your ship.</div>
-            <div class="btn-container" id="upgrade-grid" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; max-width: 1000px; margin-bottom: 30px;"></div>
-            <h2 style="color: #ffaa00; text-decoration: underline; margin-top: 20px; letter-spacing: 5px; text-shadow: 0 0 10px #ffaa00;">SKILL TREE</h2>
-            <div class="subtitle-text" style="color:#ffaa0088;">Three paths. Five tiers each. Each tier requires the previous.</div>
-            <div id="skill-tree-container" style="display:flex;flex-wrap:wrap;justify-content:center;gap:30px;max-width:1100px;margin-bottom:30px;"></div>
-            <h2 id="wisp-skins-header" style="color: #00ccff; text-decoration: underline; margin-top: 20px; letter-spacing: 5px; text-shadow: 0 0 10px #00ccff; display: none;">WISP SKINS</h2>
-            <div class="btn-container" id="wisp-skin-grid" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; max-width: 1000px; margin-bottom: 30px;"></div>
-            <h2 style="color: #ff00ff; text-decoration: underline; margin-top: 20px; letter-spacing: 5px; text-shadow: 0 0 20px #ff00ff;">VOID CASINO</h2>
-            <div class="subtitle-text" style="color:#ff00ff88;">Risk your coins for massive rewards. The void always wins... or does it?</div>
+        <div style="width: 100%; height: 100%; overflow-y: auto; display: flex; flex-direction: column; align-items: center; padding: 20px 0 50px; box-sizing: border-box;">
+            <div class="title-text" style="-webkit-text-stroke: 2px #ffcc00; text-shadow: 0 0 50px #ffcc00; font-size: clamp(30px, 9vw, 70px);">THE HANGAR</div>
+            <div class="subtitle-text" id="shop-coin-display" style="color: #ffcc00; font-weight: bold; font-size: 22px; margin-bottom:10px;">COINS: 0</div>
+            <div class="shop-tab-bar">
+                <button class="shop-tab active" onclick="switchShopTab('upgrades')">UPGRADES</button>
+                <button class="shop-tab" onclick="switchShopTab('skins')">SKINS</button>
+                <button class="shop-tab" onclick="switchShopTab('wisps')">WISPS</button>
+                <button class="shop-tab" onclick="switchShopTab('forge')">FORGE</button>
+                <button class="shop-tab" onclick="switchShopTab('skills')">SKILLS</button>
+                <button class="shop-tab" onclick="switchShopTab('casino')">CASINO</button>
+            </div>
+            <div id="shop-section-upgrades" class="shop-section active" style="display:flex;flex-direction:column;align-items:center;">
+                <h2 style="color: #ff0000; text-decoration: underline; margin-top: 10px; letter-spacing: 5px; text-shadow: 0 0 10px #ff0000; font-size:16px;">ILLEGAL UPGRADES</h2>
+                <div class="subtitle-text" style="font-size:12px;">Purchase forbidden technologies to permanently buff your ship.</div>
+                <div class="shop-grid-2col" id="upgrade-grid"></div>
+            </div>
+            <div id="shop-section-skins" class="shop-section" style="display:none;flex-direction:column;align-items:center;">
+                <h2 style="color: #fff; text-decoration: underline; margin-top: 10px; letter-spacing: 5px; font-size:16px;">COSMETICS</h2>
+                <div class="shop-grid-2col" id="shop-grid"></div>
+            </div>
+            <div id="shop-section-wisps" class="shop-section" style="display:none;flex-direction:column;align-items:center;">
+                <h2 id="wisp-skins-header" style="color: #00ccff; text-decoration: underline; margin-top: 10px; letter-spacing: 5px; text-shadow: 0 0 10px #00ccff; font-size:16px;">WISP SKINS</h2>
+                <div class="shop-grid-2col" id="wisp-skin-grid"></div>
+            </div>
+            <div id="shop-section-forge" class="shop-section" style="display:none;flex-direction:column;align-items:center;">
+                <h2 style="color: #00ff88; text-decoration: underline; margin-top: 10px; letter-spacing: 5px; text-shadow: 0 0 10px #00ff88; font-size:16px;">THE FORGE</h2>
+                <div style="color:#888;font-size:12px;margin-bottom:10px;text-align:center;">Combine 3 powerup materials to forge permanent upgrades.</div>
+                <div class="shop-grid-2col" id="forge-grid"></div>
+            </div>
+            <div id="shop-section-skills" class="shop-section" style="display:none;flex-direction:column;align-items:center;">
+                <h2 style="color: #ffaa00; text-decoration: underline; margin-top: 10px; letter-spacing: 5px; text-shadow: 0 0 10px #ffaa00; font-size:16px;">SKILL TREE</h2>
+                <div class="subtitle-text" style="color:#ffaa0088;font-size:12px;">Three paths. Five tiers each. Each tier requires the previous.</div>
+                <div id="skill-tree-container" style="display:flex;flex-wrap:wrap;justify-content:center;gap:30px;max-width:1100px;margin-bottom:30px;"></div>
+            </div>
+            <div id="shop-section-casino" class="shop-section" style="display:none;flex-direction:column;align-items:center;">
+            <h2 style="color: #ff00ff; text-decoration: underline; margin-top: 10px; letter-spacing: 5px; text-shadow: 0 0 20px #ff00ff; font-size:16px;">VOID CASINO</h2>
+            <div class="subtitle-text" style="color:#ff00ff88;font-size:12px;">Risk your coins for massive rewards. The void always wins... or does it?</div>
             <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:20px;max-width:800px;margin-bottom:30px;">
                 <div style="background:rgba(255,0,255,0.05);border:2px solid #ff00ff44;padding:20px;border-radius:8px;text-align:center;width:340px;">
                     <div style="color:#ff00ff;font-size:22px;font-weight:bold;letter-spacing:3px;margin-bottom:8px;">COIN FLIP</div>
@@ -455,14 +485,12 @@
                     </div>
                 </div>
             </div>
-            <h2 style="color: #00ff88; text-decoration: underline; margin-top: 20px; letter-spacing: 5px; text-shadow: 0 0 10px #00ff88;">THE FORGE</h2>
-            <div style="color:#888;font-size:12px;margin-bottom:10px;">Combine 3 powerup materials to forge permanent upgrades. Earn materials by playing runs.</div>
-            <div id="forge-grid" style="display:flex;flex-wrap:wrap;justify-content:center;gap:15px;max-width:900px;margin-bottom:30px;"></div>
-            <h2 style="color: #ff0055; text-decoration: underline; margin-top: 20px; letter-spacing: 5px; text-shadow: 0 0 10px #ff0055;">VOID SERVICES</h2>
-            <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:20px;max-width:800px;margin-bottom:30px;">
-                <button onclick="openLoanShark()" style="border-color:#ff0055;color:#ff0055;box-shadow:0 0 15px #ff0055;padding:15px 30px;font-size:16px;">VOID LENDER<br><span style="font-size:12px">Borrow Coins (2x Repay)</span></button>
-                <button onclick="openVoidSlots()" style="border-color:#aa00ff;color:#aa00ff;box-shadow:0 0 15px #aa00ff;padding:15px 30px;font-size:16px;">VOID SLOT MACHINE<br><span style="font-size:12px">5K per Spin - Jackpot 500K!</span></button>
-                <button onclick="cycleHudTheme()" style="border-color:#44ccff;color:#44ccff;padding:15px 30px;font-size:16px;" id="hud-theme-btn">HUD THEME: DEFAULT<br><span style="font-size:12px">Click to cycle themes</span></button>
+            <h2 style="color: #ff0055; text-decoration: underline; margin-top: 20px; letter-spacing: 5px; text-shadow: 0 0 10px #ff0055; font-size:16px;">VOID SERVICES</h2>
+            <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:15px;max-width:800px;margin-bottom:30px;">
+                <button onclick="openLoanShark()" style="border-color:#ff0055;color:#ff0055;box-shadow:0 0 15px #ff0055;padding:12px 20px;font-size:14px;">VOID LENDER<br><span style="font-size:11px">Borrow Coins (2x Repay)</span></button>
+                <button onclick="openVoidSlots()" style="border-color:#aa00ff;color:#aa00ff;box-shadow:0 0 15px #aa00ff;padding:12px 20px;font-size:14px;">VOID SLOT MACHINE<br><span style="font-size:11px">5K per Spin - Jackpot 500K!</span></button>
+                <button onclick="cycleHudTheme()" style="border-color:#44ccff;color:#44ccff;padding:12px 20px;font-size:14px;" id="hud-theme-btn">HUD THEME: DEFAULT<br><span style="font-size:11px">Click to cycle themes</span></button>
+            </div>
             </div>
             <button onclick="returnToMenu()" style="border-color: #fff; color: #fff; box-shadow: 0 0 20px #fff; margin-bottom: 50px;">BACK TO MENU</button>
         </div>
@@ -5420,6 +5448,16 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
         }
         function openSettings() { cleanupMenuAnims(); ui.mainOverlay.classList.add('hidden'); document.getElementById('settings-screen').classList.remove('hidden');/* Init new settings UI */let _asld=document.getElementById('autoaim-slider');let _asv=document.getElementById('autoaim-val');if(_asld&&appSettings.autoAimStrength!==undefined){_asld.value=appSettings.autoAimStrength;if(_asv)_asv.textContent=appSettings.autoAimStrength;}let _ssld=document.getElementById('shake-slider');let _ssv=document.getElementById('shake-val');if(_ssld&&appSettings.shakeIntensity!==undefined){_ssld.value=appSettings.shakeIntensity;if(_ssv)_ssv.textContent=appSettings.shakeIntensity;}let _boh=document.getElementById('btn-onehand');if(_boh)_boh.innerText='ONE-HAND MODE: '+(appSettings.oneHandMode?'ON':'OFF');let _bpm=document.getElementById('btn-perfmode');if(_bpm)_bpm.innerText='PERFORMANCE MODE: '+(appSettings.perfMode?'ON':'OFF');if(typeof renderKeybindList==='function')renderKeybindList();let _lm=secureLoad('neonVoidMod', null);let _mst=document.getElementById('mod-status');if(_lm&&_mst){try{let _mp=JSON.parse(_lm);_mst.textContent='Mod active: '+(_mp.enemies||[]).length+' enemies';_mst.style.color='#00ff88';}catch(e){}}}
         
+        function switchShopTab(tabName) {
+            const tabs = document.querySelectorAll('.shop-tab');
+            const sections = document.querySelectorAll('.shop-section');
+            tabs.forEach(t => t.classList.remove('active'));
+            sections.forEach(s => { s.classList.remove('active'); s.style.display = 'none'; });
+            const activeTab = document.querySelector(`.shop-tab[onclick*="'${tabName}'"]`);
+            const activeSection = document.getElementById('shop-section-' + tabName);
+            if (activeTab) activeTab.classList.add('active');
+            if (activeSection) { activeSection.classList.add('active'); activeSection.style.display = 'flex'; }
+        }
         function renderShop() {
             document.getElementById('shop-coin-display').innerText = `COINS: ${totalCoins}`; const grid = document.getElementById('shop-grid'); grid.innerHTML = '';
             for (const [id, skin] of Object.entries(SKINS)) {
@@ -5433,7 +5471,7 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
             let sortedUpgrades = Object.entries(PERMANENT_UPGRADES).sort((a,b) => a[1].price - b[1].price);
             for (const [id, upg] of sortedUpgrades) {
                 let card = document.createElement('div'); card.className = 'skin-card'; card.style.borderColor = '#ff8800'; let isUnlocked = purchasedUpgrades.includes(id);
-                card.innerHTML = `<div style="color: #ff8800; font-weight: bold; text-align: center; font-size:18px;">${upg.name}</div><div style="color: #ccc; text-align: center; font-size:12px; margin-bottom:10px;">${upg.desc}</div>`; let btn = document.createElement('button'); btn.style.borderColor = '#ff8800'; btn.style.color = '#ff8800';
+                card.innerHTML = `<div style="color: #ff8800; font-weight: bold; text-align: center; font-size:14px;">${upg.name}</div><div style="color: #ccc; text-align: center; font-size:11px; margin-bottom:6px;">${upg.desc}</div>`; let btn = document.createElement('button'); btn.style.borderColor = '#ff8800'; btn.style.color = '#ff8800';
                 if (isUnlocked) { btn.innerText = "UNLOCKED"; btn.style.background = '#ff8800'; btn.style.color = '#000'; btn.disabled = true; } else { let hasDiscount = secureLoad('neonVoidSlotDiscount', '0') === '1'; let finalPrice = hasDiscount ? Math.floor(upg.price * 0.8) : upg.price; let costText = finalPrice >= 1000000 ? (finalPrice/1000000) + 'M' : (finalPrice >= 1000 ? (finalPrice/1000) + 'K' : finalPrice); btn.innerText = hasDiscount ? `BUY: ${costText} (20% OFF!)` : `BUY: ${costText}`; if (hasDiscount) btn.style.textShadow = '0 0 8px #88ccff'; if (totalCoins >= finalPrice) { btn.onclick = () => { totalCoins -= finalPrice; if (hasDiscount) { secureSave('neonVoidSlotDiscount', '0'); } purchasedUpgrades.push(id); secureSave('neonVoidCoins', totalCoins); secureSave('neonVoidUpgrades', purchasedUpgrades); playSound('buy'); cloudSave(); renderShop(); }; } else { btn.style.opacity = '0.5'; btn.style.cursor = 'not-allowed'; } }
                 card.appendChild(btn); upGrid.appendChild(card);
             }
@@ -10982,7 +11020,7 @@ function generateSyncCode() {
             .nv-menu-root { position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden;font-family:'Courier New',monospace; }
 
             /* TOP BAR — Clash-style player info bar */
-            .nv-topbar { display:flex;align-items:center;justify-content:space-between;padding:calc(6px + env(safe-area-inset-top, 0px)) calc(12px + env(safe-area-inset-right, 0px)) 6px calc(12px + env(safe-area-inset-left, 0px));background:linear-gradient(180deg,rgba(15,0,25,0.98),rgba(8,0,12,0.95));border-bottom:2px solid #ff005544;z-index:5;flex-shrink:0; }
+            .nv-topbar { display:flex;align-items:center;justify-content:space-between;padding:calc(6px + env(safe-area-inset-top, 0px)) calc(12px + env(safe-area-inset-right, 0px)) 6px calc(12px + env(safe-area-inset-left, 0px));background:linear-gradient(180deg,rgba(15,0,25,0.98),rgba(8,0,12,0.95));border-bottom:2px solid #ff005544;position:sticky;top:0;z-index:10;flex-shrink:0; }
             .nv-topbar-left { display:flex;align-items:center;gap:8px; }
             .nv-topbar-right { display:flex;align-items:center;gap:8px; }
             .nv-pilot-badge { display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,#1a0025,#0a0010);border:1.5px solid #ff005566;border-radius:20px;padding:4px 14px 4px 6px;cursor:pointer; }
