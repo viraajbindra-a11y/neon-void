@@ -896,7 +896,7 @@
         resize();
 
 
-        let appSettings = { graphics: 'medium', sound: true, mobile: false, hardcore: false, hyper: false, render3D: false, dodgeRoll: false };
+        let appSettings = { graphics: 'medium', sound: false, music: false, mobile: false, hardcore: false, hyper: false, render3D: false, dodgeRoll: false };
         try { let savedSettings = secureLoad('neonVoidSettings', null); if (typeof savedSettings === 'string') savedSettings = JSON.parse(savedSettings); if (savedSettings && typeof savedSettings === 'object') appSettings = { ...appSettings, ...savedSettings }; } catch(e) {}
 
 
@@ -9714,11 +9714,11 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
             if (!currentUsername) return;
             // Skip if nothing changed (unless force like logout)
             if (!force && !_cloudDirty) return;
-            if (!force && Date.now() - lastCloudSave < 30000) {
+            if (!force && Date.now() - lastCloudSave < 60000) {
                 // Queue a deferred save so we don't lose data
                 if (!_pendingCloudSave) {
                     _pendingCloudSave = true;
-                    setTimeout(() => { _pendingCloudSave = false; saveCloudProfile(); }, 31000);
+                    setTimeout(() => { _pendingCloudSave = false; saveCloudProfile(); }, 61000);
                 }
                 return;
             }
