@@ -62,6 +62,30 @@ export default {
         return json({ success: true }, 200, corsHeaders);
       }
 
+      // GET /global-msg - Fetch recent global messages
+      if (request.method === 'GET' && path === '/global-msg') {
+        const data = await env.SAVES.get('_global_messages', 'json');
+        return json({ messages: data || [] }, 200, corsHeaders);
+      }
+
+      // PUT /global-msg - Post a global message (admin only)
+      if (request.method === 'PUT' && path === '/global-msg') {
+        const body = await request.json();
+        if (!body.from || !body.msg) {
+          return json({ error: 'Missing from/msg' }, 400, corsHeaders);
+        }
+        const ADMINS = ['FEIN', 'VIRAAJ', 'BOBERT12', 'SALIM_SHADY'];
+        if (!ADMINS.includes((body.from || '').toUpperCase())) {
+          return json({ error: 'Not authorized' }, 403, corsHeaders);
+        }
+        // Keep last 20 messages
+        let messages = await env.SAVES.get('_global_messages', 'json') || [];
+        messages.push({ from: body.from, msg: body.msg.substring(0, 200), time: body.time || Date.now() });
+        if (messages.length > 20) messages = messages.slice(-20);
+        await env.SAVES.put('_global_messages', JSON.stringify(messages), { expirationTtl: 604800 }); // 7 day TTL
+        return json({ success: true }, 200, corsHeaders);
+      }
+
       // Health check
       if (path === '/' || path === '/health') {
         return json({ status: 'ok', service: 'neon-void-saves' }, 200, corsHeaders);
