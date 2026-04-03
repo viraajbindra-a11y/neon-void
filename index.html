@@ -9766,11 +9766,11 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
             if (_cloudBackoff && !force) return; // rate limited, don't waste requests
             // Skip if nothing changed (unless force like logout)
             if (!force && !_cloudDirty) return;
-            if (!force && Date.now() - lastCloudSave < 120000) {
+            if (!force && Date.now() - lastCloudSave < 45000) {
                 // Queue a deferred save so we don't lose data
                 if (!_pendingCloudSave) {
                     _pendingCloudSave = true;
-                    setTimeout(() => { _pendingCloudSave = false; saveCloudProfile(); }, 121000);
+                    setTimeout(() => { _pendingCloudSave = false; saveCloudProfile(); }, 46000);
                 }
                 return;
             }
@@ -9819,7 +9819,7 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
                 let res = await fetch(`${CLOUD_API}/save/${saveKey}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(saveData) });
                 if (!res.ok) {
                     console.warn('Cloud save HTTP ' + res.status);
-                    if (res.status === 429 || res.status >= 500) { _cloudBackoff = true; console.warn('Cloud save backing off — rate limited'); }
+                    if (res.status === 429 || res.status >= 500) { _cloudBackoff = true; console.warn('Cloud save backing off — rate limited'); setTimeout(() => { _cloudBackoff = false; }, 120000); }
                     return;
                 }
                 console.log('Cloud save successful');
@@ -9829,8 +9829,22 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
         function cloudSave() { _cloudDirty = true; saveCloudProfile(); }
 
         // Auto-save to cloud on page close (force) or tab switch (only if dirty)
-        window.addEventListener('beforeunload', () => { if (currentUsername && _cloudDirty) saveCloudProfile(true); });
-        document.addEventListener('visibilitychange', () => { if (document.hidden && currentUsername && _cloudDirty) saveCloudProfile(); });
+        window.addEventListener('beforeunload', () => {
+            // Save run coins locally if mid-game
+            if (typeof state !== 'undefined' && state.active && state.runCoins > 0 && !state._coinsSaved) {
+                totalCoins += state.runCoins; _nvSec.save('neonVoidCoins', totalCoins); state._coinsSaved = true;
+            }
+            if (currentUsername && _cloudDirty) saveCloudProfile(true);
+        });
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                // Save run coins when tab is hidden / app backgrounded
+                if (typeof state !== 'undefined' && state.active && state.runCoins > 0) {
+                    _nvSec.save('neonVoidCoins', totalCoins + state.runCoins);
+                }
+                if (currentUsername && _cloudDirty) saveCloudProfile();
+            }
+        });
 
 
 // ==================== FEATURE 97: ACCESSIBILITY OPTIONS ====================
