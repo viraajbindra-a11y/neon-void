@@ -74,7 +74,7 @@ export default {
         if (!body.from || !body.msg) {
           return json({ error: 'Missing from/msg' }, 400, corsHeaders);
         }
-        const ADMINS = ['FEIN', 'VIRAAJ', 'BOBERT12', 'SALIM_SHADY'];
+        const ADMINS = ['FEIN', 'VIRAAJ', 'BOBERT12', 'SALIM_SHADY', 'TOYHUNTER007'];
         if (!ADMINS.includes((body.from || '').toUpperCase())) {
           return json({ error: 'Not authorized' }, 403, corsHeaders);
         }
