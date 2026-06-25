@@ -93,7 +93,8 @@ export default {
 
       return json({ error: 'Not found' }, 404, corsHeaders);
     } catch (e) {
-      return json({ error: e.message }, 500, corsHeaders);
+      console.error('worker error:', (e && e.stack) || e);
+      return json({ error: 'Internal error' }, 500, corsHeaders);
     }
   }
 };

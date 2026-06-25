@@ -45,7 +45,7 @@
         
         #boss-ui { position: absolute; top: calc(20px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); width: min(600px, 90vw); display: none; z-index: 5; text-align: center; }
         #boss-hp-bg { width: 100%; height: 25px; border: 2px solid #ff0055; background: rgba(0,0,0,0.7); position: relative; }
-        #boss-hp-bar { width: 100%; height: 100%; background: #ff0055; box-shadow: 0 0 20px #ff0055; transition: width 0.1s; background-color: #00ff00; }
+        #boss-hp-bar { width: 100%; height: 100%; background: #ff0055; box-shadow: 0 0 20px #ff0055; transition: width 0.1s; }
         #boss-name { position: absolute; top: 35px; width: 100%; color: #ff0055; text-shadow: 0 0 15px #ff0055; font-size: 24px; font-weight: bold; letter-spacing: 5px; text-transform: uppercase;}
         #boss-alert { position: absolute; top: 20%; width: 100%; text-align: center; font-size: 60px; color: red; font-weight: bold; text-shadow: 0 0 40px red; display: none; animation: flash 0.2s infinite; z-index: 8; letter-spacing: 12px; }
         
@@ -664,6 +664,7 @@
 
 
         let customCoreColor = secureLoad('neonVoidCustomColor', '#ffffff') || '#ffffff';
+        if (!/^#[0-9a-fA-F]{3,8}$/.test(customCoreColor)) customCoreColor = '#ffffff'; // neutralize any poisoned/tampered value before it reaches innerHTML
 
 
         const SKINS = {
@@ -4111,7 +4112,7 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
             if (state.frame % 30 === 0) checkScoreEggs();
             checkIdle();
             if (appSettings.autoFire && state.active && !state.paused) mouse.down = true;
-            if (state.frame % 3 === 0) { ui.score.innerText = `SCORE: ${Math.floor(state.score)}`; ui.combo.innerText = `COMBO x${state.combo.toFixed(1)}`; ui.lvl.innerText = state.mode === 'training' ? (trainingMode === 'aim' ? 'AIM TRAINER' : trainingMode === 'manual' ? 'MANUAL AIM' : trainingMode === 'boss_practice' ? 'BOSS PRACTICE' : 'FREE PRACTICE') : state.mode === 'boss_rush' ? `BOSS ${Math.min(state.bossesDefeated + 1, 15)}/15 | ${Math.floor(state.frame/3600)}:${(Math.floor(state.frame/60)%60).toString().padStart(2,'0')}` : state.mode === 'sandbox' ? 'SANDBOX' : state.mode === 'arcade' ? `WAVE ${state.level} | HP:${arcadeLives}` : `LVL: ${state.level}`; ui.coins.innerText = `COINS: ${totalCoins + state.runCoins}` + (isWeekendEvent() ? ' (2x)' : ''); if (_cheatsUsed.length > 0) { ui.lvl.innerText += ' [CHEATS]'; } }
+            if (state.frame % 3 === 0) { ui.score.innerText = `SCORE: ${Math.floor(state.score)}`; ui.combo.innerText = `COMBO x${state.combo.toFixed(1)}`; ui.lvl.innerText = state.mode === 'training' ? (trainingMode === 'aim' ? 'AIM TRAINER' : trainingMode === 'manual' ? 'MANUAL AIM' : trainingMode === 'boss_practice' ? 'BOSS PRACTICE' : 'FREE PRACTICE') : state.mode === 'boss_rush' ? `BOSS ${Math.min(state.bossesDefeated + 1, 20)}/20 | ${Math.floor(state.frame/3600)}:${(Math.floor(state.frame/60)%60).toString().padStart(2,'0')}` : state.mode === 'sandbox' ? 'SANDBOX' : state.mode === 'arcade' ? `WAVE ${state.level} | HP:${arcadeLives}` : `LVL: ${state.level}`; ui.coins.innerText = `COINS: ${totalCoins + state.runCoins}` + (isWeekendEvent() ? ' (2x)' : ''); if (_cheatsUsed.length > 0) { ui.lvl.innerText += ' [CHEATS]'; } }
             ui.hp.style.width = `${Math.max(0, (player.hp/state.stats.maxHp)*100)}%`; ui.shield.style.width = `${Math.min(100, player.shield)}%`; ui.xp.style.width = `${(state.xp / state.xpNeeded)*100}%`;
             if (appSettings.render3D && is3DActive) update3D();
             drawTutorialHighlight(ctx);
@@ -5788,7 +5789,7 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
                     <div style="color:#ff8800;font-weight:bold;margin-bottom:6px;">SPAWN</div>
                     <select id="sb-enemy-type" style="width:100%;background:#111;color:#fff;border:1px solid #444;padding:3px;margin-bottom:4px;">
                         <option value="chaser">Chaser</option><option value="shooter">Shooter</option><option value="sniper">Sniper</option>
-                        <option value="rammer">Speed</option><option value="tank">Tank</option><option value="splitter">Splitter</option>
+                        <option value="dasher">Speed</option><option value="tank">Tank</option><option value="splitter">Splitter</option>
                         <option value="rammer">Rammer</option><option value="orbiter">Orbiter</option><option value="ghost">Ghost</option>
                         <option value="bomber">Bomber</option><option value="mine">Mine</option><option value="teleporter">Teleporter</option>
                         <option value="healer">Healer</option><option value="shielder">Shielder</option><option value="heavy_shooter">Heavy Shooter</option>
@@ -6327,7 +6328,7 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
                 if (e.code === 'Digit4') photoFilter = 3;
                 if (e.code === 'Digit5') photoFilter = 4;
                 if (e.key === 's' || e.key === 'S') {
-                    let link = document.createElement('a'); link.download = 'neon-void-screenshot.png'; link.href = canvas.toDataURL(); link.click();
+                    let link = document.createElement('a'); link.download = 'last-pilot-screenshot.png'; link.href = canvas.toDataURL(); link.click();
                 }
             }
         });
@@ -7198,7 +7199,7 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
             pacifistState.score = Math.floor(pacifistState.timer / 10) + pacifistState.closeCalls * 50;
             if (pacifistState.timer >= pacifistState.maxTime) {
                 pacifistState.finished = true;
-                let finalScore = pacifistState.score + pacifistState.closeCalls * 50;
+                let finalScore = pacifistState.score; // close-call bonus already baked into .score above (was double-counted)
                 spawnText(canvas.width/2, canvas.height/2, 'PACIFIST COMPLETE!', '#00ff88', 28);
                 spawnText(canvas.width/2, canvas.height/2+40, `SCORE: ${finalScore} | CLOSE CALLS: ${pacifistState.closeCalls}`, '#ffcc00', 16);
                 state.runCoins += Math.floor(finalScore/10); setTimeout(() => { saveRunCoins(); returnToMenu(); }, 3500);
@@ -8021,12 +8022,12 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
         function tutSpawnPickup() {
             if (!player) return;
             let px = player.x + 150, py = player.y - 100;
-            let tp = new Powerup(px, py); tp.type = 'heal'; tp.color = '#00ff00'; tp.life = 9999; entities.powerups.push(tp);
-            // Watch for pickup collection
+            let tp = new Powerup(px, py); tp.type = 'heal'; tp.color = '#00ff00'; tp.life = 9999; tp._tut = true; entities.powerups.push(tp);
+            // Watch for collection of THIS tutorial orb specifically (life=9999 so it only vanishes on pickup)
             let checkInt = setInterval(() => {
                 if (!tutorialState.active) { clearInterval(checkInt); return; }
                 let found = false;
-                for (let p of entities.powerups) { if (p.type === 'heal') found = true; }
+                for (let p of entities.powerups) { if (p._tut) found = true; }
                 if (!found) { tutorialState._pickedUp = true; clearInterval(checkInt); }
             }, 100);
         }
@@ -8059,8 +8060,7 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
             tutorialState.stepTimer++;
             // Fire onEnter once
             if (tutorialState.stepTimer === 1 && step.onEnter) {
-                if (typeof window[step.onEnter] === 'function') window[step.onEnter]();
-                else { let fn = eval(step.onEnter); if (typeof fn === 'function') fn(); }
+                if (typeof window[step.onEnter] === 'function') window[step.onEnter](); // onEnter is always a global fn name; eval() fallback removed
             }
             // Check auto-advance
             if (step.auto && tutorialState.stepTimer >= step.auto) { advanceTutStep(); return; }
@@ -9552,7 +9552,7 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
         let idleMessageShown = false;
         function checkIdle() {
             if (!state.active || state.paused) return;
-            if (keys.w || keys.a || keys.s || keys.d || keys.up || keys.down || keys.left || keys.right || mouse.down) {
+            if (keys['KeyW'] || keys['KeyA'] || keys['KeyS'] || keys['KeyD'] || keys['ArrowUp'] || keys['ArrowDown'] || keys['ArrowLeft'] || keys['ArrowRight'] || joyData.active || mouse.down) {
                 idleFrames = 0;
                 idleMessageShown = false;
                 return;
@@ -9691,7 +9691,7 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
                 if (key.startsWith('neonVoid')) data[key] = localStorage.getItem(key);
             }
             let blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            let a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'neon-void-save.json'; a.click();
+            let a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'last-pilot-save.json'; a.click();
             URL.revokeObjectURL(a.href);
         }
 
@@ -9759,7 +9759,7 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
                 if (profile.loan) _nvSec.save('neonVoidLoan', profile.loan);
                 if (profile.bountyProgress) _nvSec.save('neonVoidBountyProgress', profile.bountyProgress);
                 if (profile.materials) { let cur = _nvSec.load('neonVoidMaterials', {}); let merged = typeof cur === 'object' && cur ? cur : {}; Object.keys(profile.materials).forEach(k => { merged[k] = Math.max(merged[k]||0, profile.materials[k]); }); _nvSec.save('neonVoidMaterials', merged); }
-                if (profile.customColor) _nvSec.save('neonVoidCustomColor', profile.customColor);
+                if (profile.customColor && /^#[0-9a-fA-F]{3,8}$/.test(profile.customColor)) _nvSec.save('neonVoidCustomColor', profile.customColor);
                 if (profile.customSkin) _nvSec.save('neonVoidCustomSkin', profile.customSkin);
                 if (profile.tutorialDone === '1') _nvSec.save('neonVoidTutorialDone', '1');
                 if (profile.battlePass) { let cur = _nvSec.load('neonVoidBP', null); if (!cur || (profile.battlePass.tier > (cur.tier||0))) _nvSec.save('neonVoidBP', profile.battlePass); }
@@ -10150,6 +10150,8 @@ function generateSyncCode() {
             // Big head mode — scale enemy draw radius
             if (window._bigHeadMode && entities.enemies) {
                 entities.enemies.forEach(function(e) { if (e && !e._bigHeadApplied) { e._origRadius = e.radius; e.radius *= 2.5; e._bigHeadApplied = true; } });
+            } else if (entities.enemies) {
+                entities.enemies.forEach(function(e) { if (e && e._bigHeadApplied) { if (e._origRadius != null) e.radius = e._origRadius; e._bigHeadApplied = false; } });
             }
             // Paintball mode — random particle colors
             if (window._paintballMode) {
@@ -10158,6 +10160,8 @@ function generateSyncCode() {
             // Thicc bullets
             if (window._thiccBullets && entities.bullets) {
                 entities.bullets.forEach(function(b) { if (b && !b._thiccApplied) { b._origRadius = b.radius; b.radius = Math.max(b.radius * 3, 12); b._thiccApplied = true; } });
+            } else if (entities.bullets) {
+                entities.bullets.forEach(function(b) { if (b && b._thiccApplied) { if (b._origRadius != null) b.radius = b._origRadius; b._thiccApplied = false; } });
             }
             // Void shift — dark overlay with enemy glow
             if (window._voidShift) {
@@ -12197,7 +12201,7 @@ function generateSyncCode() {
                             <span class="nv-chip-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#44ccff" stroke-width="2" stroke-linecap="round"><path d="M12 3l9 4.5v9L12 21l-9-4.5v-9L12 3z"/><path d="M12 12l9-4.5M12 12v9M12 12L3 7.5"/></svg></span>
                             <div><div class="nv-chip-label" style="color:#44ccff;">SANDBOX</div><div class="nv-chip-sub" style="color:rgba(68,204,255,0.53);">God Mode</div></div>
                         </div>
-                        ${parseInt(secureLoad('neonVoidStage','1')||'1') >= 16 ? `<div class="nv-mode-chip" style="--gc:\${mc('#00ff88')};border-color:rgba(0,255,136,0.4);background:rgba(0,255,136,0.08);animation:pulse 1.5s infinite;" onclick="startCrashedAdventure()">
+                        ${parseInt(secureLoad('neonVoidStage','1')||'1') >= 16 ? `<div class="nv-mode-chip" style="--gc:${mc('#00ff88')};border-color:rgba(0,255,136,0.4);background:rgba(0,255,136,0.08);animation:pulse 1.5s infinite;" onclick="startCrashedAdventure()">
                             <span class="nv-chip-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00ff88" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></span>
                             <div><div class="nv-chip-label" style="color:#00ff88;">CRASHED</div><div class="nv-chip-sub" style="color:rgba(0,255,136,0.53);">Crashed Adventure</div></div>
                         </div>` : ''}
@@ -12828,9 +12832,9 @@ function generateSyncCode() {
                 if (player && player.takeDamage && !_diffPatchApplied) {
                     _diffPatchApplied = true;
                     let _origTD = player.takeDamage.bind(player);
-                    player.takeDamage = function(amt) {
+                    player.takeDamage = function(amt, source) {
                         let diff = DIFFICULTIES[selectedDifficulty] || DIFFICULTIES.normal;
-                        _origTD(Math.ceil(amt * diff.dmgTaken));
+                        _origTD(Math.ceil(amt * diff.dmgTaken), source);
                     };
                     clearInterval(_checkDiffPatch);
                     _checkDiffPatch = null;
