@@ -14136,7 +14136,8 @@ if(mp.grappleHook){let gh=mp.grappleHook;mx.strokeStyle=COLORS.neon;mx.lineWidth
         document.body.appendChild(tc);
         let ctx = tc.getContext('2d');
         tc.width = window.innerWidth; tc.height = window.innerHeight;
-        window.addEventListener('resize', () => { tc.width = window.innerWidth; tc.height = window.innerHeight; });
+        let onTutResize = () => { tc.width = window.innerWidth; tc.height = window.innerHeight; };
+        window.addEventListener('resize', onTutResize);
 
         let isMob = 'ontouchstart' in window;
         let keys = {};
@@ -14284,7 +14285,7 @@ if(mp.grappleHook){let gh=mp.grappleHook;mx.strokeStyle=COLORS.neon;mx.lineWidth
             if (s) {
                 if (s.duration && stepTimer >= s.duration) { step++; stepTimer = 0; }
                 if (s.check) { if (s.check()) { s._f = (s._f||0)+1; if (s._f >= (s.need||1)) { step++; stepTimer = 0; } } }
-                if (step >= STEPS.length) { setTimeout(endTut, 500); }
+                if (step >= STEPS.length && running) { running = false; setTimeout(endTut, 500); } // schedule endTut once (was ~30x/sec)
             }
 
             // === RENDER ===
@@ -14428,6 +14429,7 @@ if(mp.grappleHook){let gh=mp.grappleHook;mx.strokeStyle=COLORS.neon;mx.lineWidth
             secureSave('neonVoidTutorialDone', '1');
             window.removeEventListener('keydown', kd);
             window.removeEventListener('keyup', ku);
+            window.removeEventListener('resize', onTutResize);
             let tc2 = document.getElementById('tutorial-canvas');
             if (tc2) { tc2.style.transition = 'opacity 0.5s'; tc2.style.opacity = '0'; setTimeout(() => { if (tc2.parentNode) tc2.parentNode.removeChild(tc2); }, 500); }
             if (typeof returnToMenu === 'function') returnToMenu();
