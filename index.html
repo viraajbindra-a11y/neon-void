@@ -9718,6 +9718,27 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
         const CLOUD_API = 'https://neon-void-saves.neon-void.workers.dev';
         let lastCloudSave = 0;
         function _cloudKey(key) { if (!key) return ''; while (key.length < 8) key = key + '_nv'; return key; }
+        // Write-auth token so a known/guessable save key can't be overwritten by others.
+        // Password accounts: derived from the (secret) password hash -> reproducible cross-device.
+        // Password-less accounts: a per-device random token (their username key is public).
+        async function _cloudToken() {
+            if (userPasswordHash) { try { return await hashCredentials(userPasswordHash, 'lp-auth-v1'); } catch(e) { return ''; } }
+            let t = '';
+            try { t = localStorage.getItem('neonVoidCloudToken') || ''; } catch(e) {}
+            if (!t) {
+                try { let a = new Uint8Array(16); crypto.getRandomValues(a); t = Array.from(a).map(b => b.toString(16).padStart(2,'0')).join(''); localStorage.setItem('neonVoidCloudToken', t); } catch(e) {}
+            }
+            return t;
+        }
+        // Admin secret for privileged worker endpoints (set via: wrangler secret put ADMIN_SECRET).
+        // Prompted once per session; only admins are asked. Empty if unset (worker falls back to legacy check).
+        function _adminSecret() {
+            try {
+                let s = sessionStorage.getItem('_lpAdminSecret');
+                if (!s && typeof isAdmin === 'function' && isAdmin()) { s = prompt('Admin secret (wrangler secret put ADMIN_SECRET):') || ''; if (s) sessionStorage.setItem('_lpAdminSecret', s); }
+                return s || '';
+            } catch(e) { return ''; }
+        }
 
         async function fetchCloudProfile(key) {
             key = _cloudKey(key);
@@ -9827,6 +9848,7 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
                 forgeFr: _nvSec.load('neonVoidAch_forge_fr', ''),
                 forgeSpd: _nvSec.load('neonVoidAch_forge_spd', '')
             };
+            saveData.authToken = await _cloudToken(); // claim/prove ownership of this save key
             try {
                 let fetchOpts = { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(saveData) };
                 if (force) fetchOpts.keepalive = true; // Survive page unload
@@ -10187,7 +10209,7 @@ function generateSyncCode() {
             if (!isAdmin()) return;
             msg = msg.replace(/[<>"'&]/g, '').substring(0, 200);
             try {
-                await fetch(CLOUD_API + '/global-msg', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ from: currentUsername, msg: msg, time: Date.now() }) });
+                await fetch(CLOUD_API + '/global-msg', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ from: currentUsername, msg: msg, time: Date.now(), adminSecret: _adminSecret() }) });
             } catch(e) { console.warn('Global msg send failed'); }
         }
 
@@ -10264,7 +10286,7 @@ function generateSyncCode() {
                     let data = await res.json();
                     if (data.found && data.profile) {
                         data.profile.coins = (data.profile.coins || 0) + amount;
-                        await fetch(CLOUD_API + '/save/' + key, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data.profile) });
+                        await fetch(CLOUD_API + '/save/' + key, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ ...data.profile, adminSecret: _adminSecret() }) });
                         showGlobalBanner('SYSTEM', target + ' gifted ' + amount.toLocaleString() + ' coins by ' + currentUsername);
                     } else { showGlobalBanner('SYSTEM', 'Player ' + target + ' not found in cloud saves'); }
                 }
