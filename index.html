@@ -3352,6 +3352,8 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
                 if (state.stats.voidSiphon) { let heal = Math.ceil(state.stats.maxHp * 0.03); player.hp = Math.min(state.stats.maxHp, player.hp + heal); spawnParticles(player.x, player.y, '#aa00ff', 5, 0.5); }
 
                 let coinMult = (state.hardcore ? 5 : 1) * (state.stats.coinMulti || 1) * getEventMultiplier();
+                // Feature 68: Mastery — more coins from an enemy type as you master it (matches the panel's displayed Coin Bonus)
+                if (e.type && typeof getMasteryBonus === 'function') coinMult *= (1 + getMasteryBonus(e.type));
                 state.runCoins += Math.floor(Math.max(5, e.xp * 2) * coinMult);
 
                 // Cryo Snare - freeze nearby enemies on kill
@@ -14875,7 +14877,7 @@ function getMasteryLevel(type){var k=masteryData[type]||0;for(var i=MASTERY_LEVE
 function getMasteryBonus(type){return MASTERY_BONUS[getMasteryLevel(type)]||0;}
 function openMasteryPanel(){
   var ol=document.createElement('div');ol.id='mastery-overlay';ol.style.cssText='position:fixed;inset:0;background:#06060c;z-index:99999;color:#fff;font-family:monospace;padding:40px;overflow-y:auto;';
-  var html='<h2 style="color:#ffaa00;text-align:center">MASTERY LEVELS</h2><table style="width:100%;border-collapse:collapse"><tr><th>Type</th><th>Kills</th><th>Level</th><th>Bonus</th></tr>';
+  var html='<h2 style="color:#ffaa00;text-align:center">MASTERY LEVELS</h2><p style="text-align:center;color:#888;font-size:12px;margin-top:-8px">Earn more coins from each enemy type as you master it.</p><table style="width:100%;border-collapse:collapse"><tr><th>Type</th><th>Kills</th><th>Level</th><th>Coin Bonus</th></tr>';
   var types=Object.keys(masteryData);for(var i=0;i<types.length;i++){var t=types[i];var lv=getMasteryLevel(t);html+='<tr><td style="padding:6px">'+t.charAt(0).toUpperCase()+t.slice(1)+'</td><td style="padding:6px;text-align:center">'+masteryData[t]+'</td><td style="padding:6px;text-align:center">'+lv+'</td><td style="padding:6px;text-align:center;color:#ffaa00">+'+(getMasteryBonus(t)*100).toFixed(0)+'%</td></tr>';}
   html+='</table><div style="text-align:center;margin-top:20px"><button onclick="document.getElementById(\'mastery-overlay\').remove()" style="background:#555;color:#fff;border:none;padding:8px 24px;cursor:pointer">CLOSE</button></div>';
   ol.innerHTML=html;document.body.appendChild(ol);
