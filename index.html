@@ -2052,7 +2052,7 @@
         class Player {
             constructor() {
                 this.x = canvas.width / 2; this.y = canvas.height / 2; this.radius = 12; this.hp = state.stats.maxHp;
-                this.shield = 0; this.nukeShield = false; this.angle = -Math.PI / 2; this.lastShot = 0; this.dashCd = 0; this.chargeTimer = 0; this.charging = false; this.weaponMode = 0; this.railgunCd = 0; this.beamSwordCd = 0; this.gravityBombCd = 0; this.stickyBombs = []; this.stickyBombPendingDetonate = false;
+                this.shield = 0; this.nukeShield = false; this.angle = -Math.PI / 2; this.lastShot = 0; this.dashCd = 0; this.chargeTimer = 0; this.charging = false; this.weaponMode = 0; this.railgunCd = 0; this.beamSwordCd = 0; this.gravityBombCd = 0;
                 this.timers = { overdrive: 0, shield: 0, dash: 0, invuln: 0, shieldGen: 0 }; this.target = null; this.shotCount = 0;
                 this.baseColor = (SKINS[equippedSkin] || SKINS['default']).color;
                 this.wisp = null;
@@ -6387,7 +6387,6 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
                 raceCurrentCP++;
                 if (raceCurrentCP >= raceCheckpoints.length) {
                     // All checkpoints collected!
-                    let elapsed = 60 - raceTimer + (raceCheckpoints.length * 5);
                     let finishTime = state.frame / 60;
                     let best = parseFloat(secureLoad('neonVoidRaceBest', '999') || '999');
                     if (finishTime < best) { secureSave('neonVoidRaceBest', finishTime.toFixed(2)); spawnText(canvas.width/2, canvas.height/2-30, 'NEW BEST!', '#ffd700', 26); }
@@ -8197,7 +8196,7 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
         function updateComboBar() {
             let bar = document.getElementById('combo-bar');
             if (state.combo > 1) {
-                comboDecayTimer += (state.comboDecayRate || 1);
+                comboDecayTimer += 1;
                 let pct = Math.max(0, 1 - comboDecayTimer / COMBO_DECAY_MAX);
                 bar.style.width = (pct * 100) + '%';
                 bar.style.background = pct > 0.5 ? '#ffcc00' : (pct > 0.2 ? '#ff8800' : '#ff0055');
@@ -9023,9 +9022,8 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
             _bossActive = active;
             // Restart music with new boss state for full effect
             if (musicNodes) {
-                let wasPlaying = true;
                 stopMusic();
-                if (wasPlaying && appSettings.music) {
+                if (appSettings.music) {
                     setTimeout(() => startMusic(), 100);
                 }
             }
@@ -9776,7 +9774,6 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
         var _pendingCloudSave = false;
         var _cloudDirty = false; // only save when something actually changed
         var _cloudBackoff = false; // true when rate limited — stop all saves until page reload
-        function markCloudDirty() { _cloudDirty = true; }
         async function saveCloudProfile(force) {
             if (!currentUsername) return;
             if (_cloudBackoff && !force) return; // rate limited, don't waste requests
@@ -10145,7 +10142,6 @@ function generateSyncCode() {
         });
 
         // Apply cheat visual effects in render
-        var _origBulletRadius = null;
         function applyCheatEffects(ctx) {
             // Big head mode — scale enemy draw radius
             if (window._bigHeadMode && entities.enemies) {
@@ -12936,7 +12932,6 @@ function generateSyncCode() {
 
         // Override combo display update
         let comboEl = ui.combo;
-        let _origComboSet = null;
         // Monitor combo changes via the update loop
         let lastComboValue = 1;
         window._comboCheckInterval = setInterval(() => {
@@ -15030,18 +15025,6 @@ var lifetimeCoins=parseInt(secureLoad('neonVoidLifetimeCoins', 0)||0);
 function getVIPTier(){var t=null;for(var i=0;i<VIP_TIERS.length;i++)if(lifetimeCoins>=VIP_TIERS[i].threshold)t=VIP_TIERS[i];return t;}
 function getVIPCoinBonus(){var t=getVIPTier();return t?t.coinBonus:0;}
 function updateVIPBadge(){var t=getVIPTier();var el=document.getElementById('vip-badge');if(el){if(t){el.textContent='VIP: '+t.name;el.style.color=t.color;}else{el.textContent='';}}}
-
-// ---- FEATURE 76: SHIP ANIMATIONS ----
-var _shipBobTimer=0;var _shipBankAngle=0;
-function patchPlayerDraw(){
-  if(typeof player==='undefined'||!player||!player.draw)return;
-  var _od=player.draw.bind(player);
-  player.draw=function(){
-    _shipBobTimer+=0.05;var glowCol=shipGlowColor==='rainbow'?('hsl('+(Date.now()/20%360)+',100%,60%)'):shipGlowColor;
-    if(typeof appSettings!=='undefined'&&appSettings.graphics==='low'){_od();return;}
-    ctx.save();ctx.shadowBlur=18;ctx.shadowColor=glowCol;_od();ctx.restore();
-  };
-}
 
 // ---- FEATURE 77: KILL EFFECTS ----
 var killEffectMode=secureLoad('neonVoidKillEffect', 'default')||'default';
