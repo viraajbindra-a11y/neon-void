@@ -10883,7 +10883,7 @@ function generateSyncCode() {
                     const p = mpState.players[playerIds[i]];
                     slot.classList.add('filled');
                     if (playerIds[i] === mpState.hostPeerId) slot.classList.add('host');
-                    slot.innerHTML = `<div class="slot-name" style="color:${p.color}">${p.name}</div><div class="slot-status">${playerIds[i] === mpState.hostPeerId ? 'HOST' : 'READY'}</div>`;
+                    slot.innerHTML = `<div class="slot-name" style="color:${_sanitizeColor(p.color)}">${_sanitizeName(p.name)}</div><div class="slot-status">${playerIds[i] === mpState.hostPeerId ? 'HOST' : 'READY'}</div>`;
                 } else {
                     slot.innerHTML = `<div class="slot-name" style="color:#555">EMPTY</div><div class="slot-status">WAITING...</div>`;
                 }
@@ -11250,6 +11250,8 @@ function generateSyncCode() {
         }
 
         function showMinigameEnd(msg, color) {
+            msg = String(msg).replace(/[<>"'&]/g, ''); // remote peer-supplied winner name -> strip HTML (XSS)
+            color = (typeof _sanitizeColor === 'function') ? _sanitizeColor(color) : color;
             state.active = false;
             document.getElementById('mp-hud').style.display = 'none';
             ui.mainOverlay.classList.remove('hidden');
@@ -15313,7 +15315,7 @@ document.addEventListener('keydown',function(ev){
 
 // ==================== MULTIPLAYER MINIGAMES ====================
 var mgDodge=null,mgTargets=null,mgKoth=null;
-function showMinigameEnd(msg,color){state.active=false;state.paused=true;var ol=document.createElement('div');ol.id='mg-end-overlay';ol.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:monospace;color:#fff;';ol.innerHTML='<div style="font-size:clamp(28px,8vw,48px);font-weight:bold;color:'+color+';text-shadow:0 0 20px '+color+';letter-spacing:4px;margin-bottom:20px;">'+msg+'</div><button onclick="document.getElementById(\'mg-end-overlay\').remove();leaveLobby();returnToMenu();" style="border-color:'+color+';color:'+color+';padding:12px 30px;font-size:16px;">BACK TO MENU</button>';document.body.appendChild(ol);mgDodge=null;mgTargets=null;mgKoth=null;}
+function showMinigameEnd(msg,color){msg=String(msg).replace(/[<>"'&]/g,'');color=(typeof _sanitizeColor==='function')?_sanitizeColor(color):color;state.active=false;state.paused=true;var ol=document.createElement('div');ol.id='mg-end-overlay';ol.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:monospace;color:#fff;';ol.innerHTML='<div style="font-size:clamp(28px,8vw,48px);font-weight:bold;color:'+color+';text-shadow:0 0 20px '+color+';letter-spacing:4px;margin-bottom:20px;">'+msg+'</div><button onclick="document.getElementById(\'mg-end-overlay\').remove();leaveLobby();returnToMenu();" style="border-color:'+color+';color:'+color+';padding:12px 30px;font-size:16px;">BACK TO MENU</button>';document.body.appendChild(ol);mgDodge=null;mgTargets=null;mgKoth=null;}
 function initMinigame(mode){var W=canvas.width,H=canvas.height;entities.enemies=[];entities.eBullets=[];entities.items=[];if(mode==='minigame_dodge'){mgDodge={projectiles:[],eliminated:{},localDead:false,elimMsg:'',elimTimer:0,timer:0,speed:3,spawnRate:40};state.stats.maxHp=1;if(player)player.hp=1;}else if(mode==='minigame_targets'){mgTargets={currentTarget:null,scores:{},myScore:0,targetSize:20};if(mpState.isHost)spawnMGTarget();}else if(mode==='minigame_koth'){mgKoth={zone:{x:W/2,y:H/2,r:80},scores:{},myScore:0,stunTimer:0,zoneTimer:0,zoneMoveInterval:900};if(mpState.isHost){mgKoth.scores[peer.id]=0;Object.keys(mpState.players).forEach(function(p){mgKoth.scores[p]=0;});}}}
 function spawnMGTarget(){if(!mgTargets)return;var t={x:100+Math.random()*(canvas.width-200),y:100+Math.random()*(canvas.height-200)};mgTargets.currentTarget=t;broadcast({type:'mg-targets-spawn',t:t});}
 function updateMinigame(ctx){var W=canvas.width,H=canvas.height;
