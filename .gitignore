@@ -1,0 +1,5 @@
+# Local tool caches (contain account info; never publish)
+.wrangler/
+cloud-save-worker/.wrangler/
+node_modules/
+.DS_Store
