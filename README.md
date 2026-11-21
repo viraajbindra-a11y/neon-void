@@ -1,12 +1,11 @@
-# Last Pilot
+# Neon Void
 
-A neon-drenched arcade space shooter built entirely in a single HTML file. You're the last pilot — fight through procedurally generated waves, defeat massive bosses, and unlock dozens of game modes.
+A neon-drenched arcade space shooter built entirely in a single HTML file. Fight through procedurally generated waves, defeat massive bosses, and unlock dozens of game modes.
 
 ## Play
 
 [Play Now](https://viraajbindra-a11y.github.io/neon-void/) | [iOS App](https://github.com/viraajbindra-a11y/neon-void-ios)
 
-*(Repo and iOS bundle ID keep the `neon-void` identifier for backwards-compatible saves and App Store continuity. The retail name is Last Pilot.)*
 
 ## Game Modes
 

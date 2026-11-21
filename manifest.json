@@ -1,8 +1,9 @@
 {
-  "name": "Last Pilot",
-  "short_name": "LastPilot",
-  "description": "Last Pilot - neon arcade shooter",
-  "start_url": "/index.html",
+  "name": "Neon Void",
+  "short_name": "NeonVoid",
+  "description": "Neon Void - neon arcade space shooter",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "fullscreen",
   "orientation": "portrait",
   "background_color": "#06060c",

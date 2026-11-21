@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Last Pilot</title>
+    <title>Neon Void</title>
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
@@ -269,7 +269,7 @@
         })();
         </script>
         <div style="font-size:20px;color:rgba(0,255,204,0.33);letter-spacing:12px;margin-bottom:8px;animation:fadeIn 1s ease;">WELCOME TO</div>
-        <div class="title-text" style="-webkit-text-stroke: 2px #ff0055; text-shadow: 0 0 15px rgba(255,0,85,0.4), 0 0 30px rgba(255,0,85,0.19); font-size:clamp(50px,12vw,80px); animation:titlePulse 3s ease-in-out infinite;">LAST PILOT</div>
+        <div class="title-text" style="-webkit-text-stroke: 2px #ff0055; text-shadow: 0 0 15px rgba(255,0,85,0.4), 0 0 30px rgba(255,0,85,0.19); font-size:clamp(50px,12vw,80px); animation:titlePulse 3s ease-in-out infinite;">NEON VOID</div>
         <style>@keyframes titlePulse { 0%,100% { text-shadow: 0 0 15px rgba(255,0,85,0.4), 0 0 30px rgba(255,0,85,0.19); } 50% { text-shadow: 0 0 25px rgba(255,0,85,0.4), 0 0 40px rgba(255,0,85,0.19); } } @keyframes fadeIn { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }</style>
         <div class="subtitle-text" style="color:#888;font-size:16px;letter-spacing:4px;margin-top:5px;">THE ULTIMATE SPACE SHOOTER</div>
         <div style="width:60px;height:2px;background:linear-gradient(90deg,transparent,#00ffcc,transparent);margin:20px auto;"></div>
@@ -340,7 +340,7 @@
 
 
     <div id="ui-layer">
-        <h1>LAST PILOT</h1>
+        <h1>NEON VOID</h1>
         <div class="hud-text" id="level-display">LVL: 1</div>
         <div class="hud-text" id="score-display">SCORE: 0</div>
         <div id="combo-display">COMBO x1.0</div>
@@ -373,7 +373,7 @@
 
     <div id="main-overlay" class="overlay-screen" style="overflow-y:auto;">
         <div id="menu-inner-wrap" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100%;padding:30px 0 50px;">
-        <div class="title-text" id="main-title">LAST PILOT</div>
+        <div class="title-text" id="main-title">NEON VOID</div>
         <div class="subtitle-text" id="main-desc">
             <strong>ARROW KEYS / WASD</strong> to Move | <strong>SPACE / MOUSE</strong> to Shoot<br>
             <strong>SHIFT / RIGHT-CLICK</strong> to Dash | <strong>[C]</strong> to Toggle Aim | <strong>[ESC]</strong> to Pause<br>
@@ -5350,7 +5350,7 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
             if (typeof bestiaryData !== 'undefined') secureSave('neonVoidBestiary', bestiaryData);
             stopMusic(); startMenuBg(); if (appSettings.music) startMenuMusic();
             ui.mainOverlay.classList.remove('hidden'); ui.mainOverlay.classList.remove('win-theme');
-            ui.mainTitle.innerText = "LAST PILOT"; ui.mainTitle.style.webkitTextStroke = "2px #ff0055"; ui.mainTitle.style.textShadow = "0 0 20px rgba(255,0,85,0.38)";
+            ui.mainTitle.innerText = "NEON VOID"; ui.mainTitle.style.webkitTextStroke = "2px #ff0055"; ui.mainTitle.style.textShadow = "0 0 20px rgba(255,0,85,0.38)";
             ui.mainDesc.innerHTML = `<strong>ARROW KEYS / WASD</strong> to Move | <strong>SPACE / MOUSE</strong> to Shoot<br><strong>SHIFT / RIGHT-CLICK</strong> to Dash | <strong>[C]</strong> to Toggle Aim | <strong>[ESC]</strong> to Pause<br><span style="color: #ff0055; font-weight:bold;">THE ULTIMATE UPDATE</span>` + (isWeekendEvent() ? '<br><span style="color:#ffcc00;font-weight:bold;font-size:16px;text-shadow:0 0 10px #ffcc00;">WEEKEND EVENT: 2x XP + 2x COINS</span>' : '');
             document.getElementById('menu-coin-display').innerText = `TOTAL COINS: ${totalCoins}`;
 
@@ -6146,7 +6146,7 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
                 if (e.code === 'Digit4') photoFilter = 3;
                 if (e.code === 'Digit5') photoFilter = 4;
                 if (e.key === 's' || e.key === 'S') {
-                    let link = document.createElement('a'); link.download = 'last-pilot-screenshot.png'; link.href = canvas.toDataURL(); link.click();
+                    let link = document.createElement('a'); link.download = 'neon-void-screenshot.png'; link.href = canvas.toDataURL(); link.click();
                 }
             }
         });
@@ -9507,7 +9507,7 @@ state.paused = true; ui.lvlScreen.classList.remove('hidden'); ui.perkContainer.i
                 if (key.startsWith('neonVoid')) data[key] = localStorage.getItem(key);
             }
             let blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            let a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'last-pilot-save.json'; a.click();
+            let a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'neon-void-save.json'; a.click();
             URL.revokeObjectURL(a.href);
         }
 
@@ -11509,7 +11509,7 @@ function generateSyncCode() {
 
             ui.mainOverlay.classList.remove('hidden');
             ui.mainOverlay.classList.remove('win-theme');
-            ui.mainTitle.innerText = "LAST PILOT";
+            ui.mainTitle.innerText = "NEON VOID";
             ui.mainTitle.style.webkitTextStroke = "3px #ff0055";
             ui.mainTitle.style.textShadow = "0 0 50px #ff0055";
             ui.mainDesc.innerHTML = `<strong>ARROW KEYS / WASD</strong> to Move | <strong>SPACE / MOUSE</strong> to Shoot<br><strong>SHIFT / RIGHT-CLICK</strong> to Dash | <strong>[C]</strong> to Toggle Aim | <strong>[ESC]</strong> to Pause<br><span style="color: #ff0055; font-weight:bold;">THE ULTIMATE UPDATE</span>` + (isWeekendEvent() ? '<br><span style="color:#ffcc00;font-weight:bold;font-size:16px;text-shadow:0 0 10px #ffcc00;">WEEKEND EVENT: 2x XP + 2x COINS</span>' : '');
@@ -11986,9 +11986,9 @@ function generateSyncCode() {
                 <!-- SCROLLABLE BODY -->
                 <div class="nv-body-scroll">
 
-                    <!-- LAST PILOT TITLE -->
+                    <!-- NEON VOID TITLE -->
                     <div class="nv-title-section">
-                        <div class="nv-title-logo">LAST PILOT</div>
+                        <div class="nv-title-logo">NEON VOID</div>
                     </div>
 
                     <!-- SHIP ICON -->
@@ -13943,7 +13943,8 @@ if(mp.grappleHook){let gh=mp.grappleHook;mx.strokeStyle=COLORS.neon;mx.lineWidth
     <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw.js').catch(() => {});
+            // Relative path: the site is served from /neon-void/ on GitHub Pages, not the domain root
+            navigator.serviceWorker.register('sw.js').catch(() => {});
         });
     }
     </script>
@@ -15003,7 +15004,7 @@ function playTensionNote(){
 
 // ---- FEATURE 85: CINEMATIC INTROS ----
 var cinematicActive=false;
-var CINEMATIC_LORE=['The Void stirs. Ancient machines wake.','Signal received from Sector 7-Gamma:\n"We are not alone."','LAST PILOT PROTOCOL ENGAGED...\nYou are all that remains.','Year 2387. The last fleet launched. One returned.','WARNING: Void anomaly detected.\nAll non-essential personnel evacuate.'];
+var CINEMATIC_LORE=['The Void stirs. Ancient machines wake.','Signal received from Sector 7-Gamma:\n"We are not alone."','NEON VOID SYSTEM BOOT...\nAll pilots: scramble.','Year 2387. The last fleet launches.','WARNING: Void anomaly detected.\nAll non-essential personnel evacuate.'];
 function playBootCinematic(onDone){
   if(cinematicActive){if(onDone)onDone();return;}cinematicActive=true;
   var cvs=document.createElement('canvas');cvs.style.cssText='position:fixed;inset:0;width:100%;height:100%;z-index:99999;background:#000;';cvs.width=window.innerWidth;cvs.height=window.innerHeight;document.body.appendChild(cvs);

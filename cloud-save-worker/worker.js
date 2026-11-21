@@ -1,4 +1,4 @@
-// Last Pilot Cloud Save API - Cloudflare Worker
+// Neon Void Cloud Save API - Cloudflare Worker
 // Saves are stored in KV keyed by SHA-256(username:password) for password accounts
 // or by the uppercase username for password-less accounts. Writes are protected by a
 // trust-on-first-write `_authToken`: the first save claims the key, later saves must
@@ -107,7 +107,7 @@ export default {
 
       // Health check
       if (path === '/' || path === '/health') {
-        return json({ status: 'ok', service: 'last-pilot-saves' }, 200, corsHeaders);
+        return json({ status: 'ok', service: 'neon-void-saves' }, 200, corsHeaders);
       }
 
       return json({ error: 'Not found' }, 404, corsHeaders);

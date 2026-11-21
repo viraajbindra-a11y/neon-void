@@ -1,14 +1,14 @@
-const CACHE_NAME = 'neon-void-v74';
-// Precache ONLY the Last Pilot game's own assets. The Void Arcade portal and its
-// mini-games are a separate product; they are still served and runtime-cached on
-// first visit (see fetch handler) but no longer bloat the game's install.
+const CACHE_NAME = 'neon-void-v75';
+// Precache ONLY the game's own assets. The Void Arcade portal and its mini-games
+// are still served and runtime-cached on first visit (see fetch handler).
+// Paths are relative to this file so they resolve under /neon-void/ on GitHub Pages.
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/og.html',
-  '/manifest.json',
-  '/icon-512.png',
-  '/apple-touch-icon.png'
+  './',
+  './index.html',
+  './og.html',
+  './manifest.json',
+  './icon-512.png',
+  './apple-touch-icon.png'
 ];
 
 // Install: precache core assets resiliently (one 404 must not abort the whole install)
