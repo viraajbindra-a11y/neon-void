@@ -1,4 +1,4 @@
-const CACHE_NAME = 'neon-void-v75';
+const CACHE_NAME = 'neon-void-v76';
 // Precache ONLY the game's own assets. The Void Arcade portal and its mini-games
 // are still served and runtime-cached on first visit (see fetch handler).
 // Paths are relative to this file so they resolve under /neon-void/ on GitHub Pages.
